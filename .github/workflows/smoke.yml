@@ -1,0 +1,29 @@
+name: Smoke test (servidor real)
+on: [push, workflow_dispatch]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x gradlew
+      - name: Preparar servidor
+        run: |
+          mkdir -p run
+          echo "eula=true" > run/eula.txt
+          printf "level-seed=12345\nview-distance=4\nsimulation-distance=4\nonline-mode=false\nspawn-protection=0\n" > run/server.properties
+      - name: Correr servidor con la prueba de humo
+        shell: bash
+        env:
+          BLOODMOON_SMOKETEST: "1"
+        run: |
+          timeout 1200 ./gradlew runServer --no-daemon > server.log 2>&1 || true
+          grep -E "SMOKETEST" server.log | sed 's/^/::notice::/' || true
+          grep -E "Exception|ERROR\]|Error loading|Failed to" server.log | grep -v "SMOKETEST" | head -40 | sed 's/^/::warning::/' || true
+          grep -q "SMOKETEST PASS" server.log || { tail -60 server.log | sed 's/^/::error::/'; exit 1; }
