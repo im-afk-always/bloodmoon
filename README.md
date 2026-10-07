@@ -1,4 +1,4 @@
-# Blood Moon — NeoForge 1.21.1 (v7)
+# Blood Moon — NeoForge 1.21.1 (v8)
 
 ## Lunas
 | Luna | Frecuencia (default) | Visual |
@@ -6,7 +6,7 @@
 | Luna de Sangre | cada 3 noches | Luna vanilla teñida de rojo, cielo negro sin estrellas |
 | Súper Luna de Sangre | cada 13 noches | Rojo más intenso, horizonte sangriento |
 | Luna Dorada | cada 7 noches | Luna vanilla dorada, cielo oscuro con brillo dorado (sin efectos de juego) |
-| Noche sin Luna | cada 50 noches | La noche cae lento hasta negro total; una ruptura nace en el cenit, se propaga a los horizontes y se abre en una grieta; dentro, un ojo púrpura de pupila felina que frunce la mirada. A medianoche desciende el **Emisario Desconocido** o **El Ejecutor** (al azar) |
+| Noche sin Luna | cada 50 noches | La noche cae lento hasta negro total; una ruptura nace en el cenit, se propaga a los horizontes y se abre en una grieta; dentro, un ojo púrpura de pupila felina que frunce la mirada. A medianoche desciende al azar el **Emisario Desconocido**, **El Ejecutor** o el **Dragón de la Primera Alma** |
 
 Prioridad si coinciden: Sin Luna > Súper > Sangre > Dorada.
 
@@ -37,6 +37,14 @@ Caballero colosal con un mazo. 480 de vida.
 - **Salto** con cráter al caer.
 - **Juicio Final** (especial): alza el mazo, la cabeza brilla, oscuridad total; 3,5 s después explosión de potencia 60 (x20 creeper). Rompe bloques aunque mobGriefing esté desactivado.
 
+## Dragón de la Primera Alma (Noche sin Luna, medianoche)
+Dragón esquelético de huesos negros con el alma encendida dentro del costillar. ~10 veces el Ender Dragon
+(~180 bloques de envergadura; `dragonScale` en la config). 1500 de vida, hitboxes por parte (cabeza x1,5 de daño; cola y alas x0,5).
+- **En vuelo**: da vueltas sobre su presa y suelta **cargas de fuego púrpura** que explotan como x3 (60 %), x5 (30 %) o x10 (10 %) un creeper; en fase 2 (50 % de vida) suben las grandes. Respetan mobGriefing y calcinan el suelo.
+- **Picada y aterrizaje** sobre las garras de las alas: dos cráteres + onda de choque.
+- **En tierra**: **Incineración** (chorro de fuego púrpura desde las fauces, Quemadura astral, suelo calcinado) y **Garra del Ala** (cráter donde golpea).
+- Despega y repite. Al amanecer vuelve a la grieta. Botín: siempre una pieza del Set del Vacío (si lo mata un jugador), 50 % Compás, fragmentos de eco, chatarra de netherita.
+
 ## Quemadura astral
 Llamas púrpuras: 2 de daño por segundo (el doble que el fuego), atraviesa armadura y Resistencia al fuego. El agua la apaga.
 
@@ -55,6 +63,7 @@ Ruina colosal (≈100 bloques de diámetro, 30 de alto) de piedra negra con llam
 - `/bloodmoon summon rider`
 - `/bloodmoon summon emissary`
 - `/bloodmoon summon executioner`
+- `/bloodmoon summon dragon`
 - `/summon bloodmoon:cursed_creeper`
 
 ## Configuración
