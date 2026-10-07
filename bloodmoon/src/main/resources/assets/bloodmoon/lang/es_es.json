@@ -1,0 +1,11 @@
+{
+  "bloodmoon.message.start": "☾ La Luna de Sangre se alza... los muertos están inquietos.",
+  "bloodmoon.message.end": "La Luna de Sangre se desvanece con el amanecer.",
+  "bloodmoon.command.force.tonight": "La Luna de Sangre se alzará esta noche.",
+  "bloodmoon.command.force.tomorrow": "La Luna de Sangre se alzará la próxima noche.",
+  "bloodmoon.command.cancel.ok": "Luna de Sangre forzada cancelada.",
+  "bloodmoon.command.cancel.none": "No había ninguna Luna de Sangre forzada.",
+  "bloodmoon.command.status.active": "La Luna de Sangre está activa ahora.",
+  "bloodmoon.command.status.forced": "Hay una Luna de Sangre forzada para la noche entrante.",
+  "bloodmoon.command.status.next": "Próxima Luna de Sangre en %s día(s) (0 = esta noche)."
+}

@@ -1,0 +1,11 @@
+{
+  "bloodmoon.message.start": "☾ The Blood Moon rises... the dead are restless.",
+  "bloodmoon.message.end": "The Blood Moon fades with the dawn.",
+  "bloodmoon.command.force.tonight": "The Blood Moon will rise tonight.",
+  "bloodmoon.command.force.tomorrow": "The Blood Moon will rise next night.",
+  "bloodmoon.command.cancel.ok": "Forced Blood Moon cancelled.",
+  "bloodmoon.command.cancel.none": "No Blood Moon was forced.",
+  "bloodmoon.command.status.active": "The Blood Moon is active right now.",
+  "bloodmoon.command.status.forced": "A Blood Moon is forced for the upcoming night.",
+  "bloodmoon.command.status.next": "Next Blood Moon in %s day(s) (0 = tonight)."
+}
