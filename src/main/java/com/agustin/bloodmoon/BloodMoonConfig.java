@@ -24,6 +24,8 @@ public final class BloodMoonConfig {
     public static final ModConfigSpec.DoubleValue SPECIAL_GEAR_DROP_CHANCE;
     public static final ModConfigSpec.DoubleValue JUDGMENT_POWER;
     public static final ModConfigSpec.DoubleValue MAUL_SPECIAL_POWER;
+    public static final ModConfigSpec.DoubleValue DRAGON_SCALE;
+    public static final ModConfigSpec.DoubleValue DRAGON_CHARGE_POWER;
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
@@ -63,6 +65,14 @@ public final class BloodMoonConfig {
                 .defineInRange("executionerJudgmentPower", 60.0, 0.0, 120.0);
         MAUL_SPECIAL_POWER = b.comment("Potencia de la explosión del golpe especial del Mazo del Ejecutor (jugador). 0 = sin explosión.")
                 .defineInRange("maulSpecialPower", 6.0, 0.0, 60.0);
+        b.pop();
+
+        b.push("firstSoulDragon");
+        DRAGON_SCALE = b.comment("Tamaño del Dragón de la Primera Alma respecto al Ender Dragon (10 = ~180 bloques de envergadura).",
+                        "Afecta modelo, hitboxes y alcance de sus ataques. Se aplica a dragones nuevos.")
+                .defineInRange("dragonScale", 10.0, 1.0, 12.0);
+        DRAGON_CHARGE_POWER = b.comment("Multiplicador de las cargas de fuego púrpura (1 = x3/x5/x10 la de un creeper). 0 = no rompen bloques ni dañan.")
+                .defineInRange("dragonChargePowerMultiplier", 1.0, 0.0, 3.0);
         b.pop();
 
         SPEC = b.build();

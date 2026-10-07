@@ -47,12 +47,30 @@ public final class ModEntities {
                     .clientTrackingRange(16)
                     .build("executioner"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<FirstSoulDragon>> FIRST_SOUL_DRAGON =
+            ENTITIES.register("first_soul_dragon", () -> EntityType.Builder
+                    .<FirstSoulDragon>of(FirstSoulDragon::new, MobCategory.MONSTER)
+                    .sized(15.0F, 21.0F)
+                    .fireImmune()
+                    .clientTrackingRange(24)
+                    .updateInterval(2)
+                    .build("first_soul_dragon"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<SoulCharge>> SOUL_CHARGE =
+            ENTITIES.register("soul_charge", () -> EntityType.Builder
+                    .<SoulCharge>of(SoulCharge::new, MobCategory.MISC)
+                    .sized(1.5F, 1.5F)
+                    .clientTrackingRange(24)
+                    .updateInterval(1)
+                    .build("soul_charge"));
+
     private ModEntities() {}
 
     public static void registerAttributes(EntityAttributeCreationEvent event) {
         event.put(CURSED_CREEPER.get(), Creeper.createAttributes().build());
         event.put(UNKNOWN_EMISSARY.get(), UnknownEmissary.createAttributes().build());
         event.put(EXECUTIONER.get(), Executioner.createAttributes().build());
+        event.put(FIRST_SOUL_DRAGON.get(), FirstSoulDragon.createAttributes().build());
         event.put(APOCALYPSE_RIDER.get(), AbstractSkeleton.createAttributes()
                 .add(Attributes.MAX_HEALTH, 80.0)
                 .add(Attributes.SCALE, 2.0)

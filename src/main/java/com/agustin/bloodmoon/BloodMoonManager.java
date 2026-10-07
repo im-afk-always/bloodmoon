@@ -1,5 +1,7 @@
 package com.agustin.bloodmoon;
 
+import net.minecraft.world.phys.Vec3;
+import com.agustin.bloodmoon.entity.FirstSoulDragon;
 import com.agustin.bloodmoon.entity.ApocalypseRider;
 import com.agustin.bloodmoon.entity.CursedCreeper;
 import com.agustin.bloodmoon.entity.ModEntities;
@@ -284,6 +286,10 @@ public final class BloodMoonManager {
         emissarySpawned = true;
 
         ServerPlayer chosen = players.get(level.random.nextInt(players.size()));
+        if (level.random.nextInt(3) == 0) {   // el tercer jefe de la brecha
+            spawnSoulDragon(level, chosen.position(), true);
+            return;
+        }
         BlockPos pos = findEmissarySpot(level, chosen, level.random);
         if (pos == null) {
             BloodMoonMod.LOGGER.info("No room to spawn a void knight near {}", chosen.getName().getString());
@@ -319,6 +325,28 @@ public final class BloodMoonManager {
             player.playNotifySound(SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 1F, 0.5F);
         }
         return knight;
+    }
+
+    /** El Dragón de la Primera Alma desciende de la grieta, muy por encima del punto dado. */
+    public static FirstSoulDragon spawnSoulDragon(ServerLevel level, Vec3 near, boolean boundToNight) {
+        FirstSoulDragon dragon = ModEntities.FIRST_SOUL_DRAGON.get().create(level);
+        if (dragon == null) return null;
+        double u = 0.15 * BloodMoonConfig.DRAGON_SCALE.get();
+        double angle = level.random.nextDouble() * Math.PI * 2;
+        double x = near.x + Math.cos(angle) * 60 * u, z = near.z + Math.sin(angle) * 60 * u;
+        double y = Math.min(level.getMaxBuildHeight() + 60, near.y + 110 * u);
+        dragon.moveTo(x, y, z, (float) (Math.toDegrees(Math.atan2(near.z - z, near.x - x)) - 90), 0F);
+        if (boundToNight) dragon.bindToNight();
+        dragon.startDescent(near);
+        level.addFreshEntity(dragon);
+
+        Component msg = Component.translatable("bloodmoon.message.dragon").withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD);
+        for (ServerPlayer player : level.players()) {
+            player.sendSystemMessage(msg);
+            player.playNotifySound(SoundEvents.ENDER_DRAGON_GROWL, SoundSource.HOSTILE, 1F, 0.3F);
+            player.playNotifySound(SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 0.8F, 0.4F);
+        }
+        return dragon;
     }
 
     /** Superficie a 28-40 bloques con un hueco de 3x3x13 para el gigante. */

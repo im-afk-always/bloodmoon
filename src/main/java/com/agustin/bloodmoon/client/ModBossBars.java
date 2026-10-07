@@ -1,6 +1,7 @@
 package com.agustin.bloodmoon.client;
 
 import com.agustin.bloodmoon.entity.Executioner;
+import com.agustin.bloodmoon.entity.FirstSoulDragon;
 import com.agustin.bloodmoon.entity.UnknownEmissary;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -25,6 +26,7 @@ public final class ModBossBars {
     private static final Map<String, Style> STYLES = Map.of(
             UnknownEmissary.NAME_KEY, new Style(true, 0x3C096C, 0xC77DFF, 0x5A189A, 0x9D4EDD),
             Executioner.NAME_KEY, new Style(true, 0x5C0A3C, 0xFF5CC8, 0x7A1450, 0xD94C9A),
+            FirstSoulDragon.NAME_KEY, new Style(true, 0x14002E, 0xB98CFF, 0x2A0A4A, 0xE0AAFF),
             "entity.bloodmoon.cursed_creeper", new Style(false, 0x6A040F, 0xE5383B, 0x5A0A0A, 0xA4161A),
             "entity.bloodmoon.apocalypse_rider", new Style(false, 0x2B2B2B, 0xB0B0B0, 0x3A3A3A, 0x6E6E6E));
 

@@ -227,6 +227,7 @@ public abstract class VoidKnight extends Monster {
         AABB box = getBoundingBox().inflate(radius, 4, radius);
         return level().getEntitiesOfClass(LivingEntity.class, box,
                 e -> e != this && e.isAlive() && !(e instanceof WitherSkeleton) && !(e instanceof VoidKnight)
+                        && !(e instanceof FirstSoulDragon)
                         && !(e instanceof Player p && (p.isCreative() || p.isSpectator())));
     }
 
@@ -312,7 +313,8 @@ public abstract class VoidKnight extends Monster {
 
     @Override
     public boolean canAttack(LivingEntity target) {
-        return !(target instanceof WitherSkeleton) && !(target instanceof VoidKnight) && super.canAttack(target);
+        return !(target instanceof WitherSkeleton) && !(target instanceof VoidKnight) && !(target instanceof FirstSoulDragon)
+                && super.canAttack(target);
     }
 
     @Override

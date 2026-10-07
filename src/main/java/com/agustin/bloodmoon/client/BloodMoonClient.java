@@ -59,11 +59,14 @@ public class BloodMoonClient {
         event.registerEntityRenderer(ModEntities.APOCALYPSE_RIDER.get(), WitherSkeletonRenderer::new);
         event.registerEntityRenderer(ModEntities.UNKNOWN_EMISSARY.get(), EmissaryRenderer::new);
         event.registerEntityRenderer(ModEntities.EXECUTIONER.get(), ExecutionerRenderer::new);
+        event.registerEntityRenderer(ModEntities.FIRST_SOUL_DRAGON.get(), FirstSoulDragonRenderer::new);
+        event.registerEntityRenderer(ModEntities.SOUL_CHARGE.get(), SoulChargeRenderer::new);
     }
 
     private static void onRegisterLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
         event.registerLayerDefinition(EmissaryModel.LAYER, EmissaryModel::createBodyLayer);
         event.registerLayerDefinition(ExecutionerModel.LAYER, ExecutionerModel::createBodyLayer);
+        event.registerLayerDefinition(FirstSoulDragonModel.LAYER, FirstSoulDragonModel::createBodyLayer);
     }
 
     /** Capa emisiva del Set del Vacío en jugadores y soportes de armadura. */

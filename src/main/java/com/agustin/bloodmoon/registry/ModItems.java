@@ -43,6 +43,8 @@ public final class ModItems {
             () -> new DeferredSpawnEggItem(ModEntities.UNKNOWN_EMISSARY, 0x14101A, 0xB040FF, new Item.Properties()));
     public static final DeferredItem<DeferredSpawnEggItem> EXECUTIONER_SPAWN_EGG = ITEMS.register("executioner_spawn_egg",
             () -> new DeferredSpawnEggItem(ModEntities.EXECUTIONER, 0x1A1416, 0xE040A0, new Item.Properties()));
+    public static final DeferredItem<DeferredSpawnEggItem> FIRST_SOUL_DRAGON_SPAWN_EGG = ITEMS.register("first_soul_dragon_spawn_egg",
+            () -> new DeferredSpawnEggItem(ModEntities.FIRST_SOUL_DRAGON, 0x0E0A12, 0x9D4EDD, new Item.Properties()));
     public static final DeferredItem<DeferredSpawnEggItem> CURSED_CREEPER_SPAWN_EGG = ITEMS.register("cursed_creeper_spawn_egg",
             () -> new DeferredSpawnEggItem(ModEntities.CURSED_CREEPER, 0x0DA70B, 0xD01818, new Item.Properties()));
 
@@ -68,6 +70,7 @@ public final class ModItems {
         } else if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) {
             event.accept(EMISSARY_SPAWN_EGG);
             event.accept(EXECUTIONER_SPAWN_EGG);
+            event.accept(FIRST_SOUL_DRAGON_SPAWN_EGG);
             event.accept(CURSED_CREEPER_SPAWN_EGG);
         }
     }

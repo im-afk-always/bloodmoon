@@ -45,5 +45,10 @@
   "item.bloodmoon.cursed_creeper_spawn_egg": "Cursed Creeper Spawn Egg",
   "effect.bloodmoon.astral_burn": "Astral Burn",
   "death.attack.bloodmoon.astral_burn": "%1$s was consumed by astral flames",
-  "death.attack.bloodmoon.astral_burn.player": "%1$s was consumed by astral flames while fighting %2$s"
+  "death.attack.bloodmoon.astral_burn.player": "%1$s was consumed by astral flames while fighting %2$s",
+  "entity.bloodmoon.first_soul_dragon": "Dragon of the First Soul",
+  "entity.bloodmoon.soul_charge": "Soul Charge",
+  "item.bloodmoon.first_soul_dragon_spawn_egg": "Dragon of the First Soul Spawn Egg",
+  "bloodmoon.message.dragon": "☾ A roar splits the sky... the Dragon of the First Soul descends from the rift.",
+  "bloodmoon.command.summon.dragon": "The Dragon of the First Soul descends upon you."
 }

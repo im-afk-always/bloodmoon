@@ -18,8 +18,6 @@ public final class VoidImpact {
 
     public static void crater(ServerLevel level, Vec3 at, float craterRadius, float scorchRadius, boolean griefing) {
         BlockPos center = groundBelow(level, BlockPos.containing(at));
-        int r = Mth.ceil(scorchRadius);
-
         if (griefing) {
             int cr = Mth.ceil(craterRadius);
             for (BlockPos p : BlockPos.betweenClosed(center.offset(-cr, -cr, -cr), center.offset(cr, cr, cr))) {
@@ -28,23 +26,34 @@ public final class VoidImpact {
                     level.setBlock(p, Blocks.AIR.defaultBlockState(), 3);
                 }
             }
-            for (int dx = -r; dx <= r; dx++) {
-                for (int dz = -r; dz <= r; dz++) {
-                    double d = Math.sqrt(dx * dx + dz * dz);
-                    if (d > scorchRadius || level.random.nextFloat() < d / scorchRadius * 0.35F) continue;
-                    BlockPos top = surface(level, center.offset(dx, 0, dz), r + 2);
-                    if (top == null || !breakable(level, top)) continue;
-                    level.setBlock(top, ModBlocks.VOID_STONE.get().defaultBlockState(), 3);
-                    BlockPos above = top.above();
-                    if (level.getBlockState(above).isAir() && level.random.nextFloat() < 0.4F) {
-                        level.setBlock(above, ModBlocks.ASTRAL_FIRE.get().defaultBlockState().setValue(AstralFireBlock.ETERNAL, false), 3);
-                    }
-                }
-            }
+            scorchAround(level, center, scorchRadius);
         }
         level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, at.x, at.y + 0.5, at.z, 1, 0, 0, 0, 0);
         level.sendParticles(ParticleTypes.WITCH, at.x, at.y + 1, at.z, 120, scorchRadius * 0.6, 1.0, scorchRadius * 0.6, 0.2);
         level.sendParticles(ParticleTypes.LARGE_SMOKE, at.x, at.y + 1, at.z, 60, scorchRadius * 0.5, 1.0, scorchRadius * 0.5, 0.05);
+    }
+
+    /** Calcina el suelo (Piedra del Vacío + llamas astrales) sin abrir cráter ni grandes partículas. */
+    public static void scorch(ServerLevel level, Vec3 at, float radius, boolean griefing) {
+        if (!griefing || radius <= 0) return;
+        scorchAround(level, groundBelow(level, BlockPos.containing(at)), radius);
+    }
+
+    private static void scorchAround(ServerLevel level, BlockPos center, float scorchRadius) {
+        int r = Mth.ceil(scorchRadius);
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                double d = Math.sqrt(dx * dx + dz * dz);
+                if (d > scorchRadius || level.random.nextFloat() < d / scorchRadius * 0.35F) continue;
+                BlockPos top = surface(level, center.offset(dx, 0, dz), r + 2);
+                if (top == null || !breakable(level, top)) continue;
+                level.setBlock(top, ModBlocks.VOID_STONE.get().defaultBlockState(), 3);
+                BlockPos above = top.above();
+                if (level.getBlockState(above).isAir() && level.random.nextFloat() < 0.4F) {
+                    level.setBlock(above, ModBlocks.ASTRAL_FIRE.get().defaultBlockState().setValue(AstralFireBlock.ETERNAL, false), 3);
+                }
+            }
+        }
     }
 
     private static boolean breakable(ServerLevel level, BlockPos pos) {
