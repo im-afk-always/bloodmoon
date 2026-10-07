@@ -27,11 +27,11 @@ import java.util.List;
 
 /**
  * Supernova del Dragón de la Primera Alma (cliente):
- *  0-100   el dragón asciende y una luz violeta nace de su alma y crece
- *  60-104  la luz se vuelve blanca y se expande; el cielo se aclara
- *  104-125 colapsa en un punto, todo se oscurece y la luz es absorbida (sonido de carga)
- *  125     ESTALLIDO: destello blanco enceguecedor, esfera de luz gigante, anillo de choque,
- *          hongo de fuego, temblor y estruendo (con retardo por distancia)
+ *  0-80    el dragón asciende y una luz violeta nace de su alma
+ *  80-240  la luz se vuelve blanca, enceguecedora, y se expande muchísimo (8 s)
+ *  240-320 se contrae hasta un punto; todo se oscurece salvo esa luz; latidos y la luz absorbida (4 s)
+ *  320     ESTALLIDO: destello blanco total, esfera de luz gigante, anillo de choque,
+ *          hongo de fuego, sacudida fuerte y estruendo (con retardo por distancia)
  */
 public final class SupernovaFx {
     private static final List<Nova> NOVAS = new ArrayList<>();
@@ -46,7 +46,8 @@ public final class SupernovaFx {
         final double x, y, z, groundY;
         final float scale, k;
         float age;
-        boolean chargePlayed, blastPlayed, detonated;
+        boolean chargePlayed, blastPlayed, detonated, humPlayed;
+        int nextBeat = C;
 
         Nova(SupernovaPayload p) {
             this.x = p.x(); this.y = p.y(); this.z = p.z(); this.groundY = p.groundY();
@@ -61,11 +62,12 @@ public final class SupernovaFx {
         /** Radio de la luz del alma antes del estallido. */
         float coreSize(float a) {
             float s;
-            if (a < 60) s = Mth.lerp(a / 60F, 1.5F, 6F);
-            else if (a < C) s = Mth.lerp(smooth((a - 60) / (C - 60F)), 6F, 16F);
+            if (a < R) s = Mth.lerp(a / R, 1.5F, 8F);
+            else if (a < C) s = Mth.lerp(smooth((a - R) / (float) (C - R)), 8F, 60F);
             else {
-                float t = 1F - smooth((a - C) / (float) (D - C));
-                s = 16F * t * t + 0.3F;
+                float t = (a - C) / (float) (D - C);
+                float shrink = 1F - t * t * (3F - 2F * t);
+                s = 60F * shrink * shrink + 0.35F;
             }
             return s * k;
         }
@@ -113,7 +115,7 @@ public final class SupernovaFx {
         ClientLevel level = mc.level;
         Player player = mc.player;
         if (level == null) return;
-        NOVAS.removeIf(n -> n.age > D + 260);
+        NOVAS.removeIf(n -> n.age > D + 300);
         for (Nova n : NOVAS) {
             n.age++;
             float a = n.age;
@@ -128,14 +130,25 @@ public final class SupernovaFx {
                             dir.x * 0.6 * n.k, dir.y * 0.6 * n.k, dir.z * 0.6 * n.k);
                 }
             } else if (a < D) {
-                for (int i = 0; i < 14; i++) {
+                for (int i = 0; i < 18; i++) {
                     Vec3 dir = randomDir(level);
-                    double r = 30 * n.k;
+                    double r = 70 * n.k;
                     level.addAlwaysVisibleParticle(ParticleTypes.END_ROD, true, core.x + dir.x * r, core.y + dir.y * r, core.z + dir.z * r,
-                            -dir.x * r / 12, -dir.y * r / 12, -dir.z * r / 12);
+                            -dir.x * r / 18, -dir.y * r / 18, -dir.z * r / 18);
                 }
             }
-            if (!n.chargePlayed && a >= C - 4 && player != null) {
+            if (!n.humPlayed && a >= R && player != null) {
+                n.humPlayed = true;
+                playAtPlayer(SoundEvents.BEACON_ACTIVATE, volume(dist, 1.5F), 0.5F);
+                playAtPlayer(SoundEvents.ENDER_DRAGON_GROWL, volume(dist, 1.2F), 0.35F);
+            }
+            // latidos cada vez más rápidos mientras la luz se contrae
+            if (a >= n.nextBeat && a < D - 10 && player != null) {
+                float p = (a - C) / (float) (D - C);
+                playAtPlayer(SoundEvents.WARDEN_HEARTBEAT, volume(dist, 1.6F), 0.55F + 0.3F * p);
+                n.nextBeat = (int) a + Math.max(5, (int) (22 - 17 * p));
+            }
+            if (!n.chargePlayed && a >= D - 28 && player != null) {
                 n.chargePlayed = true;
                 playAtPlayer(ModSounds.SUPERNOVA_CHARGE.get(), volume(dist, 1.5F), 1F);
             }
@@ -151,7 +164,7 @@ public final class SupernovaFx {
                     level.addAlwaysVisibleParticle(ParticleTypes.END_ROD, true, core.x, core.y, core.z, dir.x * sp, dir.y * sp, dir.z * sp);
                 }
             }
-            if (!n.blastPlayed && a >= D + dist / 34.0 && player != null) {
+            if (!n.blastPlayed && a >= D + dist / SupernovaPayload.SHOCK_SPEED && player != null) {
                 n.blastPlayed = true;
                 float v = volume(dist, 4F);
                 playAtPlayer(ModSounds.SUPERNOVA_BLAST.get(), Math.max(v, 0.6F), 1F);
@@ -183,7 +196,7 @@ public final class SupernovaFx {
         return (float) Mth.clamp(700.0 * n.k / (d + 1.0), 0.0, 1.0);
     }
 
-    /** Blanco que cubre la pantalla (0..1) y oscurecimiento durante el colapso. */
+    /** Blanco que cubre la pantalla, oscuridad del colapso (0..1) y la nova que manda la oscuridad. */
     private static float[] screen(float pt) {
         Camera cam = Minecraft.getInstance().gameRenderer.getMainCamera();
         Vec3 eye = cam.getPosition();
@@ -193,26 +206,78 @@ public final class SupernovaFx {
             float a = n.age + pt;
             float prox = proximity(n, eye, a);
             Vec3 to = n.core(a).subtract(eye).normalize();
-            float facing = 0.55F + 0.45F * (float) Math.max(0, look.dot(to));
+            float facing = 0.5F + 0.5F * (float) Math.max(0, look.dot(to));
             if (a < C) {
-                white += 0.22F * smooth((a - 50) / (C - 50F)) * prox * facing;
+                float glare = 0.78F * smooth((a - 40) / (C - 40F)) * (0.93F + 0.07F * Mth.sin(a * 1.3F));
+                white += glare * prox * facing;
             } else if (a < D) {
-                dark += 0.35F * smooth((a - C) / (float) (D - C)) * prox;
+                float t = a - C;
+                white += 0.78F * (1F - smooth(t / 25F)) * prox * facing;
+                dark += 0.92F * smooth(t / 45F) * Math.max(prox, 0.5F);
             } else {
                 float t = a - D;
-                float w = t < 18 ? 1F : (float) Math.exp(-(t - 18) / 35.0);
-                white += w * Math.max(prox, 0.6F) * (t < 18 ? 1F : 0.75F + 0.25F * facing);
+                float w = t < 25 ? 1F : (float) Math.exp(-(t - 25) / 40.0);
+                white += w * Math.max(prox, 0.6F) * (t < 25 ? 1F : 0.75F + 0.25F * facing);
+                dark += 0.92F * (1F - smooth(t / 3F)) * Math.max(prox, 0.5F);
             }
         }
-        return new float[]{Math.min(1F, white), Math.min(0.6F, dark)};
+        return new float[]{Math.min(1F, white), Math.min(0.92F, dark)};
+    }
+
+    private static final net.minecraft.resources.ResourceLocation DARK_TEX = net.minecraft.resources.ResourceLocation
+            .fromNamespaceAndPath(com.agustin.bloodmoon.BloodMoonMod.MODID, "textures/misc/nova_dark.png");
+    private static final net.minecraft.resources.ResourceLocation LIGHT_TEX = net.minecraft.resources.ResourceLocation
+            .fromNamespaceAndPath(com.agustin.bloodmoon.BloodMoonMod.MODID, "textures/misc/nova_light.png");
+
+    /** Posición en pantalla (px) y px por bloque a esa distancia; null si está detrás de la cámara. */
+    private static float[] project(Vec3 p, int w, int h) {
+        Minecraft mc = Minecraft.getInstance();
+        Camera cam = mc.gameRenderer.getMainCamera();
+        Vec3 v = p.subtract(cam.getPosition());
+        org.joml.Vector3f look = cam.getLookVector(), up = cam.getUpVector(), left = cam.getLeftVector();
+        double z = v.x * look.x() + v.y * look.y() + v.z * look.z();
+        if (z < 0.5) return null;
+        double x = -(v.x * left.x() + v.y * left.y() + v.z * left.z()) / z;
+        double y = (v.x * up.x() + v.y * up.y() + v.z * up.z()) / z;
+        double tanHalf = Math.tan(Math.toRadians(mc.options.fov().get()) / 2.0);
+        double aspect = (double) w / h;
+        return new float[]{(float) (w / 2.0 + x / (tanHalf * aspect) * w / 2.0), (float) (h / 2.0 - y / tanHalf * h / 2.0),
+                (float) (h / 2.0 / (tanHalf * z))};
     }
 
     public static void renderOverlay(GuiGraphics g, DeltaTracker delta) {
         if (NOVAS.isEmpty()) return;
-        float[] s = screen(delta.getGameTimeDeltaPartialTick(false));
+        float pt = delta.getGameTimeDeltaPartialTick(false);
+        float[] s = screen(pt);
+        int w = g.guiWidth(), h = g.guiHeight();
         RenderSystem.enableBlend();
-        if (s[1] > 0.01F) g.fill(0, 0, g.guiWidth(), g.guiHeight(), ((int) (s[1] * 255) << 24) | 0x0A0414);
-        if (s[0] > 0.01F) g.fill(0, 0, g.guiWidth(), g.guiHeight(), ((int) (s[0] * 255) << 24) | 0xFFFCFF);
+        if (s[1] > 0.01F) {
+            // todo se oscurece salvo la luz que colapsa
+            Nova n = NOVAS.get(NOVAS.size() - 1);
+            float a = n.age + pt;
+            float[] p = a < D ? project(n.core(a), w, h) : null;
+            int alpha = (int) (s[1] * 255);
+            if (p == null) {
+                g.fill(0, 0, w, h, (alpha << 24) | 0x020006);
+            } else {
+                float lightPx = Math.max(3F, n.coreSize(a) * p[2]);
+                int hole = (int) Math.max(40F, lightPx * 5F);
+                int x0 = (int) p[0] - hole, y0 = (int) p[1] - hole, x1 = x0 + hole * 2, y1 = y0 + hole * 2;
+                int col = (alpha << 24) | 0x020006;
+                g.fill(0, 0, w, Math.max(0, y0), col);
+                g.fill(0, Math.min(h, y1), w, h, col);
+                g.fill(0, Math.max(0, y0), Math.max(0, x0), Math.min(h, y1), col);
+                g.fill(Math.min(w, x1), Math.max(0, y0), w, Math.min(h, y1), col);
+                g.setColor(1F, 1F, 1F, s[1]);
+                g.blit(DARK_TEX, x0, y0, hole * 2, hole * 2, 0, 0, 256, 256, 256, 256);
+                // la luz, por encima de la oscuridad
+                int lp = (int) (lightPx * 2.6F) + 6;
+                g.setColor(1F, 0.97F, 1F, 1F);
+                g.blit(LIGHT_TEX, (int) p[0] - lp, (int) p[1] - lp, lp * 2, lp * 2, 0, 0, 256, 256, 256, 256);
+                g.setColor(1F, 1F, 1F, 1F);
+            }
+        }
+        if (s[0] > 0.01F) g.fill(0, 0, w, h, ((int) (s[0] * 255) << 24) | 0xFFFCFF);
         RenderSystem.disableBlend();
     }
 
@@ -220,18 +285,27 @@ public final class SupernovaFx {
         if (NOVAS.isEmpty()) return;
         float pt = (float) event.getPartialTick();
         Vec3 eye = event.getCamera().getPosition();
-        float violet = 0F, white = 0F;
+        float violet = 0F, white = 0F, black = 0F;
         for (Nova n : NOVAS) {
             float a = n.age + pt;
-            float prox = proximity(n, eye, a);
-            if (a < D) violet += smooth(a / C) * 0.5F * prox * (1F - smooth((a - C) / (float) (D - C)));
-            else white += (float) Math.exp(-(a - D) / 60.0) * Math.max(prox, 0.5F);
+            float prox = Math.max(proximity(n, eye, a), 0.4F);
+            if (a < R) violet += smooth(a / R) * 0.5F * prox;
+            else if (a < C) {
+                violet += 0.5F * prox * (1F - smooth((a - R) / 40F));
+                white += 0.7F * smooth((a - R) / (float) (C - R)) * prox;
+            } else if (a < D) {
+                white += 0.7F * prox * (1F - smooth((a - C) / 20F));
+                black += smooth((a - C) / 40F) * prox;
+            } else white += (float) Math.exp(-(a - D) / 70.0) * prox;
         }
-        violet = Math.min(0.6F, violet);
-        white = Math.min(1F, white);
-        event.setRed(Mth.lerp(white, Mth.lerp(violet, event.getRed(), 0.7F), 1F));
-        event.setGreen(Mth.lerp(white, Mth.lerp(violet, event.getGreen(), 0.45F), 0.97F));
-        event.setBlue(Mth.lerp(white, Mth.lerp(violet, event.getBlue(), 1F), 1F));
+        float r = event.getRed(), g = event.getGreen(), b = event.getBlue();
+        violet = Math.min(0.6F, violet); white = Math.min(1F, white); black = Math.min(0.95F, black);
+        r = Mth.lerp(violet, r, 0.7F); g = Mth.lerp(violet, g, 0.45F); b = Mth.lerp(violet, b, 1F);
+        r = Mth.lerp(black, r, 0.01F); g = Mth.lerp(black, g, 0F); b = Mth.lerp(black, b, 0.03F);
+        r = Mth.lerp(white, r, 1F); g = Mth.lerp(white, g, 0.97F); b = Mth.lerp(white, b, 1F);
+        event.setRed(r);
+        event.setGreen(g);
+        event.setBlue(b);
     }
 
     public static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
@@ -242,13 +316,13 @@ public final class SupernovaFx {
         for (Nova n : NOVAS) {
             float a = n.age + pt;
             time = a;
-            if (a > C && a < D) shake += 0.25F * smooth((a - C) / (float) (D - C)); // vibra mientras colapsa
+            if (a > C && a < D) shake += 0.4F * smooth((a - C) / (float) (D - C)); // vibra mientras colapsa
             double d = Math.sqrt(eye.distanceToSqr(n.x, n.groundY, n.z));
-            float hit = a - D - (float) (d / 34.0);
-            if (hit >= 0) shake += (float) (6.0 * n.k / (1.0 + d / 120.0) * Math.exp(-hit / 40.0));
+            float hit = a - D - (float) (d / SupernovaPayload.SHOCK_SPEED);
+            if (hit >= 0) shake += (float) (11.0 * n.k / (1.0 + d / 160.0) * Math.exp(-hit / 70.0));
         }
         if (shake < 0.02F) return;
-        shake = Math.min(shake, 7F);
+        shake = Math.min(shake, 11F);
         event.setPitch(event.getPitch() + Mth.sin(time * 2.3F) * shake);
         event.setYaw(event.getYaw() + Mth.sin(time * 1.9F + 1F) * shake * 0.7F);
         event.setRoll(event.getRoll() + Mth.sin(time * 3.1F + 2F) * shake * 0.6F);
@@ -300,7 +374,7 @@ public final class SupernovaFx {
                 }
                 case SHELL -> {
                     float t = a - D;
-                    size = (10F + 260F * (1F - (float) Math.exp(-t / 6F))) * n.k * sizeK;
+                    size = (10F + 340F * (1F - (float) Math.exp(-t / 6F))) * n.k * sizeK;
                     alpha = (float) Math.exp(-t / (sizeK < 1F ? 12F : 28F));
                     g = Mth.lerp(Mth.clamp(t / 60F, 0F, 1F), 1F, 0.75F);
                 }

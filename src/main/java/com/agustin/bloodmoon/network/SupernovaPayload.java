@@ -26,7 +26,9 @@ public record SupernovaPayload(double x, double y, double z, double groundY, flo
             SupernovaPayload::new);
 
     /** Tiempos de la secuencia (ticks desde la muerte); el servidor y el cliente usan los mismos. */
-    public static final int RISE_END = 100, COLLAPSE_START = 104, DETONATE = 125;
+    public static final int RISE_END = 80, COLLAPSE_START = 240, DETONATE = 320;
+    /** Velocidad de la onda de choque (bloques por tick), para el empuje y el temblor. */
+    public static final double SHOCK_SPEED = 34;
     /** Ascenso por tick durante la secuencia. */
     public static final double RISE_SPEED = 0.3;
 

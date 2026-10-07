@@ -700,8 +700,10 @@ public class FirstSoulDragon extends Monster {
             if (isGrounded()) this.entityData.set(DATA_GROUNDED, false);
         }
         if (deathTime <= SupernovaPayload.RISE_END) setPos(getX(), getY() + SupernovaPayload.RISE_SPEED, getZ());
-        if (deathTime == SupernovaPayload.DETONATE) detonate(sl);
-        if (deathTime >= SupernovaPayload.DETONATE + 2) {
+        int sinceBlast = deathTime - SupernovaPayload.DETONATE;
+        if (sinceBlast == 0) detonate(sl);
+        if (sinceBlast >= 0 && sinceBlast <= SHOCK_TICKS) shockwave(sl, sinceBlast);
+        if (sinceBlast >= SHOCK_TICKS + 1) {
             lootReleased = true;
             if (pendingLoot != null) {
                 setPos(getX(), novaGround + 2, getZ());
@@ -711,21 +713,31 @@ public class FirstSoulDragon extends Monster {
         }
     }
 
+    private static final int SHOCK_TICKS = 7;
+
+    /** La onda avanza a SHOCK_SPEED bloques/tick y arroja todo lo que alcanza (también ítems y mobs). */
+    private void shockwave(ServerLevel sl, int t) {
+        double reach = SHOCK_TICKS * SupernovaPayload.SHOCK_SPEED;
+        double r0 = t * SupernovaPayload.SHOCK_SPEED, r1 = r0 + SupernovaPayload.SHOCK_SPEED;
+        Vec3 ground = new Vec3(getX(), novaGround, getZ());
+        for (Entity e : sl.getEntities(this, new AABB(ground, ground).inflate(r1, r1 * 0.7, r1))) {
+            if (e instanceof DragonPart || e instanceof Player p && (p.isCreative() || p.isSpectator())) continue;
+            Vec3 away = e.position().subtract(ground);
+            double d = away.length();
+            if (d < r0 || d >= r1) continue;
+            double k = Math.sqrt(Math.max(0, 1 - d / reach));
+            Vec3 flat = new Vec3(away.x, 0, away.z);
+            Vec3 dir = flat.lengthSqr() < 1e-4 ? new Vec3(1, 0, 0) : flat.normalize();
+            e.push(dir.x * 6 * k, 1.2 + 1.8 * k, dir.z * 6 * k);
+            e.hurtMarked = true;
+        }
+    }
+
     private void detonate(ServerLevel sl) {
         float s = getDragonScale();
         Vec3 ground = new Vec3(getX(), novaGround, getZ());
         // daño y empuje: la onda alcanza ~16·escala bloques (80 con tamaño 5)
         sl.explode(this, ground.x, ground.y + 1, ground.z, 8F * s, Level.ExplosionInteraction.NONE);
-        double reach = 30 * s;
-        for (LivingEntity e : sl.getEntitiesOfClass(LivingEntity.class, new AABB(ground, ground).inflate(reach), this::isEnemy)) {
-            Vec3 away = e.position().subtract(ground);
-            double d = away.length();
-            if (d > reach) continue;
-            double k = 1 - d / reach;
-            Vec3 push = away.normalize().scale(4 * k).add(0, 1.5 * k, 0);
-            e.push(push.x, push.y, push.z);
-            e.hurtMarked = true;
-        }
         int depth = BloodMoonConfig.SUPERNOVA_CRATER_DEPTH.get();
         if (depth > 0) SupernovaCrater.start(sl, BlockPos.containing(ground), depth);
     }
