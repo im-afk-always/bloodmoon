@@ -58,5 +58,6 @@
   "bloodmoon.command.locate.found": "Coliseo del Vacío más cercano: %s (a %s bloques)",
   "bloodmoon.command.locate.none": "No hay ningún Coliseo del Vacío cerca.",
   "biome.bloodmoon.void_ruins": "Ruinas del Vacío",
-  "dimension.bloodmoon.void_labyrinth": "Laberinto del Vacío"
+  "dimension.bloodmoon.void_labyrinth": "Laberinto del Vacío",
+  "bloodmoon.intro.text": "Nos encontraremos pronto"
 }

@@ -44,6 +44,11 @@ public final class BloodMoonCommand {
                         .then(Commands.literal("emissary").executes(ctx -> summonKnight(ctx, false)))
                         .then(Commands.literal("executioner").executes(ctx -> summonKnight(ctx, true)))
                         .then(Commands.literal("dragon").executes(BloodMoonCommand::summonDragon)))
+                .then(Commands.literal("intro").executes(ctx -> {
+                    net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(ctx.getSource().getPlayerOrException(),
+                            new com.agustin.bloodmoon.network.IntroPayload());
+                    return 1;
+                }))
                 .then(Commands.literal("locate").then(Commands.literal("coliseum").executes(BloodMoonCommand::locateColiseum))));
     }
 

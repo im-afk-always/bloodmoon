@@ -1,4 +1,9 @@
-# Blood Moon — NeoForge 1.21.1 (v9.1)
+# Blood Moon — NeoForge 1.21.1 (v9.2)
+
+## Al entrar por primera vez
+La pantalla se oscurece y un ojo púrpura se abre frente al jugador. Encima, un texto en el alfabeto de la mesa de
+encantamientos cambia de símbolo hasta fijarse letra por letra: **«Nos encontraremos pronto»**. El ojo se cierra y desaparece.
+Una vez por jugador y por mundo; `/bloodmoon intro` lo repite.
 
 ## Lunas
 | Luna | Frecuencia (default) | Visual |
@@ -80,6 +85,7 @@ Como supera el límite de 128 bloques de las estructuras de Minecraft, se genera
 - `/bloodmoon summon executioner`
 - `/bloodmoon summon dragon`
 - `/bloodmoon locate coliseum`
+- `/bloodmoon intro`
 - `/summon bloodmoon:cursed_creeper`
 
 ## Configuración

@@ -51,6 +51,7 @@ public class BloodMoonClient {
         NukeClouds.init();
         modBus.addListener(SupernovaFx::onRegisterProviders);
         SupernovaFx.init();
+        IntroEye.init();
 
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onFogColor);
@@ -95,6 +96,7 @@ public class BloodMoonClient {
         event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "nuke_flash"), NukeClouds::renderFlash);
         event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "supernova"), SupernovaFx::renderOverlay);
+        event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "intro_eye"), IntroEye::render);
     }
 
     /** La aguja del Compás usa la misma propiedad "angle" que la brújula vanilla. */
@@ -119,6 +121,7 @@ public class BloodMoonClient {
         ClientAstralState.tick();
         NukeClouds.tick();
         SupernovaFx.tick();
+        IntroEye.tick();
     }
 
     /** El color de niebla es también el del horizonte: oscuro con el tinte de cada luna. */
@@ -138,6 +141,7 @@ public class BloodMoonClient {
         ClientAstralState.reset();
         NukeClouds.reset();
         SupernovaFx.reset();
+        IntroEye.reset();
         TintedTextures.invalidate();
     }
 

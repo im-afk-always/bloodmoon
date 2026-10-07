@@ -378,8 +378,15 @@ public final class BloodMoonManager {
     public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             sync(player, player.level().dimension() == Level.OVERWORLD);
+            // la primera vez en este mundo: el ojo aparece y habla
+            if (!player.getPersistentData().getBoolean(INTRO_TAG)) {
+                player.getPersistentData().putBoolean(INTRO_TAG, true);
+                PacketDistributor.sendToPlayer(player, new com.agustin.bloodmoon.network.IntroPayload());
+            }
         }
     }
+
+    private static final String INTRO_TAG = "bloodmoon_intro_seen";
 
     public static void onPlayerChangeDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {

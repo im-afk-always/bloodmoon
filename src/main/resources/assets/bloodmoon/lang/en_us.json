@@ -58,5 +58,6 @@
   "bloodmoon.command.locate.found": "Nearest Void Coliseum: %s (%s blocks away)",
   "bloodmoon.command.locate.none": "There is no Void Coliseum nearby.",
   "biome.bloodmoon.void_ruins": "Void Ruins",
-  "dimension.bloodmoon.void_labyrinth": "Void Labyrinth"
+  "dimension.bloodmoon.void_labyrinth": "Void Labyrinth",
+  "bloodmoon.intro.text": "We will meet soon"
 }
