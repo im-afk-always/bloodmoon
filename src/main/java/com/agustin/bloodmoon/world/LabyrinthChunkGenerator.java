@@ -42,7 +42,7 @@ public class LabyrinthChunkGenerator extends ChunkGenerator {
         super(biomeSource);
     }
 
-    private LabyrinthDesign design(RandomState random) {
+    public LabyrinthDesign design(RandomState random) {
         long seed = random.getOrCreateRandomFactory(SEED_KEY).at(0, 0, 0).nextLong();
         LabyrinthDesign d = design;
         if (d == null || designSeed != seed) {

@@ -1,4 +1,4 @@
-# Blood Moon — NeoForge 1.21.1 (v8.4)
+# Blood Moon — NeoForge 1.21.1 (v9)
 
 ## Lunas
 | Luna | Frecuencia (default) | Visual |
@@ -54,8 +54,22 @@ Llamas púrpuras: 2 de daño por segundo (el doble que el fuego), atraviesa arma
 - **Espadón del Emisario** y **Mazo del Ejecutor**: armas grandes. El mazo tiene especial: mantené clic derecho 1,5 s y soltá (cráter + explosión, enfriamiento 30 s).
 - **Compás**: clic derecho en el Overworld para fijar el **Coliseo del Vacío** más cercano; la aguja apunta a él.
 
-## Coliseo del Vacío
-Ruina colosal (≈100 bloques de diámetro, 30 de alto) de piedra negra con llamas astrales eternas y un altar escalonado con un arco de obsidiana en la cima (futura entrada a la dimensión). `/locate structure bloodmoon:void_coliseum`.
+## Coliseo del Vacío (x5)
+Ruina colosal de **~500 bloques de diámetro y ~190 de alto**: arena con hipogeo (laberinto subterráneo donde se hundió el piso),
+zigurat de 8 niveles con escalinatas y el **marco del portal del Vacío** en la cima, 8 obeliscos, podio con puertas de gladiadores,
+gradas en tres sectores con pasillos, galerías abovedadas internas, fachada de 8 pisos con 144 arcos por piso, pilastras, cornisas,
+galería perimetral con fuego astral, sectores derrumbados y escombros. Cofres con botín en hipogeo, galerías y ambulacros.
+Como supera el límite de 128 bloques de las estructuras de Minecraft, se genera por chunks: uno por región de ~1500 bloques
+(no en océanos ni ríos). `/bloodmoon locate coliseum` o el Compás.
+
+## Portal y Laberinto del Vacío
+- **Bloque del Vacío**: 9 Piedras del Vacío en la mesa de crafteo (y se deshace en 9).
+- Marco rectangular de Bloques del Vacío (interior de 2×3 hasta 21×21), encendido con mechero o carga ígnea → **Portal del Vacío**.
+- Lleva al **Laberinto del Vacío** (escala 1:1): muros colosales en ruinas (26-90 de alto) sobre un abismo, laberintos perfectos
+  con callejones sin salida, arcos entre celdas, abismos con puentes rotos, plazas con obeliscos, torres huecas con generadores,
+  santuarios con marcos de portal, y un coliseo en ruinas en el centro de cada región con un portal de salida.
+- Cielo casi negro con horizonte púrpura tenue, nebulosa y estrellas mortecinas; niebla espesa; esqueletos wither, esqueletos y endermans.
+- Si no hay portal cerca del destino, se construye uno en una cámara segura.
 
 ## Comandos (OP)
 - `/bloodmoon force [blood|super|golden|moonless]`
@@ -65,6 +79,7 @@ Ruina colosal (≈100 bloques de diámetro, 30 de alto) de piedra negra con llam
 - `/bloodmoon summon emissary`
 - `/bloodmoon summon executioner`
 - `/bloodmoon summon dragon`
+- `/bloodmoon locate coliseum`
 - `/summon bloodmoon:cursed_creeper`
 
 ## Configuración

@@ -125,6 +125,23 @@ public final class LabyrinthDesign {
         return dx * dx + dz * dz < (ARENA_R + 6) * (ARENA_R + 6);
     }
 
+    /** Centro de una celda transitable (no abismo) cerca de (x, z), para construir un portal de llegada. */
+    public int[] safeSpot(int x, int z) {
+        int cx = Math.floorDiv(x, CELL), cz = Math.floorDiv(z, CELL);
+        for (int ring = 0; ring < 4; ring++) {
+            for (int dx = -ring; dx <= ring; dx++) {
+                for (int dz = -ring; dz <= ring; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != ring) continue;
+                    int px = (cx + dx) * CELL + CELL / 2 + 1, pz = (cz + dz) * CELL + CELL / 2 + 1;
+                    if (inArenaZone(px, pz)) continue;
+                    int t = cellType(cx + dx, cz + dz);
+                    if (t == T_NORMAL || t == T_PLAZA) return new int[]{px + (t == T_PLAZA ? 5 : 0), pz + (t == T_PLAZA ? 5 : 0)};
+                }
+            }
+        }
+        return new int[]{x, z};
+    }
+
     // ------------------------------------------------------------------ columna
 
     /** out[y] para y en [0, HEIGHT). */

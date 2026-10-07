@@ -153,6 +153,11 @@ public final class VoidPortals {
         int y;
         if (level.dimension() == ModDimensions.VOID_LABYRINTH) {
             y = LabyrinthDesign.FLOOR;
+            if (level.getChunkSource().getGenerator() instanceof LabyrinthChunkGenerator gen) {
+                int[] spot = gen.design(level.getChunkSource().randomState()).safeSpot(x, z);
+                x = spot[0];
+                z = spot[1];
+            }
         } else {
             level.getChunk(x >> 4, z >> 4);
             y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
