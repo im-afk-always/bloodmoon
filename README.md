@@ -1,4 +1,4 @@
-# Blood Moon — NeoForge 1.21.1 (v6)
+# Blood Moon — NeoForge 1.21.1 (v7)
 
 ## Lunas
 | Luna | Frecuencia (default) | Visual |
@@ -41,7 +41,7 @@ Caballero colosal con un mazo. 480 de vida.
 Llamas púrpuras: 2 de daño por segundo (el doble que el fuego), atraviesa armadura y Resistencia al fuego. El agua la apaga.
 
 ## Botín (jefes del Vacío)
-~50 %: el arma del jefe o una pieza del **Set del Vacío** (casco, coraza, grebas, botas; mejor que netherite). 35 %: **Compás hacia el fin del mundo**.
+~50 %: el arma del jefe o una pieza del **Set del Vacío** (yelmo con cuernos, coraza con hombreras, quijotes, grebas; modelo 3D propio con runas que brillan; mejor que netherite). 35 %: **Compás hacia el fin del mundo**.
 - **Espadón del Emisario** y **Mazo del Ejecutor**: armas grandes. El mazo tiene especial: mantené clic derecho 1,5 s y soltá (cráter + explosión, enfriamiento 30 s).
 - **Compás**: clic derecho en el Overworld para fijar el **Coliseo del Vacío** más cercano; la aguja apunta a él.
 

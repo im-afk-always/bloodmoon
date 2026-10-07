@@ -16,6 +16,10 @@ import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.WitherSkeletonRenderer;
+import net.minecraft.client.renderer.entity.ArmorStandRenderer;
+import net.minecraft.client.renderer.entity.player.PlayerRenderer;
+import net.minecraft.client.resources.PlayerSkin;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.level.material.FogType;
 import net.neoforged.api.distmarker.Dist;
@@ -38,6 +42,9 @@ public class BloodMoonClient {
         modBus.addListener(BloodMoonClient::onRegisterLayers);
         modBus.addListener(BloodMoonClient::onRegisterGuiLayers);
         modBus.addListener(BloodMoonClient::onClientSetup);
+        modBus.addListener(VoidArmorModels::onRegisterLayers);
+        modBus.addListener(VoidArmorModels::onRegisterClientExtensions);
+        modBus.addListener(BloodMoonClient::onAddLayers);
 
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onFogColor);
@@ -59,6 +66,16 @@ public class BloodMoonClient {
         event.registerLayerDefinition(ExecutionerModel.LAYER, ExecutionerModel::createBodyLayer);
     }
 
+    /** Capa emisiva del Set del Vacío en jugadores y soportes de armadura. */
+    private static void onAddLayers(EntityRenderersEvent.AddLayers event) {
+        for (PlayerSkin.Model skin : event.getSkins()) {
+            if (event.getSkin(skin) instanceof PlayerRenderer renderer) renderer.addLayer(new VoidArmorGlowLayer<>(renderer));
+        }
+        if (event.getRenderer(EntityType.ARMOR_STAND) instanceof ArmorStandRenderer renderer) {
+            renderer.addLayer(new VoidArmorGlowLayer<>(renderer));
+        }
+    }
+
     private static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {
         event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "astral_burn"), AstralFlameRenderer::renderOverlay);
@@ -74,7 +91,10 @@ public class BloodMoonClient {
     }
 
     private static void onRegisterReloadListeners(RegisterClientReloadListenersEvent event) {
-        event.registerReloadListener((ResourceManagerReloadListener) manager -> TintedTextures.invalidate());
+        event.registerReloadListener((ResourceManagerReloadListener) manager -> {
+            TintedTextures.invalidate();
+            VoidArmorModels.invalidate();
+        });
     }
 
     private static void onClientTick(ClientTickEvent.Post event) {
