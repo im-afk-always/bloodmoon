@@ -318,9 +318,9 @@ public final class NukeClouds {
                     px += Mth.cos(a0) * rr;
                     pz += Mth.sin(a0) * rr;
                     py += 0.6F + 0.15F * c.radius * a1;
-                    size = 0.45F * c.radius * sizeK * (0.7F + 0.6F * Mth.clamp(a / 20F, 0F, 1F));
+                    size = 0.35F * c.radius * sizeK * (0.7F + 0.6F * Mth.clamp(a / 20F, 0F, 1F));
                     local = heat * 0.5F;
-                    alpha *= 1F - smooth((a - 0.35F * c.life) / (0.3F * c.life));
+                    alpha *= 0.7F * (1F - smooth((a - 0.3F * c.life) / (0.3F * c.life)));
                 }
             }
             local *= 0.85F + 0.15F * Mth.sin(a * 0.7F + flick);

@@ -1,4 +1,4 @@
-# Blood Moon — NeoForge 1.21.1 (v8.1)
+# Blood Moon — NeoForge 1.21.1 (v8.2)
 
 ## Lunas
 | Luna | Frecuencia (default) | Visual |
@@ -40,7 +40,7 @@ Caballero colosal con un mazo. 480 de vida.
 ## Dragón de la Primera Alma (Noche sin Luna, medianoche)
 Dragón esquelético de huesos negros con el alma encendida dentro del costillar. ~5 veces el Ender Dragon
 (~95 bloques de envergadura; `dragonSize` en la config). 1500 de vida, hitboxes por parte (cabeza x1,5 de daño; cola y alas x0,5).
-- **En vuelo**: da vueltas sobre su presa y suelta **cargas de fuego púrpura** que explotan como x3 (60 %), x5 (30 %) o x10 (10 %) un creeper; en fase 2 (50 % de vida) suben las grandes. Brillan y dejan estela visible desde lejos; un círculo púrpura en el suelo marca dónde van a caer y qué tan grande es la explosión. Respetan mobGriefing y calcinan el suelo.
+- **En vuelo**: da vueltas sobre su presa y suelta **cargas de fuego púrpura** que explotan como x3 (60 %), x5 (30 %) o x10 (10 %) un creeper; en fase 2 (50 % de vida) suben las grandes. Brillan y dejan estela visible desde lejos; un círculo púrpura en el suelo marca dónde van a caer y qué tan grande es la explosión. Al impactar levantan un **hongo de fuego púrpura** (más grande cuanto más potente: ~25, ~40 y ~80 bloques de alto) con destello, resplandor en el cielo, temblor y estruendo que llega con retardo según la distancia. Respetan mobGriefing y calcinan el suelo.
 - **Picada y aterrizaje** sobre las garras de las alas: dos cráteres + onda de choque.
 - **En tierra**: **Incineración** (chorro de fuego púrpura desde las fauces, Quemadura astral, suelo calcinado) y **Garra del Ala** (cráter donde golpea).
 - Despega y repite. Al amanecer vuelve a la grieta. Botín: siempre una pieza del Set del Vacío (si lo mata un jugador), 50 % Compás, fragmentos de eco, chatarra de netherita.
