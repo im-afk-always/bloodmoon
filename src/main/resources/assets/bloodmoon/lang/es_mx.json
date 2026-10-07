@@ -50,5 +50,7 @@
   "entity.bloodmoon.soul_charge": "Carga del Alma",
   "item.bloodmoon.first_soul_dragon_spawn_egg": "Huevo del Dragón de la Primera Alma",
   "bloodmoon.message.dragon": "☾ Un rugido parte el cielo... el Dragón de la Primera Alma desciende de la grieta.",
-  "bloodmoon.command.summon.dragon": "El Dragón de la Primera Alma desciende sobre ti."
+  "bloodmoon.command.summon.dragon": "El Dragón de la Primera Alma desciende sobre ti.",
+  "bloodmoon.subtitle.supernova_blast": "Estalla una supernova",
+  "bloodmoon.subtitle.supernova_charge": "La luz colapsa"
 }

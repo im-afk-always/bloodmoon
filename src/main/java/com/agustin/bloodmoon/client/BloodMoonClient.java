@@ -47,6 +47,8 @@ public class BloodMoonClient {
         modBus.addListener(BloodMoonClient::onAddLayers);
         modBus.addListener(NukeClouds::onRegisterProviders);
         NukeClouds.init();
+        modBus.addListener(SupernovaFx::onRegisterProviders);
+        SupernovaFx.init();
 
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onFogColor);
@@ -56,6 +58,8 @@ public class BloodMoonClient {
         NeoForge.EVENT_BUS.addListener(AstralFlameRenderer::onRenderLiving);
         NeoForge.EVENT_BUS.addListener(NukeClouds::onFogColor);
         NeoForge.EVENT_BUS.addListener(NukeClouds::onCameraAngles);
+        NeoForge.EVENT_BUS.addListener(SupernovaFx::onFogColor);
+        NeoForge.EVENT_BUS.addListener(SupernovaFx::onCameraAngles);
     }
 
     private static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
@@ -88,6 +92,8 @@ public class BloodMoonClient {
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "astral_burn"), AstralFlameRenderer::renderOverlay);
         event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "nuke_flash"), NukeClouds::renderFlash);
+        event.registerAbove(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "nuke_flash"),
+                ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "supernova"), SupernovaFx::renderOverlay);
     }
 
     /** La aguja del Compás usa la misma propiedad "angle" que la brújula vanilla. */
@@ -111,6 +117,7 @@ public class BloodMoonClient {
         ClientMoonState.tick();
         ClientAstralState.tick();
         NukeClouds.tick();
+        SupernovaFx.tick();
     }
 
     /** El color de niebla es también el del horizonte: oscuro con el tinte de cada luna. */
@@ -128,6 +135,7 @@ public class BloodMoonClient {
         ClientMoonState.reset();
         ClientAstralState.reset();
         NukeClouds.reset();
+        SupernovaFx.reset();
         TintedTextures.invalidate();
     }
 

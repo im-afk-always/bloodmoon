@@ -8,6 +8,8 @@ import com.agustin.bloodmoon.registry.ModEffects;
 import com.agustin.bloodmoon.registry.ModItems;
 import com.agustin.bloodmoon.registry.ModStructures;
 import com.agustin.bloodmoon.registry.ModParticles;
+import com.agustin.bloodmoon.registry.ModSounds;
+import com.agustin.bloodmoon.world.SupernovaCrater;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -32,6 +34,7 @@ public class BloodMoonMod {
         ModStructures.STRUCTURE_TYPES.register(modBus);
         ModStructures.PIECE_TYPES.register(modBus);
         ModParticles.PARTICLES.register(modBus);
+        ModSounds.SOUNDS.register(modBus);
         modBus.addListener(ModItems::addToTabs);
         modBus.addListener(ModEntities::registerAttributes);
         modBus.addListener(BloodMoonNetwork::register);
@@ -44,5 +47,7 @@ public class BloodMoonMod {
         NeoForge.EVENT_BUS.addListener(MobBuffs::onEntityJoin);
         NeoForge.EVENT_BUS.addListener(MobBuffs::onFinalizeSpawn);
         NeoForge.EVENT_BUS.addListener(BloodMoonCommand::register);
+        NeoForge.EVENT_BUS.addListener(SupernovaCrater::onLevelTick);
+        NeoForge.EVENT_BUS.addListener(SupernovaCrater::onServerStopped);
     }
 }

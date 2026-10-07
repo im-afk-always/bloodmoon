@@ -50,5 +50,7 @@
   "entity.bloodmoon.soul_charge": "Soul Charge",
   "item.bloodmoon.first_soul_dragon_spawn_egg": "Dragon of the First Soul Spawn Egg",
   "bloodmoon.message.dragon": "☾ A roar splits the sky... the Dragon of the First Soul descends from the rift.",
-  "bloodmoon.command.summon.dragon": "The Dragon of the First Soul descends upon you."
+  "bloodmoon.command.summon.dragon": "The Dragon of the First Soul descends upon you.",
+  "bloodmoon.subtitle.supernova_blast": "Supernova explodes",
+  "bloodmoon.subtitle.supernova_charge": "Light collapses"
 }

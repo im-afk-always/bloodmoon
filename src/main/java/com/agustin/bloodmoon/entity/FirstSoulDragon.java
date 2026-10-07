@@ -5,6 +5,10 @@ import com.agustin.bloodmoon.BloodMoonManager;
 import com.agustin.bloodmoon.MoonType;
 import com.agustin.bloodmoon.registry.ModEffects;
 import com.agustin.bloodmoon.world.VoidImpact;
+import com.agustin.bloodmoon.world.SupernovaCrater;
+import com.agustin.bloodmoon.network.SupernovaPayload;
+import net.minecraft.core.BlockPos;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
@@ -63,7 +67,7 @@ public class FirstSoulDragon extends Monster {
     private static final EntityDataAccessor<Float> DATA_SCALE = SynchedEntityData.defineId(FirstSoulDragon.class, EntityDataSerializers.FLOAT);
 
     public static final int VOLLEY = 1, BREATH = 2, CLAW_L = 3, CLAW_R = 4, LAND = 5;
-    private static final int[] DURATIONS = {0, 56, 100, 44, 44, 34};
+    private static final int[] DURATIONS = {0, 40, 100, 44, 44, 34};
     public static final int BREATH_START = 20, BREATH_END = 86, CLAW_IMPACT = 26;
 
     // puntos del modelo (px): (izquierda, arriba, adelante) respecto de los pies
@@ -83,6 +87,9 @@ public class FirstSoulDragon extends Monster {
     private Vec3 anchor, landing, breathDir;
     private Vec3 vel = Vec3.ZERO;
     private boolean boundToNight;
+    private DamageSource pendingLoot;
+    private boolean lootReleased;
+    private double novaGround;
 
     /** Cliente. */
     public int clientAttackStart;
@@ -515,8 +522,8 @@ public class FirstSoulDragon extends Monster {
         double u = unit();
         switch (attack) {
             case VOLLEY -> {
-                int last = isPhaseTwo() ? 44 : 36;
-                if (target != null && attackTick >= 12 && attackTick <= last && (attackTick - 12) % 8 == 0) fireCharge(sl, target);
+                // dos cargas por ráfaga
+                if (target != null && (attackTick == 12 || attackTick == 24)) fireCharge(sl, target);
             }
             case BREATH -> tickBreath(sl, target);
             case CLAW_L, CLAW_R -> {
@@ -664,26 +671,63 @@ public class FirstSoulDragon extends Monster {
 
     // ------------------------------------------------------------------ muerte
 
+    /** El botín se suelta después de la supernova (si no, la explosión destruiría los ítems). */
+    @Override
+    protected void dropAllDeathLoot(ServerLevel level, DamageSource source) {
+        if (!lootReleased) {
+            pendingLoot = source;
+            return;
+        }
+        super.dropAllDeathLoot(level, source);
+    }
+
+    /**
+     * Supernova: el dragón asciende mientras una luz intensa nace de su alma, se expande, colapsa en un
+     * punto y estalla (luz blanca enceguecedora, onda de choque y cráter semiesférico). Los efectos
+     * visuales y el audio los dibuja el cliente con los mismos tiempos (SupernovaPayload).
+     */
     @Override
     protected void tickDeath() {
         this.deathTime++;
         if (!(level() instanceof ServerLevel sl)) return;
-        double gy = groundY(getX(), getZ());
-        if (getY() > gy) setPos(getX(), Math.max(gy, getY() - 0.6), getZ()); // cae lentamente
-        Vec3 core = local(CORE);
-        double u = unit();
-        if (deathTime == 1) playSound(SoundEvents.ENDER_DRAGON_DEATH, 12F, 0.4F);
-        if (deathTime % 3 == 0) {
-            sendForced(sl, ParticleTypes.EXPLOSION, core, 3, 12 * u, 8 * u, 20 * u, 0);
-            sendForced(sl, ParticleTypes.REVERSE_PORTAL, core, 60, 6 * u, 6 * u, 6 * u, 0.6);
-            sendForced(sl, ParticleTypes.SOUL, core, 20, 10 * u, 6 * u, 10 * u, 0.05);
+        vel = Vec3.ZERO;
+        if (deathTime == 1) {
+            Vec3 core = local(CORE);
+            novaGround = groundY(getX(), getZ());
+            SupernovaPayload p = new SupernovaPayload(core.x, core.y, core.z, novaGround, getDragonScale());
+            for (ServerPlayer pl : sl.players()) PacketDistributor.sendToPlayer(pl, p);
+            playSound(SoundEvents.ENDER_DRAGON_DEATH, 12F, 0.4F);
+            if (isGrounded()) this.entityData.set(DATA_GROUNDED, false);
         }
-        if (deathTime >= 110) {
-            sendForced(sl, ParticleTypes.EXPLOSION_EMITTER, core, 12, 10 * u, 6 * u, 10 * u, 0);
-            sendForced(sl, ParticleTypes.END_ROD, core, 400, 4 * u, 4 * u, 4 * u, 0.6);
-            playSound(SoundEvents.GENERIC_EXPLODE.value(), 12F, 0.5F);
+        if (deathTime <= SupernovaPayload.RISE_END) setPos(getX(), getY() + SupernovaPayload.RISE_SPEED, getZ());
+        if (deathTime == SupernovaPayload.DETONATE) detonate(sl);
+        if (deathTime >= SupernovaPayload.DETONATE + 2) {
+            lootReleased = true;
+            if (pendingLoot != null) {
+                setPos(getX(), novaGround + 2, getZ());
+                dropAllDeathLoot(sl, pendingLoot);
+            }
             this.remove(RemovalReason.KILLED);
         }
+    }
+
+    private void detonate(ServerLevel sl) {
+        float s = getDragonScale();
+        Vec3 ground = new Vec3(getX(), novaGround, getZ());
+        // daño y empuje: la onda alcanza ~16·escala bloques (80 con tamaño 5)
+        sl.explode(this, ground.x, ground.y + 1, ground.z, 8F * s, Level.ExplosionInteraction.NONE);
+        double reach = 30 * s;
+        for (LivingEntity e : sl.getEntitiesOfClass(LivingEntity.class, new AABB(ground, ground).inflate(reach), this::isEnemy)) {
+            Vec3 away = e.position().subtract(ground);
+            double d = away.length();
+            if (d > reach) continue;
+            double k = 1 - d / reach;
+            Vec3 push = away.normalize().scale(4 * k).add(0, 1.5 * k, 0);
+            e.push(push.x, push.y, push.z);
+            e.hurtMarked = true;
+        }
+        int depth = BloodMoonConfig.SUPERNOVA_CRATER_DEPTH.get();
+        if (depth > 0) SupernovaCrater.start(sl, BlockPos.containing(ground), depth);
     }
 
     // ------------------------------------------------------------------ varios

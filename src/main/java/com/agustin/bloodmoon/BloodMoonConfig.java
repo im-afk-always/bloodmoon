@@ -26,6 +26,7 @@ public final class BloodMoonConfig {
     public static final ModConfigSpec.DoubleValue MAUL_SPECIAL_POWER;
     public static final ModConfigSpec.DoubleValue DRAGON_SCALE;
     public static final ModConfigSpec.DoubleValue DRAGON_CHARGE_POWER;
+    public static final ModConfigSpec.IntValue SUPERNOVA_CRATER_DEPTH;
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
@@ -73,6 +74,9 @@ public final class BloodMoonConfig {
                 .defineInRange("dragonSize", 5.0, 1.0, 12.0);
         DRAGON_CHARGE_POWER = b.comment("Multiplicador de las cargas de fuego púrpura (1 = x3/x5/x10 la de un creeper). 0 = no rompen bloques ni dañan.")
                 .defineInRange("dragonChargePowerMultiplier", 1.0, 0.0, 3.0);
+        SUPERNOVA_CRATER_DEPTH = b.comment("Profundidad (= radio) del cráter semiesférico que deja la supernova al morir el dragón. 0 = sin cráter.",
+                        "Ignora mobGriefing. 100 bloques mueve ~2 millones de bloques: se excava en ~7 s para no congelar el servidor.")
+                .defineInRange("supernovaCraterDepth", 100, 0, 160);
         b.pop();
 
         SPEC = b.build();

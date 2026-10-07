@@ -14,5 +14,8 @@ public final class ModParticles {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> NUKE_PUFF =
             PARTICLES.register("nuke_puff", () -> new SimpleParticleType(true));
 
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SUPERNOVA_GLOW =
+            PARTICLES.register("supernova_glow", () -> new SimpleParticleType(true));
+
     private ModParticles() {}
 }

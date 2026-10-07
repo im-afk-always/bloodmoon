@@ -1,0 +1,19 @@
+{
+  "supernova_blast": {
+    "subtitle": "bloodmoon.subtitle.supernova_blast",
+    "sounds": [
+      {
+        "name": "bloodmoon:supernova_blast",
+        "stream": true
+      }
+    ]
+  },
+  "supernova_charge": {
+    "subtitle": "bloodmoon.subtitle.supernova_charge",
+    "sounds": [
+      {
+        "name": "bloodmoon:supernova_charge"
+      }
+    ]
+  }
+}
