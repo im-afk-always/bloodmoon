@@ -25,7 +25,7 @@ public final class ColiseumDesign {
     public static final int R_ARENA = 140, R_PODIUM = 150, R_CAVEA = 222, R_INNER = 226, R_GAL = 230, R_WALL = 238,
             R_FACADE = 242, R_PIL = 245, R_OUT = 247, R_RUBBLE = 275;
     public static final int MIN_H = -16, TOP = 200, STOREY = 22, STOREYS = 8, FACADE_H = STOREY * STOREYS + 12, PODIUM_H = 13;
-    public static final int ALTAR_R = 48, ALTAR_TIERS = 8, TIER_H = 5, ALTAR_TOP = ALTAR_TIERS * TIER_H;
+    public static final int ALTAR_R = 48, ALTAR_TIERS = 8, TIER_H = 5, ALTAR_TOP = ALTAR_TIERS * TIER_H, STAIR_FOOT = 50;
     public static final int H_COUNT = TOP - MIN_H + 1;
     static final double BAY = 2.5;          // grados por bahía (144 arcos)
     static final int TOP_SEAT = seatHeight(R_CAVEA);
@@ -146,7 +146,7 @@ public final class ColiseumDesign {
             set(out, -1, arenaFloor(dx, dz, r, deg));
         }
 
-        if (r <= ALTAR_R + 1) {
+        if (r <= ALTAR_R + 3) {
             altar(dx, dz, r, deg, out);
             return;
         }
@@ -191,19 +191,22 @@ public final class ColiseumDesign {
 
     private void altar(int dx, int dz, double r, double deg, int[] out) {
         int tiers = Math.min(ALTAR_TIERS, Math.max(0, (int) Math.floor((ALTAR_R - r) / 6.0) + 1));
+        if (Math.max(Math.abs(dx), Math.abs(dz)) <= 6) tiers = ALTAR_TIERS;   // plataforma cuadrada en la cima
         int solid = tiers * TIER_H;
-        // escalinatas en los 4 ejes: rampa 1:1 desde h=0 (t=48) hasta h=40 (t=8)
+        // escalinatas en los 4 ejes, talladas en el zigurat: rampa continua 1:1 desde el suelo
+        // (t = 49, h = 0) hasta la cima (t = 10, h = 40) y descanso plano hasta la plataforma
         int ax = Math.abs(dx), az = Math.abs(dz);
-        boolean onX = az <= 4 && ax >= 8, onZ = ax <= 4 && az >= 8;
+        boolean onX = az <= 4 && ax >= 6, onZ = ax <= 4 && az >= 6;
         int along = onX ? ax : onZ ? az : 0;
-        int stairTop = (onX || onZ) ? Math.min(ALTAR_TOP, ALTAR_R - along + 1) : 0;
+        int stairTop = (onX || onZ) ? Math.max(1, Math.min(ALTAR_TOP, STAIR_FOOT - along)) : 0;
         int face = Pal.dir(-dx, -dz);       // se sube hacia el centro
-        boolean stair = (onX || onZ) && along <= ALTAR_R && stairTop > solid;
+        boolean stair = (onX || onZ) && along <= STAIR_FOOT - 1;
+        if (!stair && r > ALTAR_R + 0.5) return;
         int top = stair ? stairTop : solid;
         for (int h = 0; h < top; h++) {
             int code;
-            if (stair && h == top - 1) code = stairs(PB_BRICK_STAIRS, face, false);
-            else if (stair && h >= solid) code = POLISHED_BLACKSTONE;
+            if (stair && h == top - 1) code = top < ALTAR_TOP ? stairs(PB_BRICK_STAIRS, face, false) : POLISHED_DEEPSLATE;
+            else if (stair) code = h % TIER_H == TIER_H - 1 ? CHISELED_PB : POLISHED_BLACKSTONE;
             else {
                 int k = h / TIER_H, ring = ALTAR_R - 6 * k;
                 boolean edge = r > ring - 1.2;
@@ -216,10 +219,11 @@ public final class ColiseumDesign {
             set(out, h, code);
         }
         // barandas de las escalinatas con braseros
-        boolean rail = (az == 5 && ax >= 8 || ax == 5 && az >= 8) && r <= ALTAR_R;
+        boolean rail = (az == 5 && ax >= 8 || ax == 5 && az >= 8) && (az == 5 ? ax : az) < STAIR_FOOT - 1;
         if (rail) {
             int railAlong = az == 5 ? ax : az;
-            int base = Math.max(solid, Math.min(ALTAR_TOP, ALTAR_R - railAlong + 1));
+            int base = Math.max(solid, Math.min(ALTAR_TOP, STAIR_FOOT - railAlong));
+            for (int h = solid; h < base; h++) set(out, h, PB_BRICKS);          // muro lateral bajo la baranda
             set(out, base, railAlong % 8 == 0 ? GILDED_BLACKSTONE : PB_BRICK_WALL);
             if (railAlong % 8 == 0) set(out, base + 1, ASTRAL_FIRE);
         }
@@ -231,7 +235,10 @@ public final class ColiseumDesign {
         if (tiers == ALTAR_TIERS) altarTop(dx, dz, out);
     }
 
-    /** Cima: plataforma de obsidiana y el marco del portal (Bloques del Vacío), sin encender. */
+    /**
+     * Cima: plataforma de obsidiana y el marco del portal INCOMPLETO (falta la parte superior derecha):
+     * hay que completarlo con Bloques del Vacío para poder encenderlo. Dos bloques caídos quedan sobre la plataforma.
+     */
     private void altarTop(int dx, int dz, int[] out) {
         int ax = Math.abs(dx), az = Math.abs(dz);
         set(out, ALTAR_TOP - 1, (dx + dz) % 2 == 0 ? CRYING_OBSIDIAN : OBSIDIAN);
@@ -240,9 +247,11 @@ public final class ColiseumDesign {
         if (dz == 0 && ax <= 2) {
             for (int y = 0; y <= 6; y++) {
                 boolean frame = ax == 2 || y == 0 || y == 6;
-                set(out, base + y, frame ? VOID_BLOCK : AIR);
+                boolean broken = (dx == 2 && y >= 4) || (y == 6 && dx >= 0);
+                set(out, base + y, frame && !broken ? VOID_BLOCK : AIR);
             }
         }
+        if ((dx == 3 && dz == 2) || (dx == -2 && dz == -3)) set(out, base, VOID_BLOCK);   // restos del marco
         // cuatro pilares con cadenas y fuego
         if (ax == 4 && az == 4) {
             for (int y = 0; y < 9; y++) set(out, base + y, POLISHED_BASALT);

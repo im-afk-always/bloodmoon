@@ -3,6 +3,7 @@ package com.agustin.bloodmoon.registry;
 import com.agustin.bloodmoon.BloodMoonMod;
 import com.agustin.bloodmoon.block.AstralFireBlock;
 import com.agustin.bloodmoon.block.VoidPortalBlock;
+import com.agustin.bloodmoon.block.VoidBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -34,13 +35,14 @@ public final class ModBlocks {
                     .lightLevel(state -> 2));
 
     /** Bloque del Vacío: 9 Piedras del Vacío. Con un marco de estos y un mechero se abre el portal al Laberinto. */
-    public static final DeferredBlock<Block> VOID_BLOCK = BLOCKS.registerSimpleBlock("void_block",
-            BlockBehaviour.Properties.of()
+    public static final DeferredBlock<VoidBlock> VOID_BLOCK = BLOCKS.register("void_block",
+            () -> new VoidBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_PURPLE)
                     .requiresCorrectToolForDrops()
                     .strength(30.0F, 1200.0F)
                     .sound(SoundType.DEEPSLATE_BRICKS)
-                    .lightLevel(state -> 4));
+                    .emissiveRendering((state, level, pos) -> true)
+                    .lightLevel(state -> 7)));
 
     public static final DeferredBlock<VoidPortalBlock> VOID_PORTAL = BLOCKS.register("void_portal",
             () -> new VoidPortalBlock(BlockBehaviour.Properties.of()

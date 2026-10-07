@@ -1,4 +1,4 @@
-# Blood Moon — NeoForge 1.21.1 (v9)
+# Blood Moon — NeoForge 1.21.1 (v9.1)
 
 ## Lunas
 | Luna | Frecuencia (default) | Visual |
@@ -56,7 +56,7 @@ Llamas púrpuras: 2 de daño por segundo (el doble que el fuego), atraviesa arma
 
 ## Coliseo del Vacío (x5)
 Ruina colosal de **~500 bloques de diámetro y ~190 de alto**: arena con hipogeo (laberinto subterráneo donde se hundió el piso),
-zigurat de 8 niveles con escalinatas y el **marco del portal del Vacío** en la cima, 8 obeliscos, podio con puertas de gladiadores,
+zigurat de 8 niveles con escalinatas continuas del suelo a la cima y el **marco roto del portal del Vacío** (completalo con Bloques del Vacío), 8 obeliscos, podio con puertas de gladiadores,
 gradas en tres sectores con pasillos, galerías abovedadas internas, fachada de 8 pisos con 144 arcos por piso, pilastras, cornisas,
 galería perimetral con fuego astral, sectores derrumbados y escombros. Cofres con botín en hipogeo, galerías y ambulacros.
 Como supera el límite de 128 bloques de las estructuras de Minecraft, se genera por chunks: uno por región de ~1500 bloques

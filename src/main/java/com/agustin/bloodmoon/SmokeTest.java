@@ -92,6 +92,27 @@ public final class SmokeTest {
             BloodMoonMod.LOGGER.error("SMOKETEST FAIL altar frame missing");
             return false;
         }
+        if (VoidPortals.findShape(ow, new BlockPos(s.x(), top + 1, s.z())) != null) {
+            BloodMoonMod.LOGGER.error("SMOKETEST FAIL altar portal should be incomplete");
+            return false;
+        }
+        // completar el marco como lo haría el jugador
+        BlockState vb = ModBlocks.VOID_BLOCK.get().defaultBlockState();
+        for (BlockPos p : new BlockPos[]{new BlockPos(s.x() + 2, top + 4, s.z()), new BlockPos(s.x() + 2, top + 5, s.z()),
+                new BlockPos(s.x() + 2, top + 6, s.z()), new BlockPos(s.x(), top + 6, s.z()), new BlockPos(s.x() + 1, top + 6, s.z())}) {
+            ow.setBlock(p, vb, Block.UPDATE_ALL);
+        }
+        // la escalinata llega del suelo a la cima: escalón a escalón sobre el eje +x
+        for (int t = 49; t >= 10; t--) {
+            int expect = Math.min(ColiseumDesign.ALTAR_TOP, ColiseumDesign.STAIR_FOOT - t) - 1;
+            BlockState st = ow.getBlockState(new BlockPos(s.x() + t, s.y() + expect, s.z()));
+            BlockState above = ow.getBlockState(new BlockPos(s.x() + t, s.y() + expect + 1, s.z()));
+            if (st.isAir() || !above.isAir()) {
+                BloodMoonMod.LOGGER.error("SMOKETEST FAIL stair broken at t={} ({} / {})", t, st, above);
+                return false;
+            }
+        }
+        BloodMoonMod.LOGGER.info("SMOKETEST altar stairs continuous");
         var shape = VoidPortals.findShape(ow, new BlockPos(s.x(), top + 1, s.z()));
         if (shape == null) {
             BloodMoonMod.LOGGER.error("SMOKETEST FAIL altar portal shape not detected");
