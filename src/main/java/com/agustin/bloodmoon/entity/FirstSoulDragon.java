@@ -171,7 +171,7 @@ public class FirstSoulDragon extends Monster {
     }
 
     @Override
-    public EntityDimensions getDimensions(Pose pose) {
+    public EntityDimensions getDefaultDimensions(Pose pose) {
         float u = unit();
         return EntityDimensions.scalable(10F * u, 14F * u);
     }
