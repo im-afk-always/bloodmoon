@@ -21,5 +21,8 @@
   "bloodmoon.command.summon.fail": "No se pudo invocar al Jinete del Apocalipsis.",
   "bloodmoon.moon.moonless": "Noche sin Luna",
   "bloodmoon.message.moonless.start": "☾ La luna no salió esta noche... el cielo se abre. Algo te observa.",
-  "bloodmoon.message.moonless.end": "El ojo se cierra. La grieta se sella... por ahora."
+  "bloodmoon.message.moonless.end": "El ojo se cierra. La grieta se sella... por ahora.",
+  "entity.bloodmoon.unknown_emissary": "Emisario Desconocido",
+  "bloodmoon.message.emissary": "☾ Algo ha descendido de la grieta... la tierra tiembla bajo sus pasos.",
+  "bloodmoon.command.summon.emissary": "El Emisario Desconocido fue invocado."
 }

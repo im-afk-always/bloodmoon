@@ -31,10 +31,19 @@ public final class ModEntities {
                     .clientTrackingRange(10)
                     .build("apocalypse_rider"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<UnknownEmissary>> UNKNOWN_EMISSARY =
+            ENTITIES.register("unknown_emissary", () -> EntityType.Builder
+                    .<UnknownEmissary>of(UnknownEmissary::new, MobCategory.MONSTER)
+                    .sized(3.0F, 12.0F)
+                    .fireImmune()
+                    .clientTrackingRange(16)
+                    .build("unknown_emissary"));
+
     private ModEntities() {}
 
     public static void registerAttributes(EntityAttributeCreationEvent event) {
         event.put(CURSED_CREEPER.get(), Creeper.createAttributes().build());
+        event.put(UNKNOWN_EMISSARY.get(), UnknownEmissary.createAttributes().build());
         event.put(APOCALYPSE_RIDER.get(), AbstractSkeleton.createAttributes()
                 .add(Attributes.MAX_HEALTH, 80.0)
                 .add(Attributes.SCALE, 2.0)

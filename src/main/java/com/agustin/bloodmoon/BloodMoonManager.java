@@ -3,15 +3,20 @@ package com.agustin.bloodmoon;
 import com.agustin.bloodmoon.entity.ApocalypseRider;
 import com.agustin.bloodmoon.entity.CursedCreeper;
 import com.agustin.bloodmoon.entity.ModEntities;
+import com.agustin.bloodmoon.entity.UnknownEmissary;
 import com.agustin.bloodmoon.network.BloodMoonPayload;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.level.GameRules;
@@ -47,6 +52,7 @@ public final class BloodMoonManager {
     private static final List<BlockPos> pendingCursed = new ArrayList<>();
     private static final Map<UUID, Integer> phantomCooldown = new HashMap<>();
     private static final Set<UUID> ridersSpawned = new HashSet<>();
+    private static boolean emissarySpawned = false;
 
     private BloodMoonManager() {}
 
@@ -145,6 +151,8 @@ public final class BloodMoonManager {
 
         if (current == MoonType.SUPER) {
             tickSuper(level, dayTime % 24000L);
+        } else if (current == MoonType.MOONLESS) {
+            tickMoonless(level, dayTime % 24000L);
         }
     }
 
@@ -155,6 +163,7 @@ public final class BloodMoonManager {
         pendingCursed.clear();
         phantomCooldown.clear();
         ridersSpawned.clear();
+        emissarySpawned = false;
         BloodMoonMod.LOGGER.info("Moon changed: {} -> {}", previous, type);
 
         String key = type == MoonType.NONE
@@ -262,6 +271,75 @@ public final class BloodMoonManager {
         return null;
     }
 
+    // ---------------------------------------------------------------- Noche sin Luna
+
+    /** A la medianoche, el Emisario Desconocido desciende de la grieta cerca de un jugador al azar. */
+    private static void tickMoonless(ServerLevel level, long timeOfDay) {
+        if (emissarySpawned || timeOfDay < MIDNIGHT) return;
+        if (level.getDifficulty() == Difficulty.PEACEFUL
+                || !level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) return;
+        List<ServerPlayer> players = level.players().stream().filter(p -> !p.isSpectator()).toList();
+        if (players.isEmpty()) return;
+        emissarySpawned = true;
+
+        ServerPlayer chosen = players.get(level.random.nextInt(players.size()));
+        BlockPos pos = findEmissarySpot(level, chosen, level.random);
+        if (pos == null) {
+            BloodMoonMod.LOGGER.info("No room to spawn the Unknown Emissary near {}", chosen.getName().getString());
+            return;
+        }
+        spawnEmissary(level, pos, true);
+    }
+
+    /** Invoca al Emisario con su entrada (rayo, sonido, mensaje). boundToNight: se retira al terminar la noche. */
+    public static UnknownEmissary spawnEmissary(ServerLevel level, BlockPos pos, boolean boundToNight) {
+        UnknownEmissary emissary = ModEntities.UNKNOWN_EMISSARY.get().create(level);
+        if (emissary == null) return null;
+        emissary.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, level.random.nextFloat() * 360F, 0F);
+        emissary.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), MobSpawnType.EVENT, null);
+        if (boundToNight) emissary.bindToNight();
+        level.addFreshEntity(emissary);
+
+        LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
+        if (bolt != null) {
+            bolt.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+            bolt.setVisualOnly(true);
+            level.addFreshEntity(bolt);
+        }
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, pos.getX() + 0.5, pos.getY() + 6, pos.getZ() + 0.5,
+                400, 1.5, 6, 1.5, 0.1);
+        Component msg = Component.translatable("bloodmoon.message.emissary").withStyle(ChatFormatting.DARK_PURPLE);
+        for (ServerPlayer player : level.players()) {
+            player.sendSystemMessage(msg);
+            player.playNotifySound(SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 1F, 0.5F);
+        }
+        return emissary;
+    }
+
+    /** Superficie a 28-40 bloques con un hueco de 3x3x13 para el gigante. */
+    private static BlockPos findEmissarySpot(ServerLevel level, ServerPlayer player, RandomSource random) {
+        for (int attempt = 0; attempt < 20; attempt++) {
+            double angle = random.nextDouble() * Math.PI * 2;
+            int dist = 28 + random.nextInt(13);
+            int x = player.getBlockX() + (int) Math.round(Math.cos(angle) * dist);
+            int z = player.getBlockZ() + (int) Math.round(Math.sin(angle) * dist);
+            if (!level.isLoaded(new BlockPos(x, 0, z))) continue;
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+            BlockPos pos = new BlockPos(x, y, z);
+            if (!level.getFluidState(pos.below()).isEmpty()) continue;
+            boolean clear = true;
+            for (int dx = -1; dx <= 1 && clear; dx++) {
+                for (int dz = -1; dz <= 1 && clear; dz++) {
+                    for (int dy = 0; dy < 13 && clear; dy++) {
+                        clear = level.getBlockState(pos.offset(dx, dy, dz)).getCollisionShape(level, pos.offset(dx, dy, dz)).isEmpty();
+                    }
+                }
+            }
+            if (clear) return pos;
+        }
+        return null;
+    }
+
     // ---------------------------------------------------------------- sincronización
 
     public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
@@ -287,5 +365,6 @@ public final class BloodMoonManager {
         pendingCursed.clear();
         phantomCooldown.clear();
         ridersSpawned.clear();
+        emissarySpawned = false;
     }
 }

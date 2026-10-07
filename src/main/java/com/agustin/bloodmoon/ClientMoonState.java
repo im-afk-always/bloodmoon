@@ -5,7 +5,8 @@ package com.agustin.bloodmoon;
  * Si cambia el tipo de luna, primero se desvanece el actual y después aparece el nuevo.
  */
 public final class ClientMoonState {
-    private static final float FADE_PER_TICK = 0.02F; // ~2,5 s
+    private static final float FADE_PER_TICK = 0.02F;            // ~2,5 s
+    private static final float MOONLESS_FADE_PER_TICK = 1F / 600F; // ~30 s: la noche cae lento
 
     private static volatile MoonType target = MoonType.NONE;
     private static MoonType visual = MoonType.NONE;
@@ -18,17 +19,21 @@ public final class ClientMoonState {
         target = type;
     }
 
+    private static float fade(MoonType type) {
+        return type == MoonType.MOONLESS ? MOONLESS_FADE_PER_TICK : FADE_PER_TICK;
+    }
+
     public static void tick() {
         prevIntensity = intensity;
         MoonType t = target;
         if (t != visual) {
-            intensity = Math.max(0F, intensity - FADE_PER_TICK);
+            intensity = Math.max(0F, intensity - fade(visual));
             if (intensity <= 0F) {
                 visual = t;
                 prevIntensity = 0F;
             }
         } else if (visual != MoonType.NONE && intensity < 1F) {
-            intensity = Math.min(1F, intensity + FADE_PER_TICK);
+            intensity = Math.min(1F, intensity + fade(visual));
         }
     }
 

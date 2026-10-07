@@ -25,16 +25,23 @@ public class BloodMoonClient {
     public BloodMoonClient(IEventBus modBus) {
         modBus.addListener(BloodMoonClient::onRegisterRenderers);
         modBus.addListener(BloodMoonClient::onRegisterReloadListeners);
+        modBus.addListener(BloodMoonClient::onRegisterLayers);
 
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onFogColor);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onLogout);
         NeoForge.EVENT_BUS.addListener(MoonlessSkyRenderer::onRenderStage);
+        NeoForge.EVENT_BUS.addListener(EmissaryBossBar::onBossBar);
     }
 
     private static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.CURSED_CREEPER.get(), CursedCreeperRenderer::new);
         event.registerEntityRenderer(ModEntities.APOCALYPSE_RIDER.get(), WitherSkeletonRenderer::new);
+        event.registerEntityRenderer(ModEntities.UNKNOWN_EMISSARY.get(), EmissaryRenderer::new);
+    }
+
+    private static void onRegisterLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
+        event.registerLayerDefinition(EmissaryModel.LAYER, EmissaryModel::createBodyLayer);
     }
 
     private static void onRegisterReloadListeners(RegisterClientReloadListenersEvent event) {
