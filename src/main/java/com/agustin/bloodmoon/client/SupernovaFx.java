@@ -207,25 +207,26 @@ public final class SupernovaFx {
             float prox = proximity(n, eye, a);
             Vec3 to = n.core(a).subtract(eye).normalize();
             float facing = 0.5F + 0.5F * (float) Math.max(0, look.dot(to));
+            float reach = Math.max(prox, 0.65F);
             if (a < C) {
-                float glare = 0.78F * smooth((a - 40) / (C - 40F)) * (0.93F + 0.07F * Mth.sin(a * 1.3F));
-                white += glare * prox * facing;
+                // la luz crece hasta dejar la pantalla completamente blanca
+                float glare = smooth((a - 40) / (C - 60F));
+                float view = facing + (1F - facing) * glare;      // al final encandila aunque no la mires
+                white += glare * view * reach * (0.96F + 0.04F * Mth.sin(a * 1.3F));
             } else if (a < D) {
                 float t = a - C;
-                white += 0.78F * (1F - smooth(t / 25F)) * prox * facing;
-                dark += 0.92F * smooth(t / 45F) * Math.max(prox, 0.5F);
+                white += (1F - smooth(t / 25F)) * reach;
+                dark += smooth(t / 30F) * reach;
             } else {
                 float t = a - D;
                 float w = t < 25 ? 1F : (float) Math.exp(-(t - 25) / 40.0);
                 white += w * Math.max(prox, 0.6F) * (t < 25 ? 1F : 0.75F + 0.25F * facing);
-                dark += 0.92F * (1F - smooth(t / 3F)) * Math.max(prox, 0.5F);
+                dark += 1F - smooth(t / 3F);
             }
         }
-        return new float[]{Math.min(1F, white), Math.min(0.92F, dark)};
+        return new float[]{Math.min(1F, white), Math.min(0.97F, dark)};
     }
 
-    private static final net.minecraft.resources.ResourceLocation DARK_TEX = net.minecraft.resources.ResourceLocation
-            .fromNamespaceAndPath(com.agustin.bloodmoon.BloodMoonMod.MODID, "textures/misc/nova_dark.png");
     private static final net.minecraft.resources.ResourceLocation LIGHT_TEX = net.minecraft.resources.ResourceLocation
             .fromNamespaceAndPath(com.agustin.bloodmoon.BloodMoonMod.MODID, "textures/misc/nova_light.png");
 
@@ -245,40 +246,38 @@ public final class SupernovaFx {
                 (float) (h / 2.0 / (tanHalf * z))};
     }
 
+    /**
+     * Va por encima de toda la interfaz (mano, barra, inventario): durante el colapso la pantalla queda
+     * negra y se dibuja encima solo la luz; en el estallido, blanco total.
+     */
     public static void renderOverlay(GuiGraphics g, DeltaTracker delta) {
         if (NOVAS.isEmpty()) return;
         float pt = delta.getGameTimeDeltaPartialTick(false);
         float[] s = screen(pt);
         int w = g.guiWidth(), h = g.guiHeight();
-        RenderSystem.enableBlend();
         if (s[1] > 0.01F) {
-            // todo se oscurece salvo la luz que colapsa
+            g.fill(0, 0, w, h, ((int) (s[1] * 255) << 24) | 0x020006);
+            g.flush();
             Nova n = NOVAS.get(NOVAS.size() - 1);
             float a = n.age + pt;
             float[] p = a < D ? project(n.core(a), w, h) : null;
-            int alpha = (int) (s[1] * 255);
-            if (p == null) {
-                g.fill(0, 0, w, h, (alpha << 24) | 0x020006);
-            } else {
-                float lightPx = Math.max(3F, n.coreSize(a) * p[2]);
-                int hole = (int) Math.max(40F, lightPx * 5F);
-                int x0 = (int) p[0] - hole, y0 = (int) p[1] - hole, x1 = x0 + hole * 2, y1 = y0 + hole * 2;
-                int col = (alpha << 24) | 0x020006;
-                g.fill(0, 0, w, Math.max(0, y0), col);
-                g.fill(0, Math.min(h, y1), w, h, col);
-                g.fill(0, Math.max(0, y0), Math.max(0, x0), Math.min(h, y1), col);
-                g.fill(Math.min(w, x1), Math.max(0, y0), w, Math.min(h, y1), col);
-                g.setColor(1F, 1F, 1F, s[1]);
-                g.blit(DARK_TEX, x0, y0, hole * 2, hole * 2, 0, 0, 256, 256, 256, 256);
-                // la luz, por encima de la oscuridad
-                int lp = (int) (lightPx * 2.6F) + 6;
-                g.setColor(1F, 0.97F, 1F, 1F);
+            if (p != null) {
+                float lightPx = Math.max(2.5F, n.coreSize(a) * p[2]);
+                int lp = (int) (lightPx * 2.6F) + 5;
+                float flick = 0.9F + 0.1F * Mth.sin(a * 1.7F);
+                RenderSystem.enableBlend();
+                RenderSystem.defaultBlendFunc();
+                g.setColor(1F, 0.96F, 1F, flick);
+                RenderSystem.enableBlend();
                 g.blit(LIGHT_TEX, (int) p[0] - lp, (int) p[1] - lp, lp * 2, lp * 2, 0, 0, 256, 256, 256, 256);
                 g.setColor(1F, 1F, 1F, 1F);
+                RenderSystem.disableBlend();
             }
         }
-        if (s[0] > 0.01F) g.fill(0, 0, w, h, ((int) (s[0] * 255) << 24) | 0xFFFCFF);
-        RenderSystem.disableBlend();
+        if (s[0] > 0.01F) {
+            g.fill(0, 0, w, h, ((int) (s[0] * 255) << 24) | 0xFFFCFF);
+            g.flush();
+        }
     }
 
     public static void onFogColor(ViewportEvent.ComputeFogColor event) {

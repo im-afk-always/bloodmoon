@@ -92,8 +92,7 @@ public class BloodMoonClient {
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "astral_burn"), AstralFlameRenderer::renderOverlay);
         event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "nuke_flash"), NukeClouds::renderFlash);
-        event.registerAbove(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "nuke_flash"),
-                ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "supernova"), SupernovaFx::renderOverlay);
+        event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "supernova"), SupernovaFx::renderOverlay);
     }
 
     /** La aguja del Compás usa la misma propiedad "angle" que la brújula vanilla. */
