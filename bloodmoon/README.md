@@ -1,32 +1,31 @@
-# Blood Moon — NeoForge 1.21.1
+# Blood Moon — NeoForge 1.21.1 (v2)
 
-Cada 3 días (noches de los días 2, 5, 8…) la noche del Overworld es Luna de Sangre.
+## Lunas
+| Luna | Frecuencia (default) | Visual |
+|---|---|---|
+| Luna de Sangre | cada 3 noches | Luna vanilla teñida de rojo, cielo negro sin estrellas |
+| Súper Luna de Sangre | cada 13 noches | Rojo más intenso, horizonte sangriento |
+| Luna Dorada | cada 7 noches | Luna vanilla dorada, cielo oscuro con brillo dorado (sin efectos de juego) |
 
-## Qué hace
-| Efecto | Implementación |
-|---|---|
-| Luna roja brillante | Textura propia `blood_moon_phases.png` (siempre llena) vía `LevelRendererMixin` |
-| Cielo negro, sin estrellas | `ClientLevelMixin` (sky color + star brightness) + color de niebla. Fundido de ~2,5 s |
-| Spawn de hostiles x2 | Mob cap de `MONSTER` x2 solo durante el tick del Overworld (`MobCategoryMixin`) |
-| Rastreo x2 | Modificador permanente `FOLLOW_RANGE` +100% |
-| Arañas Velocidad I / Zombis Fuerza I | Efecto infinito |
-| Esqueletos 2 flechas | `AbstractSkeletonMixin` repite el disparo vanilla |
-| Persistencia | Los buffs viven en el NBT del mob: siguen hasta que muera o despawnee |
+Prioridad si coinciden: Súper > Sangre > Dorada.
 
-Ventana de noche: ticks 13000–23000. Al amanecer termina y los nuevos spawns vuelven a la normalidad.
+## Luna de Sangre
+Mob cap de hostiles x2, rastreo x2, arañas Velocidad I, zombis Fuerza I, esqueletos 2 flechas.
 
-## Comandos (OP nivel 2)
-- `/bloodmoon force` — fuerza la Luna de Sangre en la noche entrante
-- `/bloodmoon cancel` — cancela el forzado
-- `/bloodmoon status` — estado y días hasta la próxima
+## Súper Luna de Sangre (incluye todo lo anterior)
+- Creepers: Velocidad I, explosión x10.
+- **Cursed Creeper** (10% de los creepers naturales): cargado con aura roja, explosión x20, deja fuego, barra de jefe roja.
+- Zombis: diamante completo + espada de diamante, Velocidad I + Fuerza I.
+- Phantoms gigantes (x3, daño x2) que aparecen sin necesidad de insomnio.
+- **Jinete del Apocalipsis** (1 por jugador a medianoche): wither skeleton x2 con netherite y arco Flame + Punch I que dispara 5 flechas en abanico, sobre un caballo esqueleto x2. Barra de jefe.
 
-## Compilar
-Requiere JDK 21.
-```
-./gradlew build          # jar en build/libs/
-./gradlew runClient      # probar
-```
-Prueba rápida: `/bloodmoon force` y luego `/time set 13000`.
+## Comandos (OP)
+- `/bloodmoon force [blood|super|golden]`
+- `/bloodmoon cancel`
+- `/bloodmoon status`
+- `/bloodmoon summon rider`
+- `/summon bloodmoon:cursed_creeper`
 
-## Ajustes
-Constantes en `BloodMoonManager`: `CYCLE_DAYS`, `NIGHT_START`, `NIGHT_END`.
+## Configuración
+`config/bloodmoon-common.toml` (se crea al primer arranque): frecuencias, multiplicadores de explosión,
+probabilidad de Cursed Creeper, tamaño/daño de phantoms, vida del jinete, drop del equipo.

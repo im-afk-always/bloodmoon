@@ -1,0 +1,40 @@
+package com.agustin.bloodmoon;
+
+/**
+ * Tipos de luna. Los valores visuales son floats planos (sin clases de cliente) para poder vivir en código común.
+ */
+public enum MoonType {
+    //       sky RGB                 fog/horizon RGB        stars  moon tint RGB
+    NONE   (0F, 0F, 0F,              0F, 0F, 0F,            1F,    255, 255, 255),
+    BLOOD  (0.015F, 0F, 0F,          0.03F, 0F, 0F,         0F,    255, 38, 28),
+    SUPER  (0.03F, 0F, 0F,           0.075F, 0.002F, 0F,    0F,    255, 22, 16),
+    GOLDEN (0.02F, 0.015F, 0.003F,   0.11F, 0.075F, 0.015F, 0.3F,  255, 205, 80);
+
+    public final float skyR, skyG, skyB;
+    public final float fogR, fogG, fogB;
+    /** Fracción de estrellas visibles (0 = ninguna). */
+    public final float starFactor;
+    public final int tintR, tintG, tintB;
+
+    MoonType(float skyR, float skyG, float skyB, float fogR, float fogG, float fogB, float starFactor,
+             int tintR, int tintG, int tintB) {
+        this.skyR = skyR; this.skyG = skyG; this.skyB = skyB;
+        this.fogR = fogR; this.fogG = fogG; this.fogB = fogB;
+        this.starFactor = starFactor;
+        this.tintR = tintR; this.tintG = tintG; this.tintB = tintB;
+    }
+
+    /** Blood y Super aplican los efectos de la Luna de Sangre. */
+    public boolean isBlood() {
+        return this == BLOOD || this == SUPER;
+    }
+
+    public String key() {
+        return name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    public static MoonType byId(int id) {
+        MoonType[] values = values();
+        return id >= 0 && id < values.length ? values[id] : NONE;
+    }
+}
