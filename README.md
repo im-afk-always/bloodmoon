@@ -1,4 +1,4 @@
-# Blood Moon — NeoForge 1.21.1 (v9.2)
+# Blood Moon — NeoForge 1.21.1 (v9.3)
 
 ## Al entrar por primera vez
 La pantalla se oscurece y un ojo púrpura se abre frente al jugador. Encima, un texto en el alfabeto de la mesa de
@@ -11,7 +11,7 @@ Una vez por jugador y por mundo; `/bloodmoon intro` lo repite.
 | Luna de Sangre | cada 3 noches | Luna vanilla teñida de rojo, cielo negro sin estrellas |
 | Súper Luna de Sangre | cada 13 noches | Rojo más intenso, horizonte sangriento |
 | Luna Dorada | cada 7 noches | Luna vanilla dorada, cielo oscuro con brillo dorado (sin efectos de juego) |
-| Noche sin Luna | cada 50 noches | La noche cae lento hasta negro total; una ruptura nace en el cenit, se propaga a los horizontes y se abre en una grieta; dentro, un ojo púrpura de pupila felina que frunce la mirada. A medianoche desciende al azar el **Emisario Desconocido**, **El Ejecutor** o el **Dragón de la Primera Alma** |
+| Noche sin Luna | cada 50 noches | La noche cae lento hasta negro total; una ruptura nace en el cenit, se propaga a los horizontes y se abre en una grieta; dentro, un ojo púrpura de pupila felina que frunce la mirada. Toda la noche surgen hordas de **Centinelas** (espada) y **Arqueros del Vacío** (arco): esqueletos de hueso negro con armadura del Vacío encantada; se desvanecen al amanecer. A medianoche cae del cielo como un bólido negro el **Emisario Desconocido** o **El Ejecutor**, dejando un cráter |
 
 Prioridad si coinciden: Sin Luna > Súper > Sangre > Dorada.
 
@@ -42,7 +42,7 @@ Caballero colosal con un mazo. 480 de vida.
 - **Salto** con cráter al caer.
 - **Juicio Final** (especial): alza el mazo, la cabeza brilla, oscuridad total; 3,5 s después explosión de potencia 60 (x20 creeper). Rompe bloques aunque mobGriefing esté desactivado.
 
-## Dragón de la Primera Alma (Noche sin Luna, medianoche)
+## Dragón de la Primera Alma (solo comando o huevo)
 Dragón esquelético de huesos negros con el alma encendida dentro del costillar. ~5 veces el Ender Dragon
 (~95 bloques de envergadura; `dragonSize` en la config). 1500 de vida, hitboxes por parte (cabeza x1,5 de daño; cola y alas x0,5).
 - **En vuelo**: da vueltas sobre su presa y suelta ráfagas de dos **cargas de fuego púrpura** que explotan como x3 (60 %), x5 (30 %) o x10 (10 %) un creeper; en fase 2 (50 % de vida) suben las grandes. Brillan y dejan estela visible desde lejos; un círculo púrpura en el suelo marca dónde van a caer y qué tan grande es la explosión. Al impactar levantan un **hongo de fuego púrpura** (más grande cuanto más potente: ~25, ~40 y ~80 bloques de alto) con destello, resplandor en el cielo, temblor y estruendo que llega con retardo según la distancia. Respetan mobGriefing y calcinan el suelo.

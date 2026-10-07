@@ -45,6 +45,9 @@ import java.util.List;
 public abstract class VoidKnight extends Monster {
     private static final EntityDataAccessor<Byte> DATA_ATTACK =
             SynchedEntityData.defineId(VoidKnight.class, EntityDataSerializers.BYTE);
+    private static final EntityDataAccessor<Boolean> DATA_METEOR =
+            SynchedEntityData.defineId(VoidKnight.class, EntityDataSerializers.BOOLEAN);
+    private static final double METEOR_SPEED = 2.6;
     protected static final double BAR_RANGE = 96.0;
 
     protected final ServerBossEvent bossEvent;
@@ -89,6 +92,7 @@ public abstract class VoidKnight extends Monster {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(DATA_ATTACK, (byte) 0);
+        builder.define(DATA_METEOR, false);
     }
 
     public int getAttackId() {
@@ -124,8 +128,52 @@ public abstract class VoidKnight extends Monster {
 
     // ------------------------------------------------------------------ IA
 
+    // ------------------------------------------------------------------ entrada: bólido negro
+
+    public boolean isMeteor() {
+        return this.entityData.get(DATA_METEOR);
+    }
+
+    /** Cae del cielo envuelto en fuego negro; al tocar el suelo deja un cráter y empieza a pelear. */
+    public void startMeteor() {
+        this.entityData.set(DATA_METEOR, true);
+        setNoGravity(true);
+        setInvulnerable(true);
+        setDeltaMovement(0, -METEOR_SPEED, 0);
+    }
+
+    private void tickMeteor() {
+        setDeltaMovement(0, -METEOR_SPEED, 0);
+        getNavigation().stop();
+        if (!(level() instanceof ServerLevel sl)) return;
+        if (tickCount % 4 == 0) playSound(SoundEvents.PHANTOM_SWOOP, 6F, 0.3F);
+        if (onGround() || verticalCollision || tickCount > 400 || getY() <= level().getMinBuildHeight() + 2) {
+            this.entityData.set(DATA_METEOR, false);
+            setNoGravity(false);
+            setInvulnerable(false);
+            setDeltaMovement(Vec3.ZERO);
+            Vec3 at = position();
+            com.agustin.bloodmoon.world.VoidImpact.meteorCrater(sl, at, 7.5F);
+            hitArea(at, 9, null, -1, 14F, 2.2, 0.9, 60);
+            for (net.minecraft.server.level.ServerPlayer p : sl.players()) {
+                if (p.distanceToSqr(at) > 300 * 300) continue;
+                sl.sendParticles(p, ParticleTypes.EXPLOSION_EMITTER, true, at.x, at.y + 1, at.z, 3, 2, 0.5, 2, 0);
+                sl.sendParticles(p, ParticleTypes.SQUID_INK, true, at.x, at.y + 1, at.z, 260, 4, 1.5, 4, 0.35);
+                sl.sendParticles(p, ParticleTypes.DRAGON_BREATH, true, at.x, at.y + 1, at.z, 200, 5, 1, 5, 0.12);
+                sl.sendParticles(p, ParticleTypes.LARGE_SMOKE, true, at.x, at.y + 2, at.z, 120, 5, 2, 5, 0.08);
+            }
+            playSound(SoundEvents.GENERIC_EXPLODE.value(), 8F, 0.45F);
+            playSound(SoundEvents.ANVIL_LAND, 6F, 0.3F);
+            playSound(SoundEvents.WARDEN_ROAR, 6F, 0.5F);
+        }
+    }
+
     @Override
     protected void customServerAiStep() {
+        if (isMeteor()) {
+            BossBars.update(this, bossEvent, BAR_RANGE);
+            return;
+        }
         super.customServerAiStep();
         BossBars.update(this, bossEvent, BAR_RANGE);
 
@@ -227,7 +275,7 @@ public abstract class VoidKnight extends Monster {
         AABB box = getBoundingBox().inflate(radius, 4, radius);
         return level().getEntitiesOfClass(LivingEntity.class, box,
                 e -> e != this && e.isAlive() && !(e instanceof WitherSkeleton) && !(e instanceof VoidKnight)
-                        && !(e instanceof FirstSoulDragon)
+                        && !(e instanceof FirstSoulDragon) && !(e instanceof VoidSkeleton)
                         && !(e instanceof Player p && (p.isCreative() || p.isSpectator())));
     }
 
@@ -273,7 +321,19 @@ public abstract class VoidKnight extends Monster {
 
     @Override
     public void aiStep() {
+        if (isMeteor()) tickMeteor();
         super.aiStep();
+        if (level().isClientSide && isMeteor()) {
+            // estela del bólido: tinta negra, humo y fuego púrpura, visible desde lejos
+            for (int i = 0; i < 26; i++) {
+                double ox = (random.nextDouble() - 0.5) * 4, oz = (random.nextDouble() - 0.5) * 4;
+                double oy = random.nextDouble() * getBbHeight() + METEOR_SPEED * random.nextDouble() * 3;
+                net.minecraft.core.particles.ParticleOptions type = i % 3 == 0 ? ParticleTypes.SQUID_INK
+                        : i % 3 == 1 ? ParticleTypes.LARGE_SMOKE : ParticleTypes.DRAGON_BREATH;
+                level().addAlwaysVisibleParticle(type, true, getX() + ox, getY() + oy, getZ() + oz, 0, 0.25, 0);
+            }
+            return;
+        }
         if (level().isClientSide) {
             if (random.nextInt(3) == 0) {
                 level().addParticle(random.nextBoolean() ? ParticleTypes.SOUL : ParticleTypes.SMOKE,
@@ -357,12 +417,14 @@ public abstract class VoidKnight extends Monster {
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putBoolean("BoundToNight", boundToNight);
+        tag.putBoolean("Meteor", isMeteor());
     }
 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         boundToNight = tag.getBoolean("BoundToNight");
+        if (tag.getBoolean("Meteor")) startMeteor();
         if (hasCustomName()) bossEvent.setName(getDisplayName());
     }
 }

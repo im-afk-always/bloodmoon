@@ -59,5 +59,9 @@
   "bloodmoon.command.locate.none": "There is no Void Coliseum nearby.",
   "biome.bloodmoon.void_ruins": "Void Ruins",
   "dimension.bloodmoon.void_labyrinth": "Void Labyrinth",
-  "bloodmoon.intro.text": "We will meet soon"
+  "bloodmoon.intro.text": "We will meet soon",
+  "entity.bloodmoon.void_sentinel": "Void Sentinel",
+  "entity.bloodmoon.void_archer": "Void Archer",
+  "item.bloodmoon.void_sentinel_spawn_egg": "Void Sentinel Spawn Egg",
+  "item.bloodmoon.void_archer_spawn_egg": "Void Archer Spawn Egg"
 }

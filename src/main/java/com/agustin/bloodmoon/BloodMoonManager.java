@@ -7,6 +7,7 @@ import com.agustin.bloodmoon.entity.CursedCreeper;
 import com.agustin.bloodmoon.entity.ModEntities;
 import com.agustin.bloodmoon.entity.Executioner;
 import com.agustin.bloodmoon.entity.VoidKnight;
+import com.agustin.bloodmoon.entity.VoidSkeleton;
 import com.agustin.bloodmoon.network.BloodMoonPayload;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -19,7 +20,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.level.GameRules;
@@ -278,6 +278,7 @@ public final class BloodMoonManager {
 
     /** A la medianoche desciende de la grieta un caballero del Vacío (Emisario o Ejecutor) cerca de un jugador. */
     private static void tickMoonless(ServerLevel level, long timeOfDay) {
+        spawnVoidHorde(level);
         if (emissarySpawned || timeOfDay < MIDNIGHT) return;
         if (level.getDifficulty() == Difficulty.PEACEFUL
                 || !level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) return;
@@ -286,10 +287,6 @@ public final class BloodMoonManager {
         emissarySpawned = true;
 
         ServerPlayer chosen = players.get(level.random.nextInt(players.size()));
-        if (level.random.nextInt(3) == 0) {   // el tercer jefe de la brecha
-            spawnSoulDragon(level, chosen.position(), true);
-            return;
-        }
         BlockPos pos = findEmissarySpot(level, chosen, level.random);
         if (pos == null) {
             BloodMoonMod.LOGGER.info("No room to spawn a void knight near {}", chosen.getName().getString());
@@ -300,29 +297,54 @@ public final class BloodMoonManager {
         spawnVoidKnight(level, pos, type, true);
     }
 
+    /** Durante la Noche sin Luna surgen del suelo grupos de no-muertos del Vacío cerca de cada jugador. */
+    private static void spawnVoidHorde(ServerLevel level) {
+        if (level.getGameTime() % 40 != 0) return;
+        if (level.getDifficulty() == Difficulty.PEACEFUL || !level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) return;
+        RandomSource random = level.random;
+        for (ServerPlayer player : level.players()) {
+            if (player.isSpectator() || random.nextFloat() > 0.45F) continue;
+            int near = level.getEntitiesOfClass(VoidSkeleton.class, player.getBoundingBox().inflate(64, 32, 64)).size();
+            if (near >= 12) continue;
+            BlockPos base = findRiderSpot(level, player, random);
+            if (base == null) continue;
+            int group = 1 + random.nextInt(level.getDifficulty().getId() + 1);
+            for (int i = 0; i < group; i++) {
+                BlockPos p = base.offset(random.nextInt(5) - 2, 0, random.nextInt(5) - 2);
+                p = new BlockPos(p.getX(), level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, p.getX(), p.getZ()), p.getZ());
+                if (!level.getBlockState(p.below()).isFaceSturdy(level, p.below(), net.minecraft.core.Direction.UP)
+                        || !level.getBlockState(p).isAir() || !level.getBlockState(p.above()).isAir()) continue;
+                EntityType<VoidSkeleton> type = random.nextFloat() < 0.4F ? ModEntities.VOID_ARCHER.get() : ModEntities.VOID_SENTINEL.get();
+                VoidSkeleton mob = type.create(level);
+                if (mob == null) continue;
+                mob.moveTo(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, random.nextFloat() * 360F, 0F);
+                mob.finalizeSpawn(level, level.getCurrentDifficultyAt(p), MobSpawnType.EVENT, null);
+                mob.bindToNight();
+                level.addFreshEntity(mob);
+                level.sendParticles(ParticleTypes.REVERSE_PORTAL, p.getX() + 0.5, p.getY() + 0.2, p.getZ() + 0.5, 50, 0.4, 0.1, 0.4, 0.15);
+                level.sendParticles(ParticleTypes.SQUID_INK, p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5, 20, 0.3, 0.4, 0.3, 0.02);
+                level.playSound(null, p, SoundEvents.SOUL_ESCAPE.value(), SoundSource.HOSTILE, 1.2F, 0.6F);
+            }
+        }
+    }
+
     /** Invoca un caballero del Vacío con su entrada (rayo, sonido, mensaje). boundToNight: se retira al amanecer. */
     public static VoidKnight spawnVoidKnight(ServerLevel level, BlockPos pos, EntityType<? extends VoidKnight> type,
                                              boolean boundToNight) {
         VoidKnight knight = type.create(level);
         if (knight == null) return null;
-        knight.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, level.random.nextFloat() * 360F, 0F);
+        int sky = Math.min(level.getMaxBuildHeight() - 6, pos.getY() + 140);
+        knight.moveTo(pos.getX() + 0.5, sky, pos.getZ() + 0.5, level.random.nextFloat() * 360F, 0F);
         knight.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), MobSpawnType.EVENT, null);
         if (boundToNight) knight.bindToNight();
+        knight.startMeteor();                // cae como un bólido negro y deja un cráter
         level.addFreshEntity(knight);
-
-        LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
-        if (bolt != null) {
-            bolt.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
-            bolt.setVisualOnly(true);
-            level.addFreshEntity(bolt);
-        }
-        level.sendParticles(ParticleTypes.REVERSE_PORTAL, pos.getX() + 0.5, pos.getY() + 6, pos.getZ() + 0.5,
-                400, 1.5, 6, 1.5, 0.1);
         String key = knight instanceof Executioner ? "bloodmoon.message.executioner" : "bloodmoon.message.emissary";
         Component msg = Component.translatable(key).withStyle(ChatFormatting.DARK_PURPLE);
         for (ServerPlayer player : level.players()) {
             player.sendSystemMessage(msg);
             player.playNotifySound(SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 1F, 0.5F);
+            player.playNotifySound(SoundEvents.WITHER_SHOOT, SoundSource.HOSTILE, 0.8F, 0.3F);
         }
         return knight;
     }

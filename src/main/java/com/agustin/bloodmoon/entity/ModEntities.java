@@ -64,6 +64,22 @@ public final class ModEntities {
                     .updateInterval(1)
                     .build("soul_charge"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<VoidSkeleton>> VOID_SENTINEL =
+            ENTITIES.register("void_sentinel", () -> EntityType.Builder
+                    .<VoidSkeleton>of(VoidSkeleton::new, MobCategory.MONSTER)
+                    .sized(0.6F, 1.99F)
+                    .fireImmune()
+                    .clientTrackingRange(8)
+                    .build("void_sentinel"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<VoidSkeleton>> VOID_ARCHER =
+            ENTITIES.register("void_archer", () -> EntityType.Builder
+                    .<VoidSkeleton>of(VoidSkeleton::new, MobCategory.MONSTER)
+                    .sized(0.6F, 1.99F)
+                    .fireImmune()
+                    .clientTrackingRange(8)
+                    .build("void_archer"));
+
     private ModEntities() {}
 
     public static void registerAttributes(EntityAttributeCreationEvent event) {
@@ -71,6 +87,8 @@ public final class ModEntities {
         event.put(UNKNOWN_EMISSARY.get(), UnknownEmissary.createAttributes().build());
         event.put(EXECUTIONER.get(), Executioner.createAttributes().build());
         event.put(FIRST_SOUL_DRAGON.get(), FirstSoulDragon.createAttributes().build());
+        event.put(VOID_SENTINEL.get(), VoidSkeleton.createAttributes().build());
+        event.put(VOID_ARCHER.get(), VoidSkeleton.createAttributes().build());
         event.put(APOCALYPSE_RIDER.get(), AbstractSkeleton.createAttributes()
                 .add(Attributes.MAX_HEALTH, 80.0)
                 .add(Attributes.SCALE, 2.0)

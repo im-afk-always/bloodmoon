@@ -627,7 +627,7 @@ public class FirstSoulDragon extends Monster {
     }
 
     private boolean isEnemy(LivingEntity e) {
-        return e != this && e.isAlive() && !(e instanceof WitherSkeleton) && !(e instanceof VoidKnight)
+        return e != this && e.isAlive() && !(e instanceof WitherSkeleton) && !(e instanceof VoidKnight) && !(e instanceof VoidSkeleton)
                 && !(e instanceof Player p && (p.isCreative() || p.isSpectator()));
     }
 

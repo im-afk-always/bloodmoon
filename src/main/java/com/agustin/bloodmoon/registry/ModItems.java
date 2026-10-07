@@ -46,6 +46,10 @@ public final class ModItems {
             () -> new DeferredSpawnEggItem(ModEntities.EXECUTIONER, 0x1A1416, 0xE040A0, new Item.Properties()));
     public static final DeferredItem<DeferredSpawnEggItem> FIRST_SOUL_DRAGON_SPAWN_EGG = ITEMS.register("first_soul_dragon_spawn_egg",
             () -> new DeferredSpawnEggItem(ModEntities.FIRST_SOUL_DRAGON, 0x0E0A12, 0x9D4EDD, new Item.Properties()));
+    public static final DeferredItem<DeferredSpawnEggItem> VOID_SENTINEL_SPAWN_EGG = ITEMS.register("void_sentinel_spawn_egg",
+            () -> new DeferredSpawnEggItem(ModEntities.VOID_SENTINEL, 0x1A1620, 0x8A2BE2, new Item.Properties()));
+    public static final DeferredItem<DeferredSpawnEggItem> VOID_ARCHER_SPAWN_EGG = ITEMS.register("void_archer_spawn_egg",
+            () -> new DeferredSpawnEggItem(ModEntities.VOID_ARCHER, 0x1A1620, 0xD08CFF, new Item.Properties()));
     public static final DeferredItem<DeferredSpawnEggItem> CURSED_CREEPER_SPAWN_EGG = ITEMS.register("cursed_creeper_spawn_egg",
             () -> new DeferredSpawnEggItem(ModEntities.CURSED_CREEPER, 0x0DA70B, 0xD01818, new Item.Properties()));
 
@@ -73,6 +77,8 @@ public final class ModItems {
             event.accept(EMISSARY_SPAWN_EGG);
             event.accept(EXECUTIONER_SPAWN_EGG);
             event.accept(FIRST_SOUL_DRAGON_SPAWN_EGG);
+            event.accept(VOID_SENTINEL_SPAWN_EGG);
+            event.accept(VOID_ARCHER_SPAWN_EGG);
             event.accept(CURSED_CREEPER_SPAWN_EGG);
         }
     }

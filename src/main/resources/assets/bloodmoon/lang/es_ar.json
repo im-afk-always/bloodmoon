@@ -59,5 +59,9 @@
   "bloodmoon.command.locate.none": "No hay ningún Coliseo del Vacío cerca.",
   "biome.bloodmoon.void_ruins": "Ruinas del Vacío",
   "dimension.bloodmoon.void_labyrinth": "Laberinto del Vacío",
-  "bloodmoon.intro.text": "Nos encontraremos pronto"
+  "bloodmoon.intro.text": "Nos encontraremos pronto",
+  "entity.bloodmoon.void_sentinel": "Centinela del Vacío",
+  "entity.bloodmoon.void_archer": "Arquero del Vacío",
+  "item.bloodmoon.void_sentinel_spawn_egg": "Huevo de Centinela del Vacío",
+  "item.bloodmoon.void_archer_spawn_egg": "Huevo de Arquero del Vacío"
 }

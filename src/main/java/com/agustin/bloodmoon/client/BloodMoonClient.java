@@ -72,6 +72,8 @@ public class BloodMoonClient {
         event.registerEntityRenderer(ModEntities.EXECUTIONER.get(), ExecutionerRenderer::new);
         event.registerEntityRenderer(ModEntities.FIRST_SOUL_DRAGON.get(), FirstSoulDragonRenderer::new);
         event.registerEntityRenderer(ModEntities.SOUL_CHARGE.get(), SoulChargeRenderer::new);
+        event.registerEntityRenderer(ModEntities.VOID_SENTINEL.get(), VoidSkeletonRenderer::new);
+        event.registerEntityRenderer(ModEntities.VOID_ARCHER.get(), VoidSkeletonRenderer::new);
     }
 
     private static void onRegisterLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {

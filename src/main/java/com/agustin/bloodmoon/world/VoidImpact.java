@@ -33,6 +33,34 @@ public final class VoidImpact {
         level.sendParticles(ParticleTypes.LARGE_SMOKE, at.x, at.y + 1, at.z, 60, scorchRadius * 0.5, 1.0, scorchRadius * 0.5, 0.05);
     }
 
+    /**
+     * Cráter de impacto del bólido: cuenco semiesférico achatado (radio r, profundidad ~r/2), borde de
+     * Piedra del Vacío y algunas llamas astrales. Se hace siempre (es la entrada del jefe).
+     */
+    public static void meteorCrater(ServerLevel level, Vec3 at, float r) {
+        BlockPos center = groundBelow(level, BlockPos.containing(at));
+        int R = Mth.ceil(r);
+        for (BlockPos p : BlockPos.betweenClosed(center.offset(-R, -R, -R), center.offset(R, R + 4, R))) {
+            double dx = p.getX() - center.getX(), dz = p.getZ() - center.getZ(), dy = p.getY() - center.getY();
+            double d = dx * dx + dz * dz + (dy < 0 ? dy * dy * 4 : dy * dy * 0.6);
+            if (d <= r * r && breakable(level, p)) level.setBlock(p, Blocks.AIR.defaultBlockState(), 3);
+        }
+        // borde y fondo vitrificados
+        for (int dx = -R - 2; dx <= R + 2; dx++) {
+            for (int dz = -R - 2; dz <= R + 2; dz++) {
+                double hr = Math.sqrt(dx * dx + dz * dz);
+                if (hr > r + 2) continue;
+                BlockPos top = surface(level, center.offset(dx, 0, dz), R);
+                if (top == null || !breakable(level, top)) continue;
+                if (level.random.nextFloat() < 0.75F) level.setBlock(top, ModBlocks.VOID_STONE.get().defaultBlockState(), 3);
+                BlockPos above = top.above();
+                if (hr < r && level.getBlockState(above).isAir() && level.random.nextFloat() < 0.12F) {
+                    level.setBlock(above, ModBlocks.ASTRAL_FIRE.get().defaultBlockState().setValue(AstralFireBlock.ETERNAL, false), 3);
+                }
+            }
+        }
+    }
+
     /** Calcina el suelo (Piedra del Vacío + llamas astrales) sin abrir cráter ni grandes partículas. */
     public static void scorch(ServerLevel level, Vec3 at, float radius, boolean griefing) {
         if (!griefing || radius <= 0) return;
