@@ -30,7 +30,7 @@ public class SoulChargeRenderer extends EntityRenderer<SoulCharge> {
     @Override
     public void render(SoulCharge entity, float entityYaw, float partialTick, PoseStack poseStack,
                        MultiBufferSource buffer, int packedLight) {
-        float size = 0.55F * entity.multiplier();
+        float size = 0.9F * entity.multiplier();
         float spin = (entity.tickCount + partialTick) * 12F;
         VertexConsumer vc = buffer.getBuffer(RENDER_TYPE);
         for (int layer = 0; layer < 2; layer++) {
@@ -42,10 +42,15 @@ public class SoulChargeRenderer extends EntityRenderer<SoulCharge> {
             poseStack.mulPose(Axis.ZP.rotationDegrees(layer == 0 ? spin : -spin * 0.6F));
             PoseStack.Pose pose = poseStack.last();
             int a = layer == 0 ? 255 : 110;
+            // las dos caras: el tipo de render aditivo descarta la cara trasera
             vertex(vc, pose, -0.5F, -0.5F, 0, 1, a);
             vertex(vc, pose, 0.5F, -0.5F, 1, 1, a);
             vertex(vc, pose, 0.5F, 0.5F, 1, 0, a);
             vertex(vc, pose, -0.5F, 0.5F, 0, 0, a);
+            vertex(vc, pose, -0.5F, 0.5F, 0, 0, a);
+            vertex(vc, pose, 0.5F, 0.5F, 1, 0, a);
+            vertex(vc, pose, 0.5F, -0.5F, 1, 1, a);
+            vertex(vc, pose, -0.5F, -0.5F, 0, 1, a);
             poseStack.popPose();
         }
         super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);

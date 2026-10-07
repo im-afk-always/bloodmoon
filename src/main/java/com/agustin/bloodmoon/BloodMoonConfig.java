@@ -68,9 +68,9 @@ public final class BloodMoonConfig {
         b.pop();
 
         b.push("firstSoulDragon");
-        DRAGON_SCALE = b.comment("Tamaño del Dragón de la Primera Alma respecto al Ender Dragon (10 = ~180 bloques de envergadura).",
+        DRAGON_SCALE = b.comment("Tamaño del Dragón de la Primera Alma respecto al Ender Dragon (5 = ~95 bloques de envergadura).",
                         "Afecta modelo, hitboxes y alcance de sus ataques. Se aplica a dragones nuevos.")
-                .defineInRange("dragonScale", 10.0, 1.0, 12.0);
+                .defineInRange("dragonSize", 5.0, 1.0, 12.0);
         DRAGON_CHARGE_POWER = b.comment("Multiplicador de las cargas de fuego púrpura (1 = x3/x5/x10 la de un creeper). 0 = no rompen bloques ni dañan.")
                 .defineInRange("dragonChargePowerMultiplier", 1.0, 0.0, 3.0);
         b.pop();

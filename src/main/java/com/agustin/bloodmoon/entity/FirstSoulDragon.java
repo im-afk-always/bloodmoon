@@ -128,7 +128,7 @@ public class FirstSoulDragon extends Monster {
         super.defineSynchedData(builder);
         builder.define(DATA_ATTACK, (byte) 0);
         builder.define(DATA_GROUNDED, false);
-        builder.define(DATA_SCALE, 10F);
+        builder.define(DATA_SCALE, 5F);
     }
 
     public int getAttackId() {
@@ -304,7 +304,7 @@ public class FirstSoulDragon extends Monster {
         if (random.nextInt(2) == 0) {
             Vec3 c = local(CORE);
             double s = 3 * unit();
-            level().addParticle(random.nextBoolean() ? ParticleTypes.SOUL : ParticleTypes.WITCH,
+            level().addAlwaysVisibleParticle(random.nextBoolean() ? ParticleTypes.SOUL : ParticleTypes.WITCH, true,
                     c.x + (random.nextDouble() - 0.5) * s, c.y + (random.nextDouble() - 0.5) * s, c.z + (random.nextDouble() - 0.5) * s,
                     0, 0.05, 0);
         }
