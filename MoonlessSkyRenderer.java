@@ -20,20 +20,25 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 /**
- * Noche sin luna: una grieta negra que cruza el cielo de horizonte a horizonte (este-oeste, por el cenit)
- * y, dentro, un ojo púrpura colosal de pupila felina que se desplaza lentamente de lado a lado.
+ * Noche sin luna: una grieta que cruza el cielo de este a oeste por el cenit y se afina hasta terminar
+ * en punta sobre cada horizonte. Dentro, un ojo púrpura colosal de pupila felina que se desplaza de lado
+ * a lado mientras la pupila "busca" algo abajo. Toda la luz queda dentro de la grieta: afuera, negro.
  * Se dibuja después del cielo vanilla y antes del terreno, así que montañas y techos lo tapan.
  */
 public final class MoonlessSkyRenderer {
     private static final float R = 100F;           // radio de la "cúpula"
     private static final int SEG = 120;            // segmentos a lo largo de la grieta
-    private static final float THETA_MAX = 100F;   // grados desde el cenit (pasa un poco bajo el horizonte)
+    private static final float THETA_MAX = 88F;    // grados desde el cenit: las puntas tocan el horizonte
     private static final float RIFT_W = 20F;       // media apertura máxima de la grieta (grados)
 
     private static final float EYE_L = 30F;        // medio largo del ojo (grados)
     private static final float EYE_H = 13F;        // medio alto del ojo (grados)
     private static final float EYE_SWAY = 32F;     // cuánto se desplaza a cada lado (grados)
     private static final float EYE_PERIOD = 3000F; // ticks de ida y vuelta (150 s)
+    private static final int ACROSS = 10;          // subdivisiones a través de la grieta (degradado de luz)
+    private static final float PUPIL_SLOT = 50F;   // la pupila fija un punto ~2,5 s...
+    private static final float PUPIL_MOVE = 8F;    // ...y salta al siguiente en 0,4 s
+    private static final float PR = 0.63F, PG = 0.16F, PB = 1F; // púrpura
 
     private MoonlessSkyRenderer() {}
 
@@ -55,16 +60,11 @@ public final class MoonlessSkyRenderer {
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
 
-        additive();
-        drawRiftGlow(mv, k);
-        RenderSystem.defaultBlendFunc();
-        drawRift(mv, k);
-
         float eyeTheta = EYE_SWAY * Mth.sin(time * Mth.TWO_PI / EYE_PERIOD);
         Eye eye = new Eye(eyeTheta);
-        additive();
-        drawHalo(mv, eye, k);
+
         RenderSystem.defaultBlendFunc();
+        drawRiftInterior(mv, eye, k);
         drawLids(mv, eye, k);
         drawIris(mv, eye, k);
         drawPupil(mv, eye, k, time);
@@ -78,7 +78,7 @@ public final class MoonlessSkyRenderer {
         RenderSystem.disableBlend();
     }
 
-    private static void additive() {
+    private static void additive() { // brillo del reflejo
         RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
     }
 
@@ -101,10 +101,10 @@ public final class MoonlessSkyRenderer {
         return -THETA_MAX + 2F * THETA_MAX * i / SEG;
     }
 
-    /** Media apertura de un borde (side = +1 / -1), con forma de grieta irregular. */
+    /** Media apertura de un borde (side = +1 / -1): irregular y con ancho 0 en las puntas (horizontes). */
     private static float halfWidth(int i, int side) {
         float th = theta(i);
-        float base = (float) Math.pow(Math.max(0.06F, 1F - (th / THETA_MAX) * (th / THETA_MAX)), 0.6);
+        float base = (float) Math.pow(Math.max(0F, 1F - (th / THETA_MAX) * (th / THETA_MAX)), 0.85);
         float seed = side > 0 ? 3.1F : 11.7F;
         float n = 0.75F * smoothNoise(i / 5F, seed) + 0.25F * hash(i * 2.3F + seed);
         return RIFT_W * base * (0.78F + 0.44F * n);
@@ -117,41 +117,39 @@ public final class MoonlessSkyRenderer {
         return new Vector3f(Mth.sin(th) * c * R, Mth.cos(th) * c * R, Mth.sin(ph) * R);
     }
 
-    private static void drawRiftGlow(Matrix4f mv, float k) {
+    /**
+     * Interior de la grieta: negro, iluminado solo por el ojo y por un brillo que nace en el labio.
+     * No se dibuja nada fuera del labio, así que el cielo exterior queda completamente oscuro.
+     */
+    private static void drawRiftInterior(Matrix4f mv, Eye eye, float k) {
         BufferBuilder bb = begin();
-        for (int side = -1; side <= 1; side += 2) {
-            for (int i = 0; i < SEG; i++) {
-                float t0 = theta(i), t1 = theta(i + 1);
-                float w0 = halfWidth(i, side), w1 = halfWidth(i + 1, side);
-                // dos tramos para que el brillo caiga de forma no lineal
-                for (int step = 0; step < 2; step++) {
-                    float a0 = step / 2F, a1 = (step + 1) / 2F;
-                    float al0 = 0.75F * k * (1F - a0) * (1F - a0);
-                    float al1 = 0.75F * k * (1F - a1) * (1F - a1);
-                    vertex(bb, mv, riftPoint(t0, side * glowW(w0, a0)), 0.67F, 0.16F, 1F, al0);
-                    vertex(bb, mv, riftPoint(t1, side * glowW(w1, a0)), 0.67F, 0.16F, 1F, al0);
-                    vertex(bb, mv, riftPoint(t1, side * glowW(w1, a1)), 0.67F, 0.16F, 1F, al1);
-                    vertex(bb, mv, riftPoint(t0, side * glowW(w0, a1)), 0.67F, 0.16F, 1F, al1);
-                }
+        for (int i = 0; i < SEG; i++) {
+            float t0 = theta(i), t1 = theta(i + 1);
+            for (int j = 0; j < ACROSS; j++) {
+                float a0 = -1F + 2F * j / ACROSS, a1 = -1F + 2F * (j + 1) / ACROSS;
+                riftVertex(bb, mv, eye, t0, across(i, a0), Math.abs(a0), k);
+                riftVertex(bb, mv, eye, t1, across(i + 1, a0), Math.abs(a0), k);
+                riftVertex(bb, mv, eye, t1, across(i + 1, a1), Math.abs(a1), k);
+                riftVertex(bb, mv, eye, t0, across(i, a1), Math.abs(a1), k);
             }
         }
         draw(bb);
     }
 
-    private static float glowW(float w, float a) {
-        return w * (1F + 0.7F * a) + 2.5F * a;
+    /** a ∈ [-1, 1] de un labio al otro. */
+    private static float across(int i, float a) {
+        return a * (a >= 0 ? halfWidth(i, 1) : halfWidth(i, -1));
     }
 
-    private static void drawRift(Matrix4f mv, float k) {
-        BufferBuilder bb = begin();
-        for (int i = 0; i < SEG; i++) {
-            float t0 = theta(i), t1 = theta(i + 1);
-            vertex(bb, mv, riftPoint(t0, -halfWidth(i, -1)), 0F, 0F, 0F, k);
-            vertex(bb, mv, riftPoint(t1, -halfWidth(i + 1, -1)), 0F, 0F, 0F, k);
-            vertex(bb, mv, riftPoint(t1, halfWidth(i + 1, 1)), 0F, 0F, 0F, k);
-            vertex(bb, mv, riftPoint(t0, halfWidth(i, 1)), 0F, 0F, 0F, k);
-        }
-        draw(bb);
+    private static void riftVertex(BufferBuilder bb, Matrix4f mv, Eye eye, float thetaDeg, float phiDeg,
+                                   float edge, float k) {
+        Vector3f p = riftPoint(thetaDeg, phiDeg);
+        float cos = Mth.clamp(p.dot(eye.center()) / R, -1F, 1F);
+        float angle = (float) Math.toDegrees(Math.acos(cos));
+        float eyeLight = 0.9F * (float) Math.exp(-(angle / 24F) * (angle / 24F));
+        float lip = Math.max(0F, (edge - 0.55F) / 0.45F);
+        float light = Math.min(1.2F, eyeLight + 0.85F * lip * lip);
+        vertex(bb, mv, p, Math.min(1F, PR * light), Math.min(1F, PG * light), Math.min(1F, PB * light), k);
     }
 
     // ------------------------------------------------------------------ ojo
@@ -174,24 +172,6 @@ public final class MoonlessSkyRenderer {
     /** Media altura del almendrado en la posición s ∈ [-1, 1]. */
     private static float lid(float s) {
         return EYE_H * (float) Math.pow(Math.max(0F, 1F - s * s), 0.75);
-    }
-
-    private static void drawHalo(Matrix4f mv, Eye eye, float k) {
-        BufferBuilder bb = begin();
-        int rings = 10, n = 48;
-        for (int r = 0; r < rings; r++) {
-            float r0 = r / (float) rings, r1 = (r + 1) / (float) rings;
-            float al0 = 0.85F * k * (float) Math.pow(1F - r0, 1.4);
-            float al1 = 0.85F * k * (float) Math.pow(1F - r1, 1.4);
-            for (int i = 0; i < n; i++) {
-                float a0 = Mth.TWO_PI * i / n, a1 = Mth.TWO_PI * (i + 1) / n;
-                vertex(bb, mv, eye.point(62F * r0 * Mth.cos(a0), 40F * r0 * Mth.sin(a0)), 0.63F, 0.16F, 1F, al0);
-                vertex(bb, mv, eye.point(62F * r0 * Mth.cos(a1), 40F * r0 * Mth.sin(a1)), 0.63F, 0.16F, 1F, al0);
-                vertex(bb, mv, eye.point(62F * r1 * Mth.cos(a1), 40F * r1 * Mth.sin(a1)), 0.63F, 0.16F, 1F, al1);
-                vertex(bb, mv, eye.point(62F * r1 * Mth.cos(a0), 40F * r1 * Mth.sin(a0)), 0.63F, 0.16F, 1F, al1);
-            }
-        }
-        draw(bb);
     }
 
     private static void drawLids(Matrix4f mv, Eye eye, float k) {
@@ -241,22 +221,45 @@ public final class MoonlessSkyRenderer {
         vertex(bb, mv, eye.point(u, v), r * shade, g * shade, b * shade, k);
     }
 
+    /**
+     * Pupila felina orientada a lo largo de la grieta. "Busca": fija un punto, salta rápido a otro
+     * (movimiento sacádico) y vuelve a fijar. Se recorta para no salirse de los párpados.
+     */
     private static void drawPupil(Matrix4f mv, Eye eye, float k, float time) {
+        int slot = Mth.floor(time / PUPIL_SLOT);
+        float f = Math.min(1F, (time - slot * PUPIL_SLOT) / PUPIL_MOVE);
+        f = f * f * (3F - 2F * f);
+        float u0 = Mth.lerp(f, pupilTargetU(slot - 1), pupilTargetU(slot));
+        float v0 = Mth.lerp(f, pupilTargetV(slot - 1), pupilTargetV(slot));
+
+        float width = 0.14F * EYE_H * (1F + 0.2F * Mth.sin(time * 0.02F)); // "respira"
+        float length = 0.72F * EYE_L;
         BufferBuilder bb = begin();
-        float p = 0.17F * EYE_H * (1F + 0.2F * Mth.sin(time * 0.02F)); // la pupila "respira"
-        float u0 = 1.5F * Mth.sin(time * 0.013F);                     // y se mueve apenas
-        int n = 24;
+        int n = 32;
         for (int j = 0; j < n; j++) {
             float t0 = -1F + 2F * j / n, t1 = -1F + 2F * (j + 1) / n;
-            float w0 = p * (float) Math.pow(Math.max(0F, 1F - t0 * t0), 0.9);
-            float w1 = p * (float) Math.pow(Math.max(0F, 1F - t1 * t1), 0.9);
-            float v0 = 0.95F * EYE_H * t0, v1 = 0.95F * EYE_H * t1;
-            vertex(bb, mv, eye.point(u0 - w0, v0), 0F, 0F, 0F, k);
-            vertex(bb, mv, eye.point(u0 + w0, v0), 0F, 0F, 0F, k);
-            vertex(bb, mv, eye.point(u0 + w1, v1), 0F, 0F, 0F, k);
-            vertex(bb, mv, eye.point(u0 - w1, v1), 0F, 0F, 0F, k);
+            float w0 = width * (float) Math.pow(Math.max(0F, 1F - t0 * t0), 0.9);
+            float w1 = width * (float) Math.pow(Math.max(0F, 1F - t1 * t1), 0.9);
+            float ua = u0 + length * t0, ub = u0 + length * t1;
+            vertex(bb, mv, eye.point(ua, insideLids(ua, v0 - w0)), 0F, 0F, 0F, k);
+            vertex(bb, mv, eye.point(ub, insideLids(ub, v0 - w1)), 0F, 0F, 0F, k);
+            vertex(bb, mv, eye.point(ub, insideLids(ub, v0 + w1)), 0F, 0F, 0F, k);
+            vertex(bb, mv, eye.point(ua, insideLids(ua, v0 + w0)), 0F, 0F, 0F, k);
         }
         draw(bb);
+    }
+
+    private static float pupilTargetU(int slot) {
+        return (hash(slot * 3.17F + 1.3F) * 2F - 1F) * 0.22F * EYE_L;
+    }
+
+    private static float pupilTargetV(int slot) {
+        return (hash(slot * 5.41F + 7.9F) * 2F - 1F) * 0.5F * EYE_H;
+    }
+
+    private static float insideLids(float u, float v) {
+        float max = 0.9F * lid(u / EYE_L);
+        return Mth.clamp(v, -max, max);
     }
 
     private static void drawGlint(Matrix4f mv, Eye eye, float k) {

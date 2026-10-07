@@ -1,4 +1,4 @@
-# Blood Moon — NeoForge 1.21.1 (v2)
+# Blood Moon — NeoForge 1.21.1 (v4)
 
 ## Lunas
 | Luna | Frecuencia (default) | Visual |
@@ -6,7 +6,7 @@
 | Luna de Sangre | cada 3 noches | Luna vanilla teñida de rojo, cielo negro sin estrellas |
 | Súper Luna de Sangre | cada 13 noches | Rojo más intenso, horizonte sangriento |
 | Luna Dorada | cada 7 noches | Luna vanilla dorada, cielo oscuro con brillo dorado (sin efectos de juego) |
-| Noche sin Luna | cada 50 noches | Sin luna; grieta negra de horizonte a horizonte con un ojo púrpura colosal de pupila felina que se mueve de lado a lado (sin efectos de juego) |
+| Noche sin Luna | cada 50 noches | Cielo totalmente negro; grieta que cruza el cielo y termina en punta sobre cada horizonte; ojo púrpura colosal que se desplaza de lado a lado mientras su pupila felina busca algo abajo (sin efectos de juego) |
 
 Prioridad si coinciden: Sin Luna > Súper > Sangre > Dorada.
 
