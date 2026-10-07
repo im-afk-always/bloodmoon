@@ -1,4 +1,4 @@
-# Blood Moon — NeoForge 1.21.1 (v5)
+# Blood Moon — NeoForge 1.21.1 (v6)
 
 ## Lunas
 | Luna | Frecuencia (default) | Visual |
@@ -6,7 +6,7 @@
 | Luna de Sangre | cada 3 noches | Luna vanilla teñida de rojo, cielo negro sin estrellas |
 | Súper Luna de Sangre | cada 13 noches | Rojo más intenso, horizonte sangriento |
 | Luna Dorada | cada 7 noches | Luna vanilla dorada, cielo oscuro con brillo dorado (sin efectos de juego) |
-| Noche sin Luna | cada 50 noches | La noche cae lento hasta negro total; una ruptura nace en el cenit, se propaga a los horizontes y se abre en una grieta; dentro, un ojo púrpura de pupila felina que frunce la mirada. A medianoche desciende el **Emisario Desconocido** |
+| Noche sin Luna | cada 50 noches | La noche cae lento hasta negro total; una ruptura nace en el cenit, se propaga a los horizontes y se abre en una grieta; dentro, un ojo púrpura de pupila felina que frunce la mirada. A medianoche desciende el **Emisario Desconocido** o **El Ejecutor** (al azar) |
 
 Prioridad si coinciden: Sin Luna > Súper > Sangre > Dorada.
 
@@ -27,7 +27,26 @@ Caballero no-muerto de ~12 bloques, armadura negra y espadón rúnico. 400 de vi
 - **Salto Sísmico**: salta hacia su objetivo (o cuando se traba) y al caer lanza todo por el aire.
 - **Grieta de Almas**: clava el espadón y abre tres líneas de colmillos.
 - **Llamado del Vacío** (fase 2, 50 % de vida): oscuridad + cuatro escoltas wither.
+- **Colapso del Abismo** (especial): clava el espadón; anillos de colmillos se expanden, atrae a todo en 26 bloques hacia el centro y estalla en un pilar de luz (daño 20 + Quemadura astral).
 Se retira por la grieta al amanecer. Arrasa hojas que lo traban (si mobGriefing está activo).
+
+## El Ejecutor (Noche sin Luna, medianoche)
+Caballero colosal con un mazo. 480 de vida.
+- **Golpe de Condena**: cráter, el suelo se vuelve Piedra del Vacío y quedan llamas astrales.
+- **Barrido Brutal**: arco de 180° con empuje enorme.
+- **Salto** con cráter al caer.
+- **Juicio Final** (especial): alza el mazo, la cabeza brilla, oscuridad total; 3,5 s después explosión de potencia 60 (x20 creeper). Rompe bloques aunque mobGriefing esté desactivado.
+
+## Quemadura astral
+Llamas púrpuras: 2 de daño por segundo (el doble que el fuego), atraviesa armadura y Resistencia al fuego. El agua la apaga.
+
+## Botín (jefes del Vacío)
+~50 %: el arma del jefe o una pieza del **Set del Vacío** (casco, coraza, grebas, botas; mejor que netherite). 35 %: **Compás hacia el fin del mundo**.
+- **Espadón del Emisario** y **Mazo del Ejecutor**: armas grandes. El mazo tiene especial: mantené clic derecho 1,5 s y soltá (cráter + explosión, enfriamiento 30 s).
+- **Compás**: clic derecho en el Overworld para fijar el **Coliseo del Vacío** más cercano; la aguja apunta a él.
+
+## Coliseo del Vacío
+Ruina colosal (≈100 bloques de diámetro, 30 de alto) de piedra negra con llamas astrales eternas y un altar escalonado con un arco de obsidiana en la cima (futura entrada a la dimensión). `/locate structure bloodmoon:void_coliseum`.
 
 ## Comandos (OP)
 - `/bloodmoon force [blood|super|golden|moonless]`
@@ -35,8 +54,9 @@ Se retira por la grieta al amanecer. Arrasa hojas que lo traban (si mobGriefing 
 - `/bloodmoon status`
 - `/bloodmoon summon rider`
 - `/bloodmoon summon emissary`
+- `/bloodmoon summon executioner`
 - `/summon bloodmoon:cursed_creeper`
 
 ## Configuración
 `config/bloodmoon-common.toml` (se crea al primer arranque): frecuencias, multiplicadores de explosión,
-probabilidad de Cursed Creeper, tamaño/daño de phantoms, vida del jinete, drop del equipo.
+probabilidad de Cursed Creeper, tamaño/daño de phantoms, vida del jinete, drop del equipo, potencia del Juicio Final (`executionerJudgmentPower`) y del especial del mazo (`maulSpecialPower`).

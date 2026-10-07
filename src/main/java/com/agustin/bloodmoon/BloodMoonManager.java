@@ -3,7 +3,8 @@ package com.agustin.bloodmoon;
 import com.agustin.bloodmoon.entity.ApocalypseRider;
 import com.agustin.bloodmoon.entity.CursedCreeper;
 import com.agustin.bloodmoon.entity.ModEntities;
-import com.agustin.bloodmoon.entity.UnknownEmissary;
+import com.agustin.bloodmoon.entity.Executioner;
+import com.agustin.bloodmoon.entity.VoidKnight;
 import com.agustin.bloodmoon.network.BloodMoonPayload;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -273,7 +274,7 @@ public final class BloodMoonManager {
 
     // ---------------------------------------------------------------- Noche sin Luna
 
-    /** A la medianoche, el Emisario Desconocido desciende de la grieta cerca de un jugador al azar. */
+    /** A la medianoche desciende de la grieta un caballero del Vacío (Emisario o Ejecutor) cerca de un jugador. */
     private static void tickMoonless(ServerLevel level, long timeOfDay) {
         if (emissarySpawned || timeOfDay < MIDNIGHT) return;
         if (level.getDifficulty() == Difficulty.PEACEFUL
@@ -285,20 +286,23 @@ public final class BloodMoonManager {
         ServerPlayer chosen = players.get(level.random.nextInt(players.size()));
         BlockPos pos = findEmissarySpot(level, chosen, level.random);
         if (pos == null) {
-            BloodMoonMod.LOGGER.info("No room to spawn the Unknown Emissary near {}", chosen.getName().getString());
+            BloodMoonMod.LOGGER.info("No room to spawn a void knight near {}", chosen.getName().getString());
             return;
         }
-        spawnEmissary(level, pos, true);
+        EntityType<? extends VoidKnight> type = level.random.nextBoolean()
+                ? ModEntities.UNKNOWN_EMISSARY.get() : ModEntities.EXECUTIONER.get();
+        spawnVoidKnight(level, pos, type, true);
     }
 
-    /** Invoca al Emisario con su entrada (rayo, sonido, mensaje). boundToNight: se retira al terminar la noche. */
-    public static UnknownEmissary spawnEmissary(ServerLevel level, BlockPos pos, boolean boundToNight) {
-        UnknownEmissary emissary = ModEntities.UNKNOWN_EMISSARY.get().create(level);
-        if (emissary == null) return null;
-        emissary.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, level.random.nextFloat() * 360F, 0F);
-        emissary.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), MobSpawnType.EVENT, null);
-        if (boundToNight) emissary.bindToNight();
-        level.addFreshEntity(emissary);
+    /** Invoca un caballero del Vacío con su entrada (rayo, sonido, mensaje). boundToNight: se retira al amanecer. */
+    public static VoidKnight spawnVoidKnight(ServerLevel level, BlockPos pos, EntityType<? extends VoidKnight> type,
+                                             boolean boundToNight) {
+        VoidKnight knight = type.create(level);
+        if (knight == null) return null;
+        knight.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, level.random.nextFloat() * 360F, 0F);
+        knight.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), MobSpawnType.EVENT, null);
+        if (boundToNight) knight.bindToNight();
+        level.addFreshEntity(knight);
 
         LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
         if (bolt != null) {
@@ -308,12 +312,13 @@ public final class BloodMoonManager {
         }
         level.sendParticles(ParticleTypes.REVERSE_PORTAL, pos.getX() + 0.5, pos.getY() + 6, pos.getZ() + 0.5,
                 400, 1.5, 6, 1.5, 0.1);
-        Component msg = Component.translatable("bloodmoon.message.emissary").withStyle(ChatFormatting.DARK_PURPLE);
+        String key = knight instanceof Executioner ? "bloodmoon.message.executioner" : "bloodmoon.message.emissary";
+        Component msg = Component.translatable(key).withStyle(ChatFormatting.DARK_PURPLE);
         for (ServerPlayer player : level.players()) {
             player.sendSystemMessage(msg);
             player.playNotifySound(SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 1F, 0.5F);
         }
-        return emissary;
+        return knight;
     }
 
     /** Superficie a 28-40 bloques con un hueco de 3x3x13 para el gigante. */

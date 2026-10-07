@@ -1,6 +1,7 @@
 package com.agustin.bloodmoon;
 
 import com.agustin.bloodmoon.entity.ApocalypseRider;
+import com.agustin.bloodmoon.entity.ModEntities;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -16,7 +17,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /bloodmoon cancel                      -> cancela un forzado pendiente
  * /bloodmoon status                      -> estado y próximas lunas
  * /bloodmoon summon rider                -> invoca un Jinete del Apocalipsis montado donde estás
- * /bloodmoon summon emissary             -> invoca al Emisario Desconocido donde estás (no se retira al amanecer)
+ * /bloodmoon summon emissary|executioner -> invoca un caballero del Vacío donde estás (no se retira al amanecer)
  * Requiere permiso 2 (OP / trucos activados).
  */
 public final class BloodMoonCommand {
@@ -38,7 +39,8 @@ public final class BloodMoonCommand {
                 .then(Commands.literal("status").executes(BloodMoonCommand::status))
                 .then(Commands.literal("summon")
                         .then(Commands.literal("rider").executes(BloodMoonCommand::summonRider))
-                        .then(Commands.literal("emissary").executes(BloodMoonCommand::summonEmissary))));
+                        .then(Commands.literal("emissary").executes(ctx -> summonKnight(ctx, false)))
+                        .then(Commands.literal("executioner").executes(ctx -> summonKnight(ctx, true)))));
     }
 
     private static Component moonName(MoonType type) {
@@ -81,10 +83,11 @@ public final class BloodMoonCommand {
         return d < 0 ? "-" : Long.toString(d);
     }
 
-    private static int summonEmissary(CommandContext<CommandSourceStack> ctx) {
+    private static int summonKnight(CommandContext<CommandSourceStack> ctx, boolean executioner) {
         CommandSourceStack src = ctx.getSource();
-        boolean ok = BloodMoonManager.spawnEmissary(src.getLevel(), BlockPos.containing(src.getPosition()), false) != null;
-        src.sendSuccess(() -> Component.translatable(ok ? "bloodmoon.command.summon.emissary" : "bloodmoon.command.summon.fail"), true);
+        boolean ok = BloodMoonManager.spawnVoidKnight(src.getLevel(), BlockPos.containing(src.getPosition()),
+                executioner ? ModEntities.EXECUTIONER.get() : ModEntities.UNKNOWN_EMISSARY.get(), false) != null;
+        src.sendSuccess(() -> Component.translatable(ok ? "bloodmoon.command.summon.knight" : "bloodmoon.command.summon.fail"), true);
         return ok ? 1 : 0;
     }
 

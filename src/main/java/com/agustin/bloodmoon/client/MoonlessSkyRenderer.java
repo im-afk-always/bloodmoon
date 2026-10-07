@@ -24,9 +24,9 @@ import org.joml.Vector3f;
  * <pre>
  * 13000-13600  el cielo se apaga lentamente hasta negro total (ClientMoonState)
  * 13600-14200  oscuridad absoluta
- * 14200-14800  una ruptura brillante nace en el cenit y se propaga hacia ambos horizontes
- * 14800-16000  la grieta se abre; dentro aparece el ojo, cerrado
- * 16000-16300  el ojo se abre; luego frunce la mirada en bucle (pupila quieta)
+ * 14200-14500  una ruptura brillante nace en el cenit y se propaga hacia ambos horizontes
+ * 14500-15100  la grieta se abre; dentro aparece el ojo, cerrado
+ * 15100-15250  el ojo se abre; luego frunce la mirada en bucle (pupila quieta)
  * 21700-23000  todo se revierte: el ojo se cierra, la grieta se sella y la ruptura se retrae
  * </pre>
  * Toda la luz queda dentro del labio: afuera, negro. Se dibuja antes del terreno.
@@ -56,9 +56,9 @@ public final class MoonlessSkyRenderer {
     }
 
     private static Stage stage(float tod, float time) {
-        float crack = smooth((tod - 14200F) / 600F) * (1F - smooth((tod - 22700F) / 300F));
-        float open = smooth((tod - 14800F) / 1200F) * (1F - smooth((tod - 22000F) / 700F));
-        float eyeOpen = smooth((tod - 16000F) / 300F) * (1F - smooth((tod - 21700F) / 300F));
+        float crack = smooth((tod - 14200F) / 300F) * (1F - smooth((tod - 22700F) / 300F));
+        float open = smooth((tod - 14500F) / 600F) * (1F - smooth((tod - 22000F) / 700F));
+        float eyeOpen = smooth((tod - 15100F) / 150F) * (1F - smooth((tod - 21700F) / 300F));
 
         // fruncir: abierto -> se entrecierra -> sostiene -> relaja -> abierto
         float c = time % SQUINT_PERIOD;

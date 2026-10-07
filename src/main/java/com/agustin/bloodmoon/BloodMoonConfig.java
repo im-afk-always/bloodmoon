@@ -22,6 +22,8 @@ public final class BloodMoonConfig {
     public static final ModConfigSpec.BooleanValue RIDER_ENABLED;
     public static final ModConfigSpec.DoubleValue RIDER_HEALTH;
     public static final ModConfigSpec.DoubleValue SPECIAL_GEAR_DROP_CHANCE;
+    public static final ModConfigSpec.DoubleValue JUDGMENT_POWER;
+    public static final ModConfigSpec.DoubleValue MAUL_SPECIAL_POWER;
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
@@ -53,6 +55,14 @@ public final class BloodMoonConfig {
         RIDER_HEALTH = b.defineInRange("apocalypseRiderHealth", 80.0, 1.0, 1024.0);
         SPECIAL_GEAR_DROP_CHANCE = b.comment("Probabilidad de drop del equipo de diamante/netherite (0 = nunca).")
                 .defineInRange("specialGearDropChance", 0.0, 0.0, 1.0);
+        b.pop();
+
+        b.push("voidKnights");
+        JUDGMENT_POWER = b.comment("Potencia de la explosión del Juicio Final del Ejecutor (creeper = 3; 60 = x20).",
+                        "Rompe bloques aunque mobGriefing esté desactivado.")
+                .defineInRange("executionerJudgmentPower", 60.0, 0.0, 120.0);
+        MAUL_SPECIAL_POWER = b.comment("Potencia de la explosión del golpe especial del Mazo del Ejecutor (jugador). 0 = sin explosión.")
+                .defineInRange("maulSpecialPower", 6.0, 0.0, 60.0);
         b.pop();
 
         SPEC = b.build();

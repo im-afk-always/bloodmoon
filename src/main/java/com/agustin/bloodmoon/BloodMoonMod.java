@@ -2,6 +2,11 @@ package com.agustin.bloodmoon;
 
 import com.agustin.bloodmoon.entity.ModEntities;
 import com.agustin.bloodmoon.network.BloodMoonNetwork;
+import com.agustin.bloodmoon.registry.ModArmorMaterials;
+import com.agustin.bloodmoon.registry.ModBlocks;
+import com.agustin.bloodmoon.registry.ModEffects;
+import com.agustin.bloodmoon.registry.ModItems;
+import com.agustin.bloodmoon.registry.ModStructures;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -19,6 +24,13 @@ public class BloodMoonMod {
         container.registerConfig(ModConfig.Type.COMMON, BloodMoonConfig.SPEC);
 
         ModEntities.ENTITIES.register(modBus);
+        ModBlocks.BLOCKS.register(modBus);
+        ModItems.ITEMS.register(modBus);
+        ModEffects.EFFECTS.register(modBus);
+        ModArmorMaterials.MATERIALS.register(modBus);
+        ModStructures.STRUCTURE_TYPES.register(modBus);
+        ModStructures.PIECE_TYPES.register(modBus);
+        modBus.addListener(ModItems::addToTabs);
         modBus.addListener(ModEntities::registerAttributes);
         modBus.addListener(BloodMoonNetwork::register);
 

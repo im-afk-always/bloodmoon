@@ -1,0 +1,74 @@
+package com.agustin.bloodmoon.registry;
+
+import com.agustin.bloodmoon.BloodMoonMod;
+import com.agustin.bloodmoon.entity.ModEntities;
+import com.agustin.bloodmoon.item.EndCompassItem;
+import com.agustin.bloodmoon.item.ModTiers;
+import com.agustin.bloodmoon.item.VoidMaulItem;
+import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.SwordItem;
+import net.neoforged.neoforge.common.DeferredSpawnEggItem;
+import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.registries.DeferredItem;
+import net.neoforged.neoforge.registries.DeferredRegister;
+
+public final class ModItems {
+    public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(BloodMoonMod.MODID);
+
+    public static final DeferredItem<BlockItem> VOID_STONE = ITEMS.registerSimpleBlockItem(ModBlocks.VOID_STONE);
+
+    public static final DeferredItem<ArmorItem> VOID_HELMET = armor("void_helmet", ArmorItem.Type.HELMET);
+    public static final DeferredItem<ArmorItem> VOID_CHESTPLATE = armor("void_chestplate", ArmorItem.Type.CHESTPLATE);
+    public static final DeferredItem<ArmorItem> VOID_LEGGINGS = armor("void_leggings", ArmorItem.Type.LEGGINGS);
+    public static final DeferredItem<ArmorItem> VOID_BOOTS = armor("void_boots", ArmorItem.Type.BOOTS);
+
+    public static final DeferredItem<SwordItem> EMISSARY_GREATSWORD = ITEMS.register("emissary_greatsword",
+            () -> new SwordItem(ModTiers.VOID, new Item.Properties()
+                    .attributes(SwordItem.createAttributes(ModTiers.VOID, 7, -3.0F))
+                    .fireResistant().rarity(Rarity.EPIC)));
+
+    public static final DeferredItem<VoidMaulItem> EXECUTIONER_MAUL = ITEMS.register("executioner_maul",
+            () -> new VoidMaulItem(ModTiers.VOID, new Item.Properties()
+                    .attributes(SwordItem.createAttributes(ModTiers.VOID, 10, -3.3F))
+                    .fireResistant().rarity(Rarity.EPIC)));
+
+    public static final DeferredItem<EndCompassItem> END_COMPASS = ITEMS.register("end_compass",
+            () -> new EndCompassItem(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
+
+    public static final DeferredItem<DeferredSpawnEggItem> EMISSARY_SPAWN_EGG = ITEMS.register("unknown_emissary_spawn_egg",
+            () -> new DeferredSpawnEggItem(ModEntities.UNKNOWN_EMISSARY, 0x14101A, 0xB040FF, new Item.Properties()));
+    public static final DeferredItem<DeferredSpawnEggItem> EXECUTIONER_SPAWN_EGG = ITEMS.register("executioner_spawn_egg",
+            () -> new DeferredSpawnEggItem(ModEntities.EXECUTIONER, 0x1A1416, 0xE040A0, new Item.Properties()));
+    public static final DeferredItem<DeferredSpawnEggItem> CURSED_CREEPER_SPAWN_EGG = ITEMS.register("cursed_creeper_spawn_egg",
+            () -> new DeferredSpawnEggItem(ModEntities.CURSED_CREEPER, 0x0DA70B, 0xD01818, new Item.Properties()));
+
+    private static DeferredItem<ArmorItem> armor(String name, ArmorItem.Type type) {
+        return ITEMS.register(name, () -> new ArmorItem(ModArmorMaterials.VOID, type,
+                new Item.Properties().durability(type.getDurability(40)).fireResistant().rarity(Rarity.EPIC)));
+    }
+
+    private ModItems() {}
+
+    public static void addToTabs(BuildCreativeModeTabContentsEvent event) {
+        if (event.getTabKey() == CreativeModeTabs.COMBAT) {
+            event.accept(VOID_HELMET);
+            event.accept(VOID_CHESTPLATE);
+            event.accept(VOID_LEGGINGS);
+            event.accept(VOID_BOOTS);
+            event.accept(EMISSARY_GREATSWORD);
+            event.accept(EXECUTIONER_MAUL);
+        } else if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
+            event.accept(END_COMPASS);
+        } else if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
+            event.accept(VOID_STONE);
+        } else if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) {
+            event.accept(EMISSARY_SPAWN_EGG);
+            event.accept(EXECUTIONER_SPAWN_EGG);
+            event.accept(CURSED_CREEPER_SPAWN_EGG);
+        }
+    }
+}

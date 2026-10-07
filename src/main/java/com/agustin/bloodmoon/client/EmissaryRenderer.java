@@ -15,7 +15,7 @@ public class EmissaryRenderer extends MobRenderer<UnknownEmissary, EmissaryModel
             ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/entity/unknown_emissary.png");
     private static final ResourceLocation GLOW =
             ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/entity/unknown_emissary_glow.png");
-    private static final float SCALE = 4.8F;
+    private static final float SCALE = 2.4F; // modelo a doble resolución
 
     public EmissaryRenderer(EntityRendererProvider.Context context) {
         super(context, new EmissaryModel(context.bakeLayer(EmissaryModel.LAYER)), 3.0F);
