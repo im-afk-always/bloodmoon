@@ -52,5 +52,11 @@
   "bloodmoon.message.dragon": "☾ Un rugido parte el cielo... el Dragón de la Primera Alma desciende de la grieta.",
   "bloodmoon.command.summon.dragon": "El Dragón de la Primera Alma desciende sobre vos.",
   "bloodmoon.subtitle.supernova_blast": "Estalla una supernova",
-  "bloodmoon.subtitle.supernova_charge": "La luz colapsa"
+  "bloodmoon.subtitle.supernova_charge": "La luz colapsa",
+  "block.bloodmoon.void_block": "Bloque del Vacío",
+  "block.bloodmoon.void_portal": "Portal del Vacío",
+  "bloodmoon.command.locate.found": "Coliseo del Vacío más cercano: %s (a %s bloques)",
+  "bloodmoon.command.locate.none": "No hay ningún Coliseo del Vacío cerca.",
+  "biome.bloodmoon.void_ruins": "Ruinas del Vacío",
+  "dimension.bloodmoon.void_labyrinth": "Laberinto del Vacío"
 }

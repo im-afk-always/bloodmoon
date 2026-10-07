@@ -9,6 +9,10 @@ import com.agustin.bloodmoon.registry.ModItems;
 import com.agustin.bloodmoon.registry.ModStructures;
 import com.agustin.bloodmoon.registry.ModParticles;
 import com.agustin.bloodmoon.registry.ModSounds;
+import com.agustin.bloodmoon.registry.ModFeatures;
+import com.agustin.bloodmoon.registry.ModDimensions;
+import com.agustin.bloodmoon.world.VoidPortals;
+import com.agustin.bloodmoon.world.ColiseumSites;
 import com.agustin.bloodmoon.world.SupernovaCrater;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
@@ -35,6 +39,8 @@ public class BloodMoonMod {
         ModStructures.PIECE_TYPES.register(modBus);
         ModParticles.PARTICLES.register(modBus);
         ModSounds.SOUNDS.register(modBus);
+        ModFeatures.FEATURES.register(modBus);
+        ModDimensions.CHUNK_GENERATORS.register(modBus);
         modBus.addListener(ModItems::addToTabs);
         modBus.addListener(ModEntities::registerAttributes);
         modBus.addListener(BloodMoonNetwork::register);
@@ -49,5 +55,7 @@ public class BloodMoonMod {
         NeoForge.EVENT_BUS.addListener(BloodMoonCommand::register);
         NeoForge.EVENT_BUS.addListener(SupernovaCrater::onLevelTick);
         NeoForge.EVENT_BUS.addListener(SupernovaCrater::onServerStopped);
+        NeoForge.EVENT_BUS.addListener(VoidPortals::onRightClickBlock);
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.server.ServerStoppedEvent e) -> ColiseumSites.clear());
     }
 }

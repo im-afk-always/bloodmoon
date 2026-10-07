@@ -45,6 +45,8 @@ public class BloodMoonClient {
         modBus.addListener(VoidArmorModels::onRegisterLayers);
         modBus.addListener(VoidArmorModels::onRegisterClientExtensions);
         modBus.addListener(BloodMoonClient::onAddLayers);
+        modBus.addListener((net.neoforged.neoforge.client.event.RegisterDimensionSpecialEffectsEvent e) -> e.register(
+                ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "void_labyrinth"), new LabyrinthSky()));
         modBus.addListener(NukeClouds::onRegisterProviders);
         NukeClouds.init();
         modBus.addListener(SupernovaFx::onRegisterProviders);
@@ -122,6 +124,7 @@ public class BloodMoonClient {
     /** El color de niebla es también el del horizonte: oscuro con el tinte de cada luna. */
     private static void onFogColor(ViewportEvent.ComputeFogColor event) {
         if (event.getCamera().getFluidInCamera() != FogType.NONE) return;
+        if (Minecraft.getInstance().level == null || Minecraft.getInstance().level.dimension() != net.minecraft.world.level.Level.OVERWORLD) return;
         MoonType type = ClientMoonState.visual();
         float k = ClientMoonState.intensity((float) event.getPartialTick());
         if (type == MoonType.NONE || k <= 0F) return;

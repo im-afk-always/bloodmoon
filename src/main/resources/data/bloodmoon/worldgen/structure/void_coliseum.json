@@ -1,7 +1,0 @@
-{
-  "type": "bloodmoon:void_coliseum",
-  "biomes": "#bloodmoon:has_structure/void_coliseum",
-  "step": "surface_structures",
-  "spawn_overrides": {},
-  "terrain_adaptation": "none"
-}

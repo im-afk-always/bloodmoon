@@ -1,6 +1,6 @@
 package com.agustin.bloodmoon.item;
 
-import com.agustin.bloodmoon.registry.ModStructures;
+import com.agustin.bloodmoon.world.ColiseumSites;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
@@ -39,7 +39,7 @@ public class EndCompassItem extends Item {
                     .withStyle(ChatFormatting.DARK_PURPLE), true);
             return InteractionResultHolder.fail(stack);
         }
-        BlockPos found = sl.findNearestMapStructure(ModStructures.VOID_COLISEUM_TAG, player.blockPosition(), 100, false);
+        BlockPos found = ColiseumSites.nearest(sl, player.blockPosition(), 6).map(ColiseumSites.Site::center).orElse(null);
         if (found == null) {
             player.displayClientMessage(Component.translatable("item.bloodmoon.end_compass.none")
                     .withStyle(ChatFormatting.DARK_PURPLE), true);

@@ -1,0 +1,10 @@
+{
+  "type": "bloodmoon:void_labyrinth",
+  "generator": {
+    "type": "bloodmoon:labyrinth",
+    "biome_source": {
+      "type": "minecraft:fixed",
+      "biome": "bloodmoon:void_ruins"
+    }
+  }
+}

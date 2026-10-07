@@ -20,6 +20,7 @@ public final class ModItems {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(BloodMoonMod.MODID);
 
     public static final DeferredItem<BlockItem> VOID_STONE = ITEMS.registerSimpleBlockItem(ModBlocks.VOID_STONE);
+    public static final DeferredItem<BlockItem> VOID_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.VOID_BLOCK);
 
     public static final DeferredItem<ArmorItem> VOID_HELMET = armor("void_helmet", ArmorItem.Type.HELMET);
     public static final DeferredItem<ArmorItem> VOID_CHESTPLATE = armor("void_chestplate", ArmorItem.Type.CHESTPLATE);
@@ -66,6 +67,7 @@ public final class ModItems {
         } else if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(END_COMPASS);
         } else if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
+            event.accept(VOID_BLOCK);
             event.accept(VOID_STONE);
         } else if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) {
             event.accept(EMISSARY_SPAWN_EGG);

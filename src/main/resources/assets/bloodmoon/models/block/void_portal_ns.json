@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/nether_portal_ns",
+  "render_type": "minecraft:translucent",
+  "textures": {
+    "particle": "bloodmoon:block/void_portal",
+    "portal": "bloodmoon:block/void_portal"
+  }
+}

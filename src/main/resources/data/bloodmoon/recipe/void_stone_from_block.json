@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "building",
+  "ingredients": [
+    {
+      "item": "bloodmoon:void_block"
+    }
+  ],
+  "result": {
+    "id": "bloodmoon:void_stone",
+    "count": 9
+  }
+}

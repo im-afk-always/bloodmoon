@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "bloodmoon:block/void_portal_ns"
+    },
+    "axis=z": {
+      "model": "bloodmoon:block/void_portal_ew"
+    }
+  }
+}
