@@ -4,26 +4,16 @@ on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: bloodmoon
     steps:
       - uses: actions/checkout@v4
-      - name: Usar el src de la raiz si existe
-        working-directory: .
-        run: |
-          if [ -d src ]; then rm -rf bloodmoon/src && cp -r src bloodmoon/src; fi
-          ls bloodmoon/src/main/java/com/agustin/bloodmoon/client
       - uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@v4
-        with:
-          build-root-directory: bloodmoon
       - run: chmod +x gradlew
       - run: ./gradlew build
       - uses: actions/upload-artifact@v4
         with:
           name: bloodmoon-jar
-          path: bloodmoon/build/libs/*.jar
+          path: build/libs/*.jar

@@ -9,8 +9,8 @@ public enum MoonType {
     BLOOD  (0.015F, 0F, 0F,          0.03F, 0F, 0F,         0F,    255, 38, 28),
     SUPER  (0.03F, 0F, 0F,           0.075F, 0.002F, 0F,    0F,    255, 22, 16),
     GOLDEN (0.02F, 0.015F, 0.003F,   0.11F, 0.075F, 0.015F, 0.3F,  255, 205, 80),
-    /** Sin luna: tinte 0,0,0 = luna invisible (se dibuja aditiva). La grieta y el ojo: MoonlessSkyRenderer. */
-    MOONLESS (0.035F, 0F, 0.06F,     0.09F, 0.012F, 0.14F,  0.25F, 0, 0, 0);
+    /** Sin luna: cielo negro, luna invisible (tinte 0). La grieta y el ojo: MoonlessSkyRenderer. */
+    MOONLESS (0.004F, 0F, 0.007F,    0.006F, 0F, 0.01F,     0F,    0, 0, 0);
 
     public final float skyR, skyG, skyB;
     public final float fogR, fogG, fogB;
