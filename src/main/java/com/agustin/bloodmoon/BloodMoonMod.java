@@ -7,6 +7,7 @@ import com.agustin.bloodmoon.registry.ModBlocks;
 import com.agustin.bloodmoon.registry.ModEffects;
 import com.agustin.bloodmoon.registry.ModItems;
 import com.agustin.bloodmoon.registry.ModStructures;
+import com.agustin.bloodmoon.registry.ModParticles;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -30,6 +31,7 @@ public class BloodMoonMod {
         ModArmorMaterials.MATERIALS.register(modBus);
         ModStructures.STRUCTURE_TYPES.register(modBus);
         ModStructures.PIECE_TYPES.register(modBus);
+        ModParticles.PARTICLES.register(modBus);
         modBus.addListener(ModItems::addToTabs);
         modBus.addListener(ModEntities::registerAttributes);
         modBus.addListener(BloodMoonNetwork::register);

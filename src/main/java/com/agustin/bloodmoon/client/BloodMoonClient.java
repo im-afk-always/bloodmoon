@@ -45,6 +45,8 @@ public class BloodMoonClient {
         modBus.addListener(VoidArmorModels::onRegisterLayers);
         modBus.addListener(VoidArmorModels::onRegisterClientExtensions);
         modBus.addListener(BloodMoonClient::onAddLayers);
+        modBus.addListener(NukeClouds::onRegisterProviders);
+        NukeClouds.init();
 
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onFogColor);
@@ -52,6 +54,8 @@ public class BloodMoonClient {
         NeoForge.EVENT_BUS.addListener(MoonlessSkyRenderer::onRenderStage);
         NeoForge.EVENT_BUS.addListener(ModBossBars::onBossBar);
         NeoForge.EVENT_BUS.addListener(AstralFlameRenderer::onRenderLiving);
+        NeoForge.EVENT_BUS.addListener(NukeClouds::onFogColor);
+        NeoForge.EVENT_BUS.addListener(NukeClouds::onCameraAngles);
     }
 
     private static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
@@ -82,6 +86,8 @@ public class BloodMoonClient {
     private static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {
         event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "astral_burn"), AstralFlameRenderer::renderOverlay);
+        event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
+                ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "nuke_flash"), NukeClouds::renderFlash);
     }
 
     /** La aguja del Compás usa la misma propiedad "angle" que la brújula vanilla. */
@@ -104,6 +110,7 @@ public class BloodMoonClient {
         if (Minecraft.getInstance().isPaused()) return;
         ClientMoonState.tick();
         ClientAstralState.tick();
+        NukeClouds.tick();
     }
 
     /** El color de niebla es también el del horizonte: oscuro con el tinte de cada luna. */
@@ -120,6 +127,7 @@ public class BloodMoonClient {
     private static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientMoonState.reset();
         ClientAstralState.reset();
+        NukeClouds.reset();
         TintedTextures.invalidate();
     }
 

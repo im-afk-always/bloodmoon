@@ -23,6 +23,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
+import net.neoforged.neoforge.network.PacketDistributor;
+import com.agustin.bloodmoon.network.NukePayload;
 import org.joml.Vector3f;
 
 /**
@@ -156,11 +158,11 @@ public class SoulCharge extends Projectile {
             Entity owner = getOwner();
             VoidImpact.scorch(level, at, power * 0.45F, EventHooks.canEntityGrief(level, owner != null ? owner : this));
         }
+        NukePayload nuke = new NukePayload(at.x, at.y, at.z, (byte) m);
         for (ServerPlayer p : level.players()) {
-            if (p.distanceToSqr(at) > 400 * 400) continue;
+            if (p.distanceToSqr(at) > 700 * 700) continue;
+            PacketDistributor.sendToPlayer(p, nuke);   // hongo púrpura (lo dibuja el cliente)
             level.sendParticles(p, ParticleTypes.EXPLOSION_EMITTER, true, at.x, at.y, at.z, 1 + m / 3, m * 0.4, m * 0.3, m * 0.4, 0);
-            level.sendParticles(p, ParticleTypes.DRAGON_BREATH, true, at.x, at.y + 1, at.z, 40 * m, m * 0.6, m * 0.4, m * 0.6, 0.08);
-            level.sendParticles(p, ParticleTypes.REVERSE_PORTAL, true, at.x, at.y + 1, at.z, 30 * m, m * 0.5, m * 0.5, m * 0.5, 0.3);
         }
         level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE.value(), getSoundSource(), 4F + m, 0.5F);
     }
