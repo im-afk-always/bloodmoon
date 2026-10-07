@@ -12,7 +12,16 @@ jobs:
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
-      - run: ./gradlew build
+      - name: Build
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew build 2>&1 | tee build.log || {
+            # errores de compilación como anotaciones (visibles en la pestaña del run)
+            grep -E "error:|\.java:[0-9]+: error" -A2 build.log | head -60 | sed 's/^/::error::/'
+            grep -E "What went wrong" -A6 build.log | sed 's/^/::error::/'
+            exit 1
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: bloodmoon-jar
