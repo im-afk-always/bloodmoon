@@ -149,7 +149,7 @@ public final class BloodMoonCommand {
         boolean ok = boss != null;
         if (ok) {
             var p = src.getPosition();
-            boss.moveTo(p.x, p.y, p.z, 0F, 0F);
+            boss.moveTo(p.x, p.y + 150, p.z, 0F, 0F);
             boss.setHome(p);
             boss.finalizeSpawn(src.getLevel(), src.getLevel().getCurrentDifficultyAt(BlockPos.containing(p)),
                     net.minecraft.world.entity.MobSpawnType.COMMAND, null);

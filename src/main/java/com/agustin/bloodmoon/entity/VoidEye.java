@@ -430,9 +430,9 @@ public class VoidEye extends Monster {
 
     protected int cooldownTicks() {
         return switch (getPhase()) {
-            case 1 -> 45 + random.nextInt(25);
-            case 2 -> 32 + random.nextInt(20);
-            default -> 22 + random.nextInt(15);
+            case 1 -> 28 + random.nextInt(18);
+            case 2 -> 20 + random.nextInt(14);
+            default -> 14 + random.nextInt(10);
         };
     }
 
@@ -528,12 +528,12 @@ public class VoidEye extends Monster {
 
     protected void damageBeam(ServerLevel sl, float damage) {
         Vec3 o = beamOrigin(), end = getBeamEnd();
-        AABB box = new AABB(o, end).inflate(2.5);
+        AABB box = new AABB(o, end).inflate(2.5 + beamHalfWidth());
         for (LivingEntity e : sl.getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && !ally(e))) {
             if (e instanceof Player p && (p.isCreative() || p.isSpectator())) continue;
             Vec3 c = e.position().add(0, e.getBbHeight() / 2, 0);
             double d = distToSegment(c, o, end);
-            if (d > 1.3 + e.getBbWidth() / 2 + e.getBbHeight() / 4) continue;
+            if (d > beamHalfWidth() + e.getBbWidth() / 2 + e.getBbHeight() / 4) continue;
             int last = beamHit.getOrDefault(e.getId(), -100);
             if (tickCount - last < 8) continue;
             beamHit.put(e.getId(), tickCount);
@@ -546,6 +546,11 @@ public class VoidEye extends Monster {
             sl.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, end.x, end.y, end.z, 3, 0.4, 0.2, 0.4, 0.05);
         }
         if (stateTick % 25 == 0) playSound(ModSounds.EYE_BEAM.get(), 8F, getState() == S_SWEEP ? 0.8F : 1F);
+    }
+
+    /** Medio ancho del rayo (bloques) para el daño. */
+    protected double beamHalfWidth() {
+        return 1.3;
     }
 
     protected static double distToSegment(Vec3 p, Vec3 a, Vec3 b) {

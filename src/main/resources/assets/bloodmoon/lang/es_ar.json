@@ -98,5 +98,8 @@
   "entity.bloodmoon.colossal_eye": "Ojo Colosal",
   "bloodmoon.eye.title2": "EL OBSERVADOR DESATADO",
   "bloodmoon.eye.subtitle2": "Más allá de la Grieta no hay regreso",
-  "bloodmoon.command.summon.unbound": "El Observador Desatado emerge del suelo."
+  "bloodmoon.command.summon.unbound": "El Observador Desatado emerge del suelo.",
+  "entity.bloodmoon.void_fist": "Puño del Vacío",
+  "entity.bloodmoon.titan_tentacle": "Tentáculo Titánico",
+  "entity.bloodmoon.abyss_tear": "Lágrima del Cielo"
 }

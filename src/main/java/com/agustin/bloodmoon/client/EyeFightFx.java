@@ -131,9 +131,16 @@ public final class EyeFightFx {
                 if (tt.tickCount == com.agustin.bloodmoon.entity.TitanTentacle.SLAM) { shake = Math.max(shake, 2.2F); flash = Math.max(flash, 0.25F); }
                 else if (tt.tickCount < com.agustin.bloodmoon.entity.TitanTentacle.EMERGE) shake = Math.max(shake, 0.35F);
             }
-            if (en instanceof com.agustin.bloodmoon.entity.AbyssTear at && at.tickCount == at.flight() - 1) {
+            if (en instanceof com.agustin.bloodmoon.entity.AbyssTear at && at.tickCount == at.flight() + com.agustin.bloodmoon.entity.AbyssTear.BOOM - 1) {
                 double d = at.target().distanceTo(mc.player.position());
-                if (d < 40) shake = Math.max(shake, (float) (0.9 * (1 - d / 40)));
+                if (d < 60) {
+                    shake = Math.max(shake, (float) (1.3 * (1 - d / 60)));
+                    flash = Math.max(flash, (float) (0.4 * (1 - d / 60)));
+                }
+            }
+            if (en instanceof com.agustin.bloodmoon.entity.VoidFist vf && vf.tickCount == com.agustin.bloodmoon.entity.VoidFist.SLAM) {
+                double d = vf.distanceTo(mc.player);
+                if (d < 50) shake = Math.max(shake, (float) (1.6 * (1 - d / 50)));
             }
             if (en instanceof com.agustin.bloodmoon.entity.ColossalEye ce && ce.distanceToSqr(mc.player) < 320 * 320) {
                 int a = ce.tickCount;
@@ -162,10 +169,6 @@ public final class EyeFightFx {
                 case com.agustin.bloodmoon.entity.UnboundObserver.S_EMERGE -> shake = Math.max(shake, 0.5F * (age < 125 ? 1F : 0F));
                 case com.agustin.bloodmoon.entity.UnboundObserver.S_MAW -> { if (age > com.agustin.bloodmoon.entity.UnboundObserver.MAW_OPEN) shake = Math.max(shake, 0.35F); }
                 case com.agustin.bloodmoon.entity.UnboundObserver.S_TEARS, com.agustin.bloodmoon.entity.UnboundObserver.S_TITAN -> shake = Math.max(shake, 0.2F);
-                case com.agustin.bloodmoon.entity.UnboundObserver.S_SLAM -> {
-                    if (age >= com.agustin.bloodmoon.entity.UnboundObserver.SLAM_HIT && age < com.agustin.bloodmoon.entity.UnboundObserver.SLAM_HIT + 6)
-                        shake = Math.max(shake, 0.8F);
-                }
                 default -> {}
             }
             if (eye.isDeadOrDying()) shake = Math.max(shake, 0.2F + 0.8F * eye.deathTime / (float) VoidEye.DEATH_TICKS);

@@ -98,5 +98,8 @@
   "entity.bloodmoon.colossal_eye": "Colossal Eye",
   "bloodmoon.eye.title2": "THE UNBOUND OBSERVER",
   "bloodmoon.eye.subtitle2": "Beyond the Rift there is no way back",
-  "bloodmoon.command.summon.unbound": "The Unbound Observer rises from the ground."
+  "bloodmoon.command.summon.unbound": "The Unbound Observer rises from the ground.",
+  "entity.bloodmoon.void_fist": "Void Fist",
+  "entity.bloodmoon.titan_tentacle": "Titanic Tentacle",
+  "entity.bloodmoon.abyss_tear": "Tear of the Sky"
 }

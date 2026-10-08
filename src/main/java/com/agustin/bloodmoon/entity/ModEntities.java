@@ -109,7 +109,7 @@ public final class ModEntities {
     public static final DeferredHolder<EntityType<?>, EntityType<UnboundObserver>> UNBOUND_OBSERVER =
             ENTITIES.register("unbound_observer", () -> EntityType.Builder
                     .<UnboundObserver>of(UnboundObserver::new, MobCategory.MONSTER)
-                    .sized(14.0F, 33.0F)
+                    .sized(32.0F, 32.0F)
                     .fireImmune()
                     .clientTrackingRange(16)
                     .updateInterval(1)
@@ -144,6 +144,16 @@ public final class ModEntities {
                     .clientTrackingRange(16)
                     .updateInterval(1)
                     .build("abyss_tear"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<VoidFist>> VOID_FIST =
+            ENTITIES.register("void_fist", () -> EntityType.Builder
+                    .<VoidFist>of(VoidFist::new, MobCategory.MISC)
+                    .sized(6.0F, 6.0F)
+                    .fireImmune()
+                    .noSave()
+                    .clientTrackingRange(16)
+                    .updateInterval(1)
+                    .build("void_fist"));
 
     private ModEntities() {}
 

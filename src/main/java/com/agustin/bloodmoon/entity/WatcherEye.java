@@ -57,7 +57,7 @@ public class WatcherEye extends Projectile {
 
     private Vec3 orbitPos(VoidEye owner, int age) {
         double a = orbitPhase + age * 0.09;
-        double r = VoidEye.RADIUS + 1.5 + age * 0.12;
+        double r = owner.eyeRadius() + 1.5 + age * 0.12;
         Vec3 c = owner.center();
         return new Vec3(c.x + Math.cos(a) * r, c.y + Math.sin(age * 0.2 + orbitPhase) * 2.5, c.z + Math.sin(a) * r);
     }

@@ -1,6 +1,7 @@
 package com.agustin.bloodmoon.client;
 
 import com.agustin.bloodmoon.BloodMoonMod;
+import com.agustin.bloodmoon.entity.UnboundObserver;
 import com.agustin.bloodmoon.entity.VoidEye;
 import com.agustin.bloodmoon.registry.ModBlocks;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -28,7 +29,7 @@ import org.joml.Vector3f;
  * También dibuja la Mirada (rayo), el vórtice de la Singularidad, la onda a ras del piso y la muerte
  * (grietas de luz, rayos y encogimiento hasta un punto).
  */
-public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
+public class VoidEyeRenderer<T extends VoidEye> extends EntityRenderer<T> {
     static ResourceLocation tex(String name) {
         return ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/entity/void_eye/" + name + ".png");
     }
@@ -62,12 +63,12 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
     }
 
     @Override
-    public boolean shouldRender(VoidEye entity, Frustum frustum, double camX, double camY, double camZ) {
+    public boolean shouldRender(T entity, Frustum frustum, double camX, double camY, double camZ) {
         return entity.distanceToSqr(camX, camY, camZ) < 320 * 320;
     }
 
     @Override
-    public ResourceLocation getTextureLocation(VoidEye entity) {
+    public ResourceLocation getTextureLocation(T entity) {
         return BALL;
     }
 
@@ -84,6 +85,8 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
         int s = e.getState();
         float open = switch (s) {
             case VoidEye.S_AWAKEN -> smooth((age - 105) / 45F);
+            case UnboundObserver.S_EMERGE -> smooth((age - 90) / 40F);
+            case UnboundObserver.S_MAW -> 1.15F;
             case VoidEye.S_GAZE_CHARGE, VoidEye.S_SWEEP_CHARGE -> Mth.lerp(smooth(age / 10F), 1F, 0.55F);   // entrecierra: apunta
             case VoidEye.S_GAZE, VoidEye.S_SWEEP, VoidEye.S_SCREAM -> 1.12F;
             case VoidEye.S_EXPOSED -> 0.72F + 0.06F * Mth.sin(t * 0.15F);
@@ -106,6 +109,8 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
             case VoidEye.S_EXPOSED -> new float[]{0.3F * breathe, 0.33F * breathe};
             case VoidEye.S_SCREAM -> new float[]{0.02F, 0.44F};
             case VoidEye.S_AWAKEN -> new float[]{0.12F, 0.36F};
+            case UnboundObserver.S_MAW -> new float[]{Mth.lerp(smooth(age / UnboundObserver.MAW_OPEN), 0.08F, 0.46F), Mth.lerp(smooth(age / UnboundObserver.MAW_OPEN), 0.37F, 0.46F)};
+            case UnboundObserver.S_FIST, UnboundObserver.S_TITAN -> new float[]{0.03F, 0.42F};
             default -> new float[]{0.075F * breathe, 0.37F};
         };
     }
@@ -131,10 +136,12 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
     // ------------------------------------------------------------------ render
 
     @Override
-    public void render(VoidEye e, float entityYaw, float pt, PoseStack ps, MultiBufferSource buf, int packedLight) {
+    public void render(T e, float entityYaw, float pt, PoseStack ps, MultiBufferSource buf, int packedLight) {
         float t = e.tickCount + pt;
         float age = e.clientStateAge(pt);
-        float R = VoidEye.RADIUS;
+        float R = VoidEye.RADIUS;                      // todo se dibuja a escala base y se agranda con k
+        float k = e.eyeRadius() / VoidEye.RADIUS;
+        boolean unbound = e instanceof UnboundObserver;
         Vec3 origin = e.getPosition(pt);
         Vec3 camRel = this.entityRenderDispatcher.camera.getPosition().subtract(origin);
         int overlay = OverlayTexture.pack(OverlayTexture.u(0F), OverlayTexture.v(e.hurtTime > 0));
@@ -152,7 +159,8 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
         }
 
         ps.pushPose();
-        ps.translate(0F, R, 0F);
+        ps.translate(0F, e.eyeRadius(), 0F);
+        ps.scale(k, k, k);
         if (shake > 0) {
             ps.translate(Mth.sin(t * 2.3F) * shake, Mth.sin(t * 3.1F + 1) * shake, Mth.cos(t * 2.7F) * shake);
         }
@@ -162,6 +170,8 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
             float ringK = e.getState() == VoidEye.S_AWAKEN ? smooth((age - 40) / 80F) : 1F;
             renderRunes(e, ps, buf, t, ringK);
             renderOrbitingBlocks(ps, buf, t, ringK);
+            if (unbound) UnboundExtras.render((UnboundObserver) e, ps, buf, pt, t, age, ringK, overlay,
+                    this.entityRenderDispatcher.cameraOrientation());
         }
 
         // ---------------- el ojo
@@ -192,9 +202,10 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
         lid(ps, lid, R * 1.006F, Mth.lerp(Mth.clamp(open, 0F, 1.2F), 0F, 48F), false, overlay);   // un poco por fuera: evita z-fighting atrás
 
         renderBackTentacles(e, ps, buf, t, R, overlay);
+        if (unbound) UnboundExtras.renderPupilVortex((UnboundObserver) e, ps, buf, t, age, R);
         ps.popPose();
 
-        if (e.isDeadOrDying()) renderDeathRays(e, ps, buf, pt, camRel.subtract(0, R, 0));
+        if (e.isDeadOrDying()) renderDeathRays(e, ps, buf, pt, camRel.subtract(0, e.eyeRadius(), 0).scale(1 / k));
         ps.popPose();
 
         // ---------------- ataques en coordenadas del mundo (relativas a la entidad)
@@ -425,31 +436,32 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
     }
 
     private void renderBeam(VoidEye e, PoseStack ps, MultiBufferSource buf, float pt, float t, float age, Vec3 origin, Vec3 camRel) {
-        Vec3 center = new Vec3(0, VoidEye.RADIUS, 0);
+        Vec3 center = new Vec3(0, e.eyeRadius(), 0);
+        float wf = e instanceof UnboundObserver ? 3.2F : 1F;
         Vec3 end = e.getBeamEnd().subtract(origin);
         Vec3 dir = end.subtract(center).normalize();
-        Vec3 start = center.add(dir.scale(VoidEye.RADIUS * 1.01));
+        Vec3 start = center.add(dir.scale(e.eyeRadius() * 1.01));
         VertexConsumer vc = buf.getBuffer(RenderType.eyes(BEAM));
         PoseStack.Pose pose = ps.last();
         float scroll = -t * 0.35F;
-        boolean phase3 = e.getPhase() == 3;
+        boolean phase3 = e.getPhase() >= 3;
         if (!e.isFiring()) {
             float flick = 0.5F + 0.5F * Mth.sin(t * 2.1F) * Mth.sin(t * 0.7F);
             float k = smooth(age / 10F) * (0.55F + 0.45F * flick);
-            ribbon(pose, vc, start, end, camRel, 0.14F, scroll, 0.75F * k, 0.25F * k, k);
+            ribbon(pose, vc, start, end, camRel, 0.14F * wf, scroll, 0.75F * k, 0.25F * k, k);
             VertexConsumer fl = buf.getBuffer(RenderType.eyes(FLARE));
-            billboard(ps, fl, end, 1.6F + flick, t * 4, 0.6F * k, 0.15F * k, 0.9F * k);
+            billboard(ps, fl, end, (1.6F + flick) * wf, t * 4, 0.6F * k, 0.15F * k, 0.9F * k);
             return;
         }
         float in = smooth(age / 4F);
         float pulse = 0.85F + 0.15F * Mth.sin(t * 1.7F);
         float rr = phase3 ? 1F : 0.65F, gg = phase3 ? 0.25F : 0.2F;
-        ribbon(pose, vc, start, end, camRel, 4.2F * in * pulse, scroll * 0.6F, 0.22F * rr, 0.05F, 0.35F);
-        ribbon(pose, vc, start, end, camRel, 1.9F * in * pulse, scroll, 0.7F * rr, gg, 1F);
-        ribbon(pose, vc, start, end, camRel, 0.6F * in, scroll * 1.5F, 1F, 0.85F, 1F);
+        ribbon(pose, vc, start, end, camRel, 4.2F * wf * in * pulse, scroll * 0.6F, 0.22F * rr, 0.05F, 0.35F);
+        ribbon(pose, vc, start, end, camRel, 1.9F * wf * in * pulse, scroll, 0.7F * rr, gg, 1F);
+        ribbon(pose, vc, start, end, camRel, 0.6F * wf * in, scroll * 1.5F, 1F, 0.85F, 1F);
         VertexConsumer fl = buf.getBuffer(RenderType.eyes(FLARE));
-        billboard(ps, fl, end, 5F * pulse * in, t * 6, 0.9F, 0.35F, 1F);
-        billboard(ps, fl, start, 7F * pulse * in, -t * 3, 0.8F, 0.3F, 1F);
+        billboard(ps, fl, end, 5F * wf * pulse * in, t * 6, 0.9F, 0.35F, 1F);
+        billboard(ps, fl, start, 7F * wf * pulse * in, -t * 3, 0.8F, 0.3F, 1F);
     }
 
     // ------------------------------------------------------------------ Singularidad y onda

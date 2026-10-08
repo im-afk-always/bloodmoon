@@ -75,7 +75,7 @@ public final class BeyondRift {
 
         UnboundObserver boss = ModEntities.UNBOUND_OBSERVER.get().create(beyond);
         if (boss == null) return false;
-        boss.moveTo(base.x, base.y, base.z, 0F, 0F);
+        boss.moveTo(base.x, base.y + 150, base.z, 0F, 0F);   // desciende desde la Grieta
         boss.setHome(base);
         boss.setReturn(from.dimension(), home);
         boss.finalizeSpawn(beyond, beyond.getCurrentDifficultyAt(BlockPos.containing(base)), MobSpawnType.EVENT, null);

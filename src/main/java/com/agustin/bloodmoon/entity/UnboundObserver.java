@@ -1,21 +1,17 @@
 package com.agustin.bloodmoon.entity;
 
 import com.agustin.bloodmoon.network.EyeTitlePayload;
+import com.agustin.bloodmoon.registry.ModBlocks;
 import com.agustin.bloodmoon.registry.ModDimensions;
 import com.agustin.bloodmoon.registry.ModSounds;
 import com.agustin.bloodmoon.world.BeyondRift;
 import com.agustin.bloodmoon.world.EyeSanctums;
-import com.agustin.bloodmoon.world.VoidImpact;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -27,41 +23,40 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.joml.Vector3f;
 
 import java.util.List;
 
 /**
- * El Observador Desatado: la forma final, en el Más Allá de la Grieta. Una mole tentacular y musculosa de
- * ~33 bloques que camina sobre seis tentáculos; el Ojo le ocupa la parte superior del cuerpo.
+ * El Observador Desatado: la forma final, en el Más Allá de la Grieta. El Ojo, liberado y gigantesco (32 bloques),
+ * flota sobre la llanura rodeado de seis anillos de runas, un cinturón de bloques del Vacío, monolitos de obsidiana y
+ * una cortina de tentáculos colgantes.
  *
- * - Golpe: levanta un brazo y lo estrella donde estabas (aviso en el piso), dejando un cráter.
- * - Mirada desde el pecho, Tentáculos del Abismo y Ojos Vigías (como en el Santuario).
- * - Ojo Colosal: alza los brazos y abre en el cielo un ojo inmenso; un círculo te persigue por el piso,
- *   se fija y cae un rayo de 20 bloques de radio que perfora la llanura hasta el vacío. Después queda
- *   arrodillado, exhausto (vulnerable).
- * - Al 50% grita y todo se acelera. Al morir se derrumba, el ojo implosiona y todos vuelven al Santuario.
+ * - Mirada titánica: un rayo enorme que funde el piso a su paso; en la segunda mitad también Barrido de 360°.
+ * - Puño del Vacío: un brazo de energía oscura brota de una grieta junto al Ojo y desciende como un puño a distancia.
+ * - Tentáculos del Abismo y Ojos Vigías.
+ * - Definitivos (se turnan): Ojo Colosal, Tentáculo Titánico, Las Fauces (la pupila traga el piso) y Lágrimas del Cielo
+ *   (meteoros que, al tocar el suelo, se encienden, colapsan y estallan como pequeñas supernovas).
+ * - Tras el Ojo Colosal y las Fauces baja exhausto (vulnerable). Al 50% grita y todo se acelera.
+ * - Al morir implosiona y todos vuelven al Santuario con el botín.
  */
 public class UnboundObserver extends VoidEye {
     public static final String UNBOUND_KEY = "entity.bloodmoon.unbound_observer";
-    public static final int S_EMERGE = 20, S_SLAM = 21, S_COLOSSAL = 22, S_TITAN = 23, S_MAW = 24, S_TEARS = 25;
-    public static final int TITAN_TICKS = 50, MAW_OPEN = 30, MAW_TICKS = 150, TEARS_TICKS = 110;
-    public static final int EMERGE_TICKS = 140, SLAM_TICKS = 34, SLAM_HIT = 20, COLOSSAL_TICKS = 50, EXPOSED_TICKS = 110,
-            RETURN_DELAY = 40;
-    public static final float EYE_Y = 27.4F, EYE_R = 5.8F, KNEEL = 6F;
-    /** Boca de las fauces (frente al pecho), relativa a los pies. */
-    public static final float MAW_Y = 20.2F, MAW_Z = 3.5F;
-    private static final double SPEED = 0.17, LEASH = 90;
+    public static final int S_EMERGE = 20, S_FIST = 21, S_COLOSSAL = 22, S_TITAN = 23, S_MAW = 24, S_TEARS = 25;
+    public static final int TITAN_TICKS = 40, MAW_OPEN = 30, MAW_TICKS = 150, TEARS_TICKS = 100, FIST_TICKS = 30;
+    public static final int EMERGE_TICKS = 150, COLOSSAL_TICKS = 40, EXPOSED_TICKS = 110, RETURN_DELAY = 40, BIG_GAZE_TICKS = 64;
+    public static final float EYE_R = 16F;
+    /** Altura de la base del Ojo sobre la llanura. */
+    public static final double HOVER = 24;
+    private static final double SPEED = 0.11, LEASH = 70;
 
-    private static final EntityDataAccessor<Byte> DATA_ARM = SynchedEntityData.defineId(UnboundObserver.class, EntityDataSerializers.BYTE);
-
-    private int colossalCd = 260;
+    private int colossalCd = 120;
     private int lastUltimate = -1;
     private final java.util.List<net.minecraft.world.entity.item.FallingBlockEntity> torn = new java.util.ArrayList<>();
     private ResourceKey<Level> returnDim;
@@ -76,24 +71,9 @@ public class UnboundObserver extends VoidEye {
         this.entityData.set(DATA_PHASE, (byte) 4);
     }
 
-    @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
-        builder.define(DATA_ARM, (byte) 1);
-    }
-
     public void setReturn(ResourceKey<Level> dim, Vec3 home) {
         this.returnDim = dim;
         this.returnHome = home;
-    }
-
-    /** Brazo del golpe: 1 derecho, -1 izquierdo. */
-    public int slamArm() {
-        return entityData.get(DATA_ARM);
-    }
-
-    public boolean isKneeling() {
-        return getState() == S_EXPOSED;
     }
 
     @Override
@@ -102,8 +82,15 @@ public class UnboundObserver extends VoidEye {
     }
 
     @Override
-    public Vec3 center() {
-        return position().add(0, EYE_Y - (isKneeling() ? KNEEL : 0), 0);
+    protected double beamHalfWidth() {
+        return 3.8;
+    }
+
+    /** El Barrido gira alrededor de su propia sombra, a 46 bloques. */
+    @Override
+    protected Vec3 sweepPoint() {
+        double a = Math.toRadians(sweepAngle);
+        return new Vec3(getX() + Math.cos(a) * 46, getHome().y + 0.7, getZ() + Math.sin(a) * 46);
     }
 
     @Override
@@ -118,7 +105,7 @@ public class UnboundObserver extends VoidEye {
         if (!(level() instanceof ServerLevel sl)) return;
         if (home == null) setHome(position());
         bossEvent.setProgress(getHealth() / getMaxHealth());
-        BossBars.update(this, bossEvent, ARENA_RANGE + 60);
+        BossBars.update(this, bossEvent, ARENA_RANGE + 80);
 
         List<ServerPlayer> arena = arenaPlayers(sl);
         if (arena.isEmpty()) {
@@ -126,6 +113,7 @@ public class UnboundObserver extends VoidEye {
                 madness.clear();
                 discard();
             }
+            drift(sl, null);
             return;
         }
         noPlayerTicks = 0;
@@ -139,39 +127,52 @@ public class UnboundObserver extends VoidEye {
         }
         LivingEntity target = pickTarget(arena);
         updateMadness(sl, arena);
-        if (state != S_COLOSSAL && state != S_EMERGE && state != S_TITAN && state != S_MAW && state != S_TEARS) colossalCd--;
+        if (state == S_IDLE || state == S_GAZE || state == S_GAZE_CHARGE || state == S_TENTACLES || state == S_WATCHERS || state == S_FIST) colossalCd--;
         tickTorn();
 
         switch (state) {
             case S_EMERGE -> tickEmerge(sl, arena, target);
             case S_IDLE -> {
                 lookAt(target.getEyePosition(), 5F);
-                walkToward(target, 9);
                 if (--cooldown <= 0) chooseAttack(arena, target);
             }
-            case S_SLAM -> tickSlam(sl, arena);
             case S_GAZE_CHARGE -> {
-                trackAim(target, 0.08);
+                trackAim(target, 0.09);
                 lookAt(beamAim, 30F);
-                faceToward(beamAim, 4F);
                 updateBeam();
-                if (stateTick >= 26) setState(S_GAZE, arena);
+                if (stateTick >= 24) setState(S_GAZE, arena);
             }
             case S_GAZE -> {
-                trackAim(target, 0.06 + 0.02 * (getPhase() - 3));
+                trackAim(target, 0.045 + 0.015 * (getPhase() - 3));
                 lookAt(beamAim, 30F);
-                faceToward(beamAim, 3F);
                 updateBeam();
-                damageBeam(sl, 9F);
-                if (stateTick >= GAZE_TICKS) setIdle(cooldownTicks());
+                damageBeam(sl, 12F);
+                meltTrail(sl);
+                if (stateTick >= BIG_GAZE_TICKS) setIdle(cooldownTicks());
             }
+            case S_SWEEP_CHARGE -> {
+                beamAim = sweepPoint();
+                lookAt(beamAim, 30F);
+                updateBeam();
+                if (stateTick >= 26) setState(S_SWEEP, arena);
+            }
+            case S_SWEEP -> {
+                sweepAngle += sweepDir * 360.0 / SWEEP_TICKS;
+                beamAim = sweepPoint();
+                lookAt(beamAim, 60F);
+                updateBeam();
+                damageBeam(sl, 14F);
+                meltTrail(sl);
+                if (stateTick >= SWEEP_TICKS) setIdle(cooldownTicks());
+            }
+            case S_FIST -> tickFist(sl, arena);
             case S_TENTACLES -> {
                 lookAt(target.getEyePosition(), 3F);
-                if (stateTick >= 40) setIdle(cooldownTicks());
+                if (stateTick >= 30) setIdle(cooldownTicks());
             }
             case S_WATCHERS -> {
                 lookAt(target.getEyePosition(), 3F);
-                if (stateTick >= 30) setIdle(cooldownTicks());
+                if (stateTick >= 24) setIdle(cooldownTicks());
             }
             case S_COLOSSAL -> tickColossal(sl, arena);
             case S_TITAN -> tickTitan(sl, arena);
@@ -179,21 +180,24 @@ public class UnboundObserver extends VoidEye {
             case S_TEARS -> tickTears(sl, arena);
             case S_EXPOSED -> {
                 lookAt(center().add(dirFrom(lookYaw(), 35F).scale(20)), 1.5F);
-                if (tickCount % 20 == 0) playSound(SoundEvents.WARDEN_HEARTBEAT, 8F, 0.4F);
-                if (stateTick >= EXPOSED_TICKS) setIdle(20);
+                if (tickCount % 20 == 0) playSound(SoundEvents.WARDEN_HEARTBEAT, 10F, 0.35F);
+                if (stateTick >= EXPOSED_TICKS) {
+                    playSound(ModSounds.EYE_CHARGE.get(), 8F, 0.5F);
+                    setIdle(15);
+                }
             }
             case S_SCREAM -> {
                 lookAt(center().add(Mth.sin(tickCount * 0.9F) * 8, 30, Mth.cos(tickCount * 0.7F) * 8), 20F);
-                if (stateTick >= SCREAM_TICKS) setIdle(25);
+                if (stateTick >= SCREAM_TICKS) setIdle(20);
             }
-            default -> setIdle(20);
+            default -> setIdle(15);
         }
-        keepOnPlain();
+        drift(sl, target);
     }
 
     @Override
     protected int cooldownTicks() {
-        return getPhase() >= 5 ? 20 + random.nextInt(16) : 30 + random.nextInt(20);
+        return getPhase() >= 5 ? 10 + random.nextInt(12) : 16 + random.nextInt(14);
     }
 
     @Override
@@ -204,17 +208,17 @@ public class UnboundObserver extends VoidEye {
             int pick;
             do pick = ults[random.nextInt(ults.length)]; while (pick == lastUltimate);
             lastUltimate = pick;
-            colossalCd = getPhase() >= 5 ? 420 : 560;
+            colossalCd = getPhase() >= 5 ? 220 : 300;
             setState(pick, arena);
             return;
         }
-        double d = horizontalDist(target);
         int ph = getPhase();
         int[][] table = {
-                {S_SLAM, d < 22 ? 5 : 1},
+                {S_FIST, 4},
                 {S_GAZE_CHARGE, 3},
-                {S_TENTACLES, ph >= 5 ? 3 : 2},
-                {S_WATCHERS, ph >= 5 ? 3 : 2}};
+                {S_SWEEP_CHARGE, ph >= 5 ? 2 : 0},
+                {S_TENTACLES, 2},
+                {S_WATCHERS, 2}};
         int total = 0;
         for (int[] e : table) total += e[1];
         int roll = random.nextInt(total);
@@ -229,11 +233,8 @@ public class UnboundObserver extends VoidEye {
 
     @Override
     protected void onExtraState(int s, List<ServerPlayer> arena, LivingEntity target) {
-        if (s == S_SLAM) {
-            Vec3 p = target != null ? target.position() : position();
-            entityData.set(DATA_BEAM, new Vector3f((float) p.x, (float) getHome().y, (float) p.z));
-            entityData.set(DATA_ARM, (byte) (random.nextBoolean() ? 1 : -1));
-            playSound(SoundEvents.WARDEN_ATTACK_IMPACT, 6F, 0.4F);
+        if (s == S_FIST) {
+            playSound(ModSounds.EYE_TENTACLE.get(), 12F, 0.4F);
         } else if (s == S_TITAN) {
             playSound(ModSounds.EYE_SCREAM.get(), 16F, 0.3F);
             playSound(SoundEvents.WARDEN_ROAR, 10F, 0.5F);
@@ -249,87 +250,99 @@ public class UnboundObserver extends VoidEye {
         }
     }
 
-    private double horizontalDist(Entity e) {
-        double dx = e.getX() - getX(), dz = e.getZ() - getZ();
-        return Math.sqrt(dx * dx + dz * dz);
-    }
+    // ------------------------------------------------------------------ vuelo
 
-    private void walkToward(LivingEntity target, double stopAt) {
-        double d = horizontalDist(target);
-        faceToward(target.position(), 3F);
-        if (d <= stopAt) return;
-        double step = Math.min(SPEED * (getPhase() >= 5 ? 1.3 : 1), d - stopAt);
-        double dx = (target.getX() - getX()) / d, dz = (target.getZ() - getZ()) / d;
-        setPos(getX() + dx * step, getY(), getZ() + dz * step);
-    }
-
-    private void faceToward(Vec3 p, float maxStep) {
-        float want = (float) (Mth.atan2(-(p.x - getX()), p.z - getZ()) * Mth.RAD_TO_DEG);
-        float y = getYRot() + Mth.clamp(Mth.wrapDegrees(want - getYRot()), -maxStep, maxStep);
-        setYRot(y);
-        yBodyRot = y;
-        yHeadRot = y;
-    }
-
-    /** Camina "flotando" sobre la llanura (los agujeros no lo detienen) y no se aleja del círculo. */
-    private void keepOnPlain() {
+    /** Flota sobre la llanura y se acerca despacio al objetivo; exhausto, baja casi hasta el piso. */
+    private void drift(ServerLevel sl, LivingEntity target) {
         Vec3 h = getHome();
-        double dx = getX() - h.x, dz = getZ() - h.z, d = Math.sqrt(dx * dx + dz * dz);
+        int s = getState();
+        double y;
+        if (s == S_EMERGE) y = Mth.lerp(Math.min(1.0, stateTick / (double) (EMERGE_TICKS - 30)), h.y + 150, h.y + HOVER);
+        else if (s == S_EXPOSED) y = h.y + 1.5;
+        else if (s == S_SCREAM || s == S_TEARS || s == S_COLOSSAL) y = h.y + HOVER + 6;
+        else y = h.y + HOVER;
+        y += (s == S_EXPOSED ? 0.3 : 1.2) * Math.sin(tickCount * 0.04);
         double x = getX(), z = getZ();
-        if (d > LEASH) {
-            x = h.x + dx / d * LEASH;
-            z = h.z + dz / d * LEASH;
+        if (target != null && s != S_EXPOSED && s != S_MAW && s != S_EMERGE && !isBeamState()) {
+            double dx = target.getX() - x, dz = target.getZ() - z, d = Math.sqrt(dx * dx + dz * dz);
+            if (d > 26) {
+                double step = SPEED * (getPhase() >= 5 ? 1.3 : 1);
+                x += dx / d * step;
+                z += dz / d * step;
+            }
         }
-        setPos(x, h.y, z);
+        double ox = x - h.x, oz = z - h.z, od = Math.sqrt(ox * ox + oz * oz);
+        if (od > LEASH) {
+            x = h.x + ox / od * LEASH;
+            z = h.z + oz / od * LEASH;
+        }
+        double ny = Mth.lerp(s == S_EMERGE ? 0.5 : 0.05, getY(), y);
+        setPos(x, ny, z);
         setDeltaMovement(Vec3.ZERO);
+        float yw = lookYaw();
+        setYRot(yw);
+        yBodyRot = yw;
+        yHeadRot = yw;
     }
 
     // ------------------------------------------------------------------ emerger
 
     private void tickEmerge(ServerLevel sl, List<ServerPlayer> arena, LivingEntity target) {
         lookAt(target.getEyePosition(), 2F);
-        faceToward(target.position(), 1.5F);
         if (stateTick == 1) {
-            playSound(ModSounds.EYE_AWAKEN.get(), 16F, 0.7F);
-            playSound(ModSounds.EYE_TENTACLE.get(), 16F, 0.5F);
+            playSound(ModSounds.EYE_AWAKEN.get(), 20F, 0.6F);
+            playSound(ModSounds.EYE_PULSE.get(), 20F, 0.4F);
         }
-        if (stateTick % 3 == 0 && stateTick < 120) {
-            BlockState ground = sl.getBlockState(blockPosition().below());
-            if (!ground.isAir()) sl.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, ground), getX(), getY() + 0.5, getZ(), 60, 6, 0.5, 6, 0.4);
-            sl.sendParticles(ParticleTypes.SQUID_INK, getX(), getY() + 1, getZ(), 30, 5, 1, 5, 0.05);
+        if (stateTick % 4 == 0 && stateTick < 120) {
+            Vec3 c = center();
+            sl.sendParticles(ParticleTypes.REVERSE_PORTAL, c.x, c.y, c.z, 80, EYE_R, EYE_R, EYE_R, 0.6);
         }
-        if (stateTick % 25 == 0) playSound(SoundEvents.WARDEN_HEARTBEAT, 14F, 0.35F);
-        if (stateTick == 125) scream(sl, arena);
-        if (stateTick >= EMERGE_TICKS) setIdle(30);
+        if (stateTick % 25 == 0) playSound(SoundEvents.WARDEN_HEARTBEAT, 16F, 0.3F);
+        if (stateTick == 130) scream(sl, arena);
+        if (stateTick >= EMERGE_TICKS) setIdle(20);
     }
 
-    // ------------------------------------------------------------------ Golpe
+    // ------------------------------------------------------------------ Mirada titánica: funde el piso
 
-    private Vec3 slamPoint() {
-        return getBeamEnd();
+    private boolean canMelt(ServerLevel sl) {
+        return sl.dimension() == ModDimensions.BEYOND || sl.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING);
     }
 
-    private void tickSlam(ServerLevel sl, List<ServerPlayer> arena) {
-        Vec3 p = slamPoint();
-        faceToward(p, 6F);
-        lookAt(p, 6F);
-        if (stateTick == SLAM_HIT) {
-            AABB box = new AABB(p, p).inflate(6.5, 4, 6.5);
-            for (LivingEntity e : sl.getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && !ally(e))) {
-                if (e instanceof Player pl && (pl.isCreative() || pl.isSpectator())) continue;
-                double dx = e.getX() - p.x, dz = e.getZ() - p.z, d = Math.max(0.5, Math.sqrt(dx * dx + dz * dz));
-                if (d > 6.5) continue;
-                e.hurt(damageSources().mobAttack(this), 18F * (getPhase() >= 5 ? 1.15F : 1F));
-                e.setDeltaMovement(dx / d * 1.8, 0.7, dz / d * 1.8);
-                e.hurtMarked = true;
-            }
-            VoidImpact.meteorCrater(sl, p, 4.5F);
-            sl.sendParticles(ParticleTypes.EXPLOSION_EMITTER, p.x, p.y + 0.5, p.z, 2, 1, 0, 1, 0);
-            sl.sendParticles(ParticleTypes.SQUID_INK, p.x, p.y + 0.5, p.z, 60, 3, 0.5, 3, 0.1);
-            playSound(SoundEvents.GENERIC_EXPLODE.value(), 8F, 0.5F);
-            playSound(SoundEvents.ANVIL_LAND, 5F, 0.3F);
+    private void meltTrail(ServerLevel sl) {
+        if (tickCount % 2 != 0 || !canMelt(sl)) return;
+        Vec3 e = getBeamEnd();
+        BlockPos c = BlockPos.containing(e);
+        float r = 3.4F;
+        int R = Mth.ceil(r);
+        BlockState rim = ModBlocks.VOID_STONE.get().defaultBlockState();
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int dx = -R; dx <= R; dx++) for (int dy = -R; dy <= R; dy++) for (int dz = -R; dz <= R; dz++) {
+            double d = Math.sqrt(dx * dx + dy * dy * 1.6 + dz * dz);
+            if (d > r + 1) continue;
+            p.set(c.getX() + dx, c.getY() + dy, c.getZ() + dz);
+            BlockState st = sl.getBlockState(p);
+            if (st.isAir() || st.getDestroySpeed(sl, p) < 0 || st.is(ModBlocks.VOID_PORTAL.get())) continue;
+            if (d <= r) sl.setBlock(p, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+            else if (random.nextFloat() < 0.4F) sl.setBlock(p, rim, Block.UPDATE_CLIENTS);
         }
-        if (stateTick >= SLAM_TICKS) setIdle(cooldownTicks());
+        if (random.nextFloat() < 0.3F) {
+            BlockPos f = c.below(R);
+            if (sl.getBlockState(f).isAir() && !sl.getBlockState(f.below()).isAir())
+                sl.setBlock(f, ModBlocks.ASTRAL_FIRE.get().defaultBlockState(), Block.UPDATE_ALL);
+        }
+    }
+
+    // ------------------------------------------------------------------ Puño del Vacío
+
+    private void tickFist(ServerLevel sl, List<ServerPlayer> arena) {
+        List<ServerPlayer> valid = arena.stream().filter(p -> !p.isCreative()).toList();
+        List<ServerPlayer> pool = valid.isEmpty() ? arena : valid;
+        if (!pool.isEmpty()) lookAt(pool.get(0).getEyePosition(), 4F);
+        if (stateTick == 4 || (stateTick == 16 && getPhase() >= 5)) {
+            ServerPlayer t = pool.get(random.nextInt(pool.size()));
+            VoidFist.summon(sl, this, t, stateTick == 4 ? 1 : -1);
+        }
+        if (stateTick >= FIST_TICKS) setIdle(cooldownTicks());
     }
 
     // ------------------------------------------------------------------ Ojo Colosal
@@ -347,7 +360,7 @@ public class UnboundObserver extends VoidEye {
     // ------------------------------------------------------------------ Tentáculo Titánico
 
     private void tickTitan(ServerLevel sl, List<ServerPlayer> arena) {
-        lookAt(center().add(dirFrom(getYRot(), 50F).scale(20)), 4F);
+        lookAt(center().add(dirFrom(lookYaw(), 50F).scale(20)), 4F);
         if (stateTick == 14) {
             List<ServerPlayer> valid = arena.stream().filter(p -> !p.isCreative()).toList();
             ServerPlayer t = valid.isEmpty() ? arena.get(random.nextInt(arena.size())) : valid.get(random.nextInt(valid.size()));
@@ -362,23 +375,21 @@ public class UnboundObserver extends VoidEye {
 
     // ------------------------------------------------------------------ Las Fauces
 
-    /** Boca de las fauces en el mundo. */
+    /** La "boca": la pupila dilatada como un agujero negro. */
     public Vec3 mawPoint() {
-        Vec3 f = dirFrom(getYRot(), 0F);
-        return position().add(f.x * MAW_Z, MAW_Y, f.z * MAW_Z);
+        return center().add(dirFrom(lookYaw(), lookPitch()).scale(EYE_R * 1.05));
     }
 
     private void tickMaw(ServerLevel sl, List<ServerPlayer> arena) {
-        if (stateTick < MAW_OPEN && !arena.isEmpty()) faceToward(pickTarget(arena).position(), 3F);
+        if (!arena.isEmpty()) lookAt(pickTarget(arena).position(), stateTick < MAW_OPEN ? 4F : 0.8F);
         Vec3 m = mawPoint();
-        lookAt(m.add(dirFrom(getYRot(), 20F).scale(20)), 3F);
         if (stateTick >= MAW_OPEN && stateTick < MAW_TICKS - 10) {
             double k = 0.05 + 0.09 * Math.min(1.0, (stateTick - MAW_OPEN) / 60.0);
             for (ServerPlayer p : arena) {
                 if (p.isCreative()) continue;
                 Vec3 d = m.subtract(p.getEyePosition());
                 double len = d.length();
-                if (len > 70) continue;
+                if (len > 90) continue;
                 // cubrirse detrás de un obelisco corta la succión
                 var hit = sl.clip(new net.minecraft.world.level.ClipContext(p.getEyePosition(), m, net.minecraft.world.level.ClipContext.Block.COLLIDER,
                         net.minecraft.world.level.ClipContext.Fluid.NONE, p));
@@ -386,7 +397,7 @@ public class UnboundObserver extends VoidEye {
                 Vec3 h = new Vec3(d.x, Math.max(-0.2, d.y * 0.05), d.z).normalize().scale(k * (p.isShiftKeyDown() ? 0.6 : 1.0));
                 p.push(h.x, h.y, h.z);
                 p.hurtMarked = true;
-                if (len < 9 && stateTick % 10 == 0) {
+                if (len < EYE_R + 6 && stateTick % 10 == 0) {
                     p.hurt(damageSources().indirectMagic(this, this), 9F);
                     addMadness(p, 8F);
                 }
@@ -416,8 +427,8 @@ public class UnboundObserver extends VoidEye {
     }
 
     private void tearBlock(ServerLevel sl, Vec3 m) {
-        Vec3 f = dirFrom(getYRot(), 0F);
-        double ang = Math.atan2(f.z, f.x) + (random.nextDouble() - 0.5) * 1.6;
+        Vec3 f = dirFrom(lookYaw(), 0F);
+        double ang = Math.atan2(f.z, f.x) + (random.nextDouble() - 0.5) * 1.8;
         double r = 8 + random.nextDouble() * 30;
         int x = Mth.floor(getX() + Math.cos(ang) * r), z = Mth.floor(getZ() + Math.sin(ang) * r);
         BlockPos top = BlockPos.containing(x, getHome().y - 1, z);
@@ -445,13 +456,13 @@ public class UnboundObserver extends VoidEye {
             if (fb.isRemoved()) { it.remove(); continue; }
             Vec3 d = m.subtract(fb.position());
             double len = d.length();
-            if (len < 3.5 || fb.tickCount > 90) {
+            if (len < EYE_R * 0.5 || fb.tickCount > 110) {
                 if (level() instanceof ServerLevel sl) sl.sendParticles(ParticleTypes.SQUID_INK, fb.getX(), fb.getY(), fb.getZ(), 4, 0.3, 0.3, 0.3, 0.02);
                 fb.discard();
                 it.remove();
                 continue;
             }
-            double sp = Math.min(2.2, 0.35 + fb.tickCount * 0.05);
+            double sp = Math.min(2.6, 0.35 + fb.tickCount * 0.05);
             Vec3 swirl = new Vec3(-d.z, 0, d.x).normalize().scale(0.25);
             fb.setDeltaMovement(d.scale(sp / len).add(swirl));
             fb.hurtMarked = true;
@@ -462,17 +473,17 @@ public class UnboundObserver extends VoidEye {
 
     private void tickTears(ServerLevel sl, List<ServerPlayer> arena) {
         lookAt(center().add(0, 50, 0), 5F);
-        if (stateTick >= 20 && stateTick % 3 == 0 && !arena.isEmpty()) {
+        if (stateTick >= 16 && stateTick % 6 == 0 && !arena.isEmpty()) {
             ServerPlayer p = arena.get(random.nextInt(arena.size()));
             Vec3 t;
-            if (random.nextFloat() < 0.35F && !p.isCreative()) t = new Vec3(p.getX(), getHome().y, p.getZ());
+            if (random.nextFloat() < 0.4F && !p.isCreative()) t = new Vec3(p.getX(), getHome().y, p.getZ());
             else {
-                double a = random.nextDouble() * Math.PI * 2, r = 4 + random.nextDouble() * 26;
+                double a = random.nextDouble() * Math.PI * 2, r = 6 + random.nextDouble() * 28;
                 t = new Vec3(p.getX() + Math.cos(a) * r, getHome().y, p.getZ() + Math.sin(a) * r);
             }
-            AbyssTear.spawn(sl, this, t, 46 + random.nextInt(12));
+            AbyssTear.spawn(sl, this, t, 95 + random.nextInt(25));
         }
-        if (stateTick >= TEARS_TICKS) setIdle(30);
+        if (stateTick >= TEARS_TICKS) setIdle(20);
     }
 
     /** Lo llama el Ojo Colosal cuando termina su rayo: el Desatado queda de rodillas. */
@@ -505,9 +516,11 @@ public class UnboundObserver extends VoidEye {
         this.deathTime++;
         if (!(level() instanceof ServerLevel sl)) return;
         Vec3 c = center();
+        Vec3 h = getHome();
+        setPos(getX(), Mth.lerp(0.02, getY(), h.y + HOVER), getZ());
         if (deathTime % 4 == 0 && deathTime < DEATH_TICKS) {
-            sl.sendParticles(ParticleTypes.END_ROD, c.x, c.y, c.z, 12, 4, 6, 4, 0.3);
-            sl.sendParticles(ParticleTypes.SQUID_INK, getX(), getY() + 8, getZ(), 20, 5, 6, 5, 0.05);
+            sl.sendParticles(ParticleTypes.END_ROD, c.x, c.y, c.z, 16, EYE_R * 0.6, EYE_R * 0.6, EYE_R * 0.6, 0.4);
+            sl.sendParticles(ParticleTypes.SQUID_INK, c.x, c.y, c.z, 20, EYE_R * 0.6, EYE_R * 0.6, EYE_R * 0.6, 0.05);
         }
         if (deathTime == 20) playSound(ModSounds.EYE_IMPLODE.get(), 20F, 0.8F);
         if (deathTime % 25 == 0 && deathTime < DEATH_TICKS - 20) playSound(SoundEvents.WARDEN_HEARTBEAT, 14F, 0.4F + deathTime / 300F);
