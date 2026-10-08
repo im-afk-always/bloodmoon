@@ -95,6 +95,16 @@ public final class ModEntities {
                 .build());
     }
 
+    /** Spawn natural (bioma del Laberinto): en el piso, en la oscuridad, como cualquier monstruo. */
+    public static void registerSpawnPlacements(net.neoforged.neoforge.event.entity.RegisterSpawnPlacementsEvent event) {
+        for (EntityType<VoidSkeleton> type : java.util.List.of(VOID_SENTINEL.get(), VOID_ARCHER.get())) {
+            event.register(type, net.minecraft.world.entity.SpawnPlacementTypes.ON_GROUND,
+                    net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                    net.minecraft.world.entity.monster.Monster::checkMonsterSpawnRules,
+                    net.neoforged.neoforge.event.entity.RegisterSpawnPlacementsEvent.Operation.REPLACE);
+        }
+    }
+
     /** La vida configurable se aplica al spawnear (el registro de atributos ocurre antes de leer la config). */
     public static double riderHealth() {
         return BloodMoonConfig.RIDER_HEALTH.get();

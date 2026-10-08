@@ -32,8 +32,8 @@ import org.joml.Matrix4f;
  */
 public final class IntroEye {
     private static final ResourceLocation ALT_FONT = ResourceLocation.withDefaultNamespace("alt");
-    private static final int DARK_IN = 30, OPEN_START = 25, OPEN_END = 50, TEXT_START = 60, FIRST_LOCK = 26, LOCK_STEP = 5,
-            HOLD = 60, CLOSE_LEN = 22, FADE_OUT = 25;
+    private static final int DARK_IN = 15, OPEN_START = 12, OPEN_END = 25, TEXT_START = 30, FIRST_LOCK = 13,
+            HOLD = 30, CLOSE_LEN = 11, FADE_OUT = 13;
 
     private static int pending = -1;     // ticks de espera antes de empezar (mundo cargando)
     private static float age = -1;
@@ -54,7 +54,7 @@ public final class IntroEye {
     }
 
     private static int lockTime(int i) {
-        return TEXT_START + FIRST_LOCK + i * LOCK_STEP;
+        return TEXT_START + FIRST_LOCK + (i * 5) / 2;     // una letra cada 2,5 ticks
     }
 
     private static int closeStart() {
@@ -115,7 +115,7 @@ public final class IntroEye {
         float cs = closeStart();
         float dark = smooth(a / DARK_IN) * (1F - smooth((a - cs - CLOSE_LEN) / FADE_OUT));
         float open = smooth((a - OPEN_START) / (OPEN_END - OPEN_START)) * (1F - smooth((a - cs) / CLOSE_LEN));
-        float textAlpha = smooth((a - TEXT_START) / 10F) * (1F - smooth((a - cs) / (CLOSE_LEN * 0.8F)));
+        float textAlpha = smooth((a - TEXT_START) / 5F) * (1F - smooth((a - cs) / (CLOSE_LEN * 0.8F)));
 
         g.fill(0, 0, w, h, ((int) (dark * 0.82F * 255) << 24) | 0x05000A);
         g.flush();
@@ -249,7 +249,7 @@ public final class IntroEye {
                 Component c;
                 int color;
                 if (locked) {
-                    float since = Math.min(1F, (time - lockTime(i)) / 8F);
+                    float since = Math.min(1F, (time - lockTime(i)) / 4F);
                     c = Component.literal(String.valueOf(ch));
                     int rr = (int) Mth.lerp(since, 255, 225), gg = (int) Mth.lerp(since, 255, 190), bb = 255;
                     color = (a << 24) | (rr << 16) | (gg << 8) | bb;

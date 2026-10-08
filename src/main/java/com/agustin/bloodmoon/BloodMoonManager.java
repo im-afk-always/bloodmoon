@@ -128,6 +128,7 @@ public final class BloodMoonManager {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
         spawnBoost = false;
         if (level.dimension() != Level.OVERWORLD) return;
+        com.agustin.bloodmoon.world.ColiseumSpawns.tick(level);
 
         BloodMoonData data = BloodMoonData.get(level);
         current = data.getActive();
@@ -303,7 +304,7 @@ public final class BloodMoonManager {
         if (level.getDifficulty() == Difficulty.PEACEFUL || !level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) return;
         RandomSource random = level.random;
         for (ServerPlayer player : level.players()) {
-            if (player.isSpectator() || random.nextFloat() > 0.45F) continue;
+            if (player.isSpectator() || random.nextFloat() > 0.225F) continue;   // la mitad que en v9.3
             int near = level.getEntitiesOfClass(VoidSkeleton.class, player.getBoundingBox().inflate(64, 32, 64)).size();
             if (near >= 12) continue;
             BlockPos base = findRiderSpot(level, player, random);

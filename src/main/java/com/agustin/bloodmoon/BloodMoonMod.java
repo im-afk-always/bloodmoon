@@ -43,6 +43,7 @@ public class BloodMoonMod {
         ModDimensions.CHUNK_GENERATORS.register(modBus);
         modBus.addListener(ModItems::addToTabs);
         modBus.addListener(ModEntities::registerAttributes);
+        modBus.addListener(ModEntities::registerSpawnPlacements);
         modBus.addListener(BloodMoonNetwork::register);
 
         NeoForge.EVENT_BUS.addListener(BloodMoonManager::onLevelTickPre);
