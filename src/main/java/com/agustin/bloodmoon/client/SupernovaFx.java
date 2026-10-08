@@ -231,7 +231,7 @@ public final class SupernovaFx {
             .fromNamespaceAndPath(com.agustin.bloodmoon.BloodMoonMod.MODID, "textures/misc/nova_light.png");
 
     /** Posición en pantalla (px) y px por bloque a esa distancia; null si está detrás de la cámara. */
-    private static float[] project(Vec3 p, int w, int h) {
+    static float[] project(Vec3 p, int w, int h) {
         Minecraft mc = Minecraft.getInstance();
         Camera cam = mc.gameRenderer.getMainCamera();
         Vec3 v = p.subtract(cam.getPosition());

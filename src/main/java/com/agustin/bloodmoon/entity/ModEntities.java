@@ -155,6 +155,16 @@ public final class ModEntities {
                     .updateInterval(1)
                     .build("void_fist"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<VoidPalm>> VOID_PALM =
+            ENTITIES.register("void_palm", () -> EntityType.Builder
+                    .<VoidPalm>of(VoidPalm::new, MobCategory.MISC)
+                    .sized(8.0F, 8.0F)
+                    .fireImmune()
+                    .noSave()
+                    .clientTrackingRange(24)
+                    .updateInterval(1)
+                    .build("void_palm"));
+
     private ModEntities() {}
 
     public static void registerAttributes(EntityAttributeCreationEvent event) {

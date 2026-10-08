@@ -78,6 +78,11 @@ public final class EyeFightFx {
     private static int titleMode = -1;
     private static float titleAge;
     private static float flash, flashO;
+    // Palma del Vacío
+    private static boolean palmActive;
+    private static Vec3 palmPos = Vec3.ZERO;
+    private static int palmAge;
+    private static net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> palmDim;
     private static final String[] WHISPERS = new String[8];
     private static final float[][] WHISPER_POS = new float[5][4];
 
@@ -87,6 +92,17 @@ public final class EyeFightFx {
         EyeMadnessPayload.handler = p -> Minecraft.getInstance().execute(() -> {
             madnessTarget = p.madness();
             lastPacket = clientTicks;
+        });
+        com.agustin.bloodmoon.network.PalmPayload.handler = p -> Minecraft.getInstance().execute(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            if (p.mode() == com.agustin.bloodmoon.network.PalmPayload.CANCEL) {
+                palmActive = false;
+                return;
+            }
+            palmActive = true;
+            palmPos = new Vec3(p.x(), p.y(), p.z());
+            palmAge = 0;
+            palmDim = mc.level != null ? mc.level.dimension() : null;
         });
         EyeTitlePayload.handler = p -> Minecraft.getInstance().execute(() -> {
             titleMode = p.mode();
@@ -103,6 +119,7 @@ public final class EyeFightFx {
         madness = madnessO = madnessTarget = 0;
         titleMode = -1;
         shake = 0;
+        palmActive = false;
         skyMix = skyMixO = 0;
         nearEye = false;
     }
@@ -125,7 +142,21 @@ public final class EyeFightFx {
         int titleLen = titleMode == EyeTitlePayload.AWAKEN ? 240 : titleMode == EyeTitlePayload.ASCEND ? 340 : 200;
         if (titleMode >= 0 && ++titleAge > titleLen) titleMode = -1;
         flashO = flash;
-        flash *= 0.88F;
+        flash *= flash > 1F ? 0.97F : 0.9F;
+        if (palmActive) {
+            palmAge++;
+            if (palmDim != null && mc.level.dimension() != palmDim) palmActive = false;
+            int D = com.agustin.bloodmoon.entity.VoidPalm.DESCEND, B = com.agustin.bloodmoon.entity.VoidPalm.BLAST;
+            double dist = palmPos.distanceTo(mc.player.position());
+            if (palmAge >= D && palmAge < B) shake = Math.max(shake, 0.25F + 0.5F * (palmAge - D) / (float) (B - D));
+            if (palmAge == B) {
+                float k = (float) Math.max(0, 1 - dist / 400);
+                flash = Math.max(flash, 0.6F + 0.9F * k);
+                shake = Math.max(shake, 3.5F * k);
+            }
+            if (palmAge > D - 200 && palmAge < D && palmAge % 20 == 0) play(SoundEvents.NOTE_BLOCK_BASEDRUM.value(), 0.6F, 0.5F);
+            if (palmAge > B + 120) palmActive = false;
+        }
         for (Entity en : mc.level.entitiesForRendering()) {
             if (en instanceof com.agustin.bloodmoon.entity.TitanTentacle tt && tt.distanceToSqr(mc.player) < 200 * 200) {
                 if (tt.tickCount == com.agustin.bloodmoon.entity.TitanTentacle.SLAM) { shake = Math.max(shake, 2.2F); flash = Math.max(flash, 0.25F); }
@@ -408,7 +439,8 @@ public final class EyeFightFx {
     // ------------------------------------------------------------------ superposición: títulos
 
     public static void renderTitle(GuiGraphics g, DeltaTracker delta) {
-        float fl = Mth.lerp(delta.getGameTimeDeltaPartialTick(false), flashO, flash);
+        if (palmActive) renderPalm(g, delta.getGameTimeDeltaPartialTick(false));
+        float fl = Math.min(1F, Mth.lerp(delta.getGameTimeDeltaPartialTick(false), flashO, flash));
         if (fl > 0.01F) {
             g.fill(0, 0, g.guiWidth(), g.guiHeight(), ((int) (Math.min(1F, fl) * 255) << 24) | 0xFFF0FF);
             g.flush();
@@ -449,6 +481,95 @@ public final class EyeFightFx {
             float textFade = smooth((a - 25) / 10F) * (1F - smooth((a - 135) / 20F));
             glyphLine(g, text, w / 2F, h * 0.46F, 2.4F, a, 32, 2.5F, textFade, 0xE6CCFF);
         }
+    }
+
+    /** Contador de la Palma y, al tocar el suelo, la pantalla que se oscurece y se contrae hasta el impacto. */
+    private static void renderPalm(GuiGraphics g, float pt) {
+        int w = g.guiWidth(), h = g.guiHeight();
+        float a = palmAge + pt;
+        int D = com.agustin.bloodmoon.entity.VoidPalm.DESCEND, C = com.agustin.bloodmoon.entity.VoidPalm.COLLAPSE;
+        g.flush();
+        if (a < D) {
+            float left = Math.max(0F, (D - a) / 20F);
+            int secs = (int) Math.ceil(left);
+            boolean urgent = left < 5F;
+            float blink = urgent ? 0.6F + 0.4F * Mth.sin(a * 0.9F) : 1F;
+            int bw = Math.min(260, w - 40), bx = (w - bw) / 2, by = 54;
+            Font font = Minecraft.getInstance().font;
+            Component label = Component.translatable("bloodmoon.palm.bar", secs);
+            g.pose().pushPose();
+            g.pose().translate(w / 2F, by - 13, 0);
+            g.pose().scale(1.2F, 1.2F, 1F);
+            int lc = urgent ? 0xFFFF6AD5 : 0xFFD8A8FF;
+            g.drawCenteredString(font, label, 0, 0, (((int) (blink * 255)) << 24) | (lc & 0xFFFFFF));
+            g.pose().popPose();
+            float frac = left / (D / 20F);
+            g.fill(bx - 2, by - 2, bx + bw + 2, by + 7, 0xE0080010);
+            g.fill(bx - 2, by - 2, bx + bw + 2, by - 1, 0xFF9D4EDD);
+            g.fill(bx - 2, by + 6, bx + bw + 2, by + 7, 0xFF5A189A);
+            int fw = Math.round(bw * frac);
+            for (int i = 0; i < fw; i++) {
+                float f = i / (float) bw;
+                int r = (int) Mth.lerp(f, 0x3C, urgent ? 0xFF : 0xC7), gg = (int) Mth.lerp(f, 0x09, 0x3D), b = (int) Mth.lerp(f, 0x6C, 0xFF);
+                g.fill(bx + i, by, bx + i + 1, by + 5, 0xFF000000 | r << 16 | gg << 8 | b);
+            }
+            g.flush();
+            return;
+        }
+        if (a < D + C) {
+            float k = smooth((a - D) / C);
+            float dark = smooth((a - D) / 10F) * 0.97F;
+            float[] p = SupernovaFx.project(palmPos.add(0, 1, 0), w, h);
+            float cx = p == null ? w / 2F : p[0], cy = p == null ? h / 2F : p[1];
+            float diag = (float) Math.sqrt(w * w + h * h);
+            float rr = Mth.lerp(k, diag, 2F);
+            hole(g, cx, cy, rr, dark, diag * 2.5F);
+            // el punto de luz que concentra todo
+            float glow = 0.3F + 0.7F * k;
+            float gs = 6F + 30F * (1F - k);
+            Matrix4f m = g.pose().last().pose();
+            RenderSystem.enableBlend();
+            RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+            RenderSystem.setShader(GameRenderer::getPositionColorShader);
+            BufferBuilder bb = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+            for (int i = 0; i < 40; i++) {
+                float a0 = Mth.TWO_PI * i / 40, a1 = Mth.TWO_PI * (i + 1) / 40;
+                bb.addVertex(m, cx, cy, 0).setColor(1F, 0.95F, 1F, glow);
+                bb.addVertex(m, cx + Mth.cos(a0) * gs, cy + Mth.sin(a0) * gs, 0).setColor(0.7F, 0.3F, 1F, 0F);
+                bb.addVertex(m, cx + Mth.cos(a1) * gs, cy + Mth.sin(a1) * gs, 0).setColor(0.7F, 0.3F, 1F, 0F);
+            }
+            draw(bb);
+            RenderSystem.defaultBlendFunc();
+            g.flush();
+        }
+    }
+
+    /** Oscuridad en toda la pantalla salvo un círculo (centro cx, cy; radio r) que se va cerrando. */
+    private static void hole(GuiGraphics g, float cx, float cy, float r, float alpha, float far) {
+        Matrix4f m = g.pose().last().pose();
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableDepthTest();
+        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        BufferBuilder bb = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+        float soft = Math.max(8F, r * 0.35F);
+        int seg = 64;
+        for (int i = 0; i < seg; i++) {
+            float a0 = Mth.TWO_PI * i / seg, a1 = Mth.TWO_PI * (i + 1) / seg;
+            float c0 = Mth.cos(a0), s0 = Mth.sin(a0), c1 = Mth.cos(a1), s1 = Mth.sin(a1);
+            float[][] rings = {{r, 0F}, {r + soft, alpha}, {far, alpha}};
+            for (int k = 0; k < 2; k++) {
+                float ri = rings[k][0], ai = rings[k][1], ro = rings[k + 1][0], ao = rings[k + 1][1];
+                bb.addVertex(m, cx + c0 * ri, cy + s0 * ri, 0).setColor(0F, 0F, 0.02F, ai);
+                bb.addVertex(m, cx + c0 * ro, cy + s0 * ro, 0).setColor(0F, 0F, 0.02F, ao);
+                bb.addVertex(m, cx + c1 * ro, cy + s1 * ro, 0).setColor(0F, 0F, 0.02F, ao);
+                bb.addVertex(m, cx + c0 * ri, cy + s0 * ri, 0).setColor(0F, 0F, 0.02F, ai);
+                bb.addVertex(m, cx + c1 * ro, cy + s1 * ro, 0).setColor(0F, 0F, 0.02F, ao);
+                bb.addVertex(m, cx + c1 * ri, cy + s1 * ri, 0).setColor(0F, 0F, 0.02F, ai);
+            }
+        }
+        draw(bb);
+        RenderSystem.enableDepthTest();
     }
 
     private static void band(GuiGraphics g, int w, int h, int cy, int half, float alpha) {

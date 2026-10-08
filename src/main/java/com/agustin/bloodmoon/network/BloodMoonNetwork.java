@@ -10,7 +10,7 @@ public final class BloodMoonNetwork {
     private BloodMoonNetwork() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("7");
+        PayloadRegistrar registrar = event.registrar("8");
         registrar.playToClient(BloodMoonPayload.TYPE, BloodMoonPayload.STREAM_CODEC,
                 (payload, context) -> ClientMoonState.setTarget(MoonType.byId(payload.moonType())));
         registrar.playToClient(AstralBurnPayload.TYPE, AstralBurnPayload.STREAM_CODEC,
@@ -21,6 +21,7 @@ public final class BloodMoonNetwork {
                 (payload, context) -> SupernovaPayload.handler.accept(payload));
         registrar.playToClient(EyeMadnessPayload.TYPE, EyeMadnessPayload.STREAM_CODEC, (payload, context) -> EyeMadnessPayload.handler.accept(payload));
         registrar.playToClient(EyeTitlePayload.TYPE, EyeTitlePayload.STREAM_CODEC, (payload, context) -> EyeTitlePayload.handler.accept(payload));
+        registrar.playToClient(PalmPayload.TYPE, PalmPayload.STREAM_CODEC, (payload, context) -> PalmPayload.handler.accept(payload));
         registrar.playToClient(IntroPayload.TYPE, IntroPayload.STREAM_CODEC, (payload, context) -> IntroPayload.handler.run());
     }
 }

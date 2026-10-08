@@ -101,5 +101,8 @@
   "bloodmoon.command.summon.unbound": "El Observador Desatado emerge del suelo.",
   "entity.bloodmoon.void_fist": "Puño del Vacío",
   "entity.bloodmoon.titan_tentacle": "Tentáculo Titánico",
-  "entity.bloodmoon.abyss_tear": "Lágrima del Cielo"
+  "entity.bloodmoon.abyss_tear": "Lágrima del Cielo",
+  "bloodmoon.palm.warning": "Una mano descomunal se abre en el cielo... ¡ALÉJATE!",
+  "bloodmoon.palm.bar": "LA PALMA DESCIENDE — %s",
+  "entity.bloodmoon.void_palm": "Palma del Vacío"
 }

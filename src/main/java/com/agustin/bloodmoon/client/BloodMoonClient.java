@@ -85,6 +85,7 @@ public class BloodMoonClient {
         event.registerEntityRenderer(ModEntities.WATCHER_EYE.get(), WatcherEyeRenderer::new);
         event.registerEntityRenderer(ModEntities.UNBOUND_OBSERVER.get(), VoidEyeRenderer::new);
         event.registerEntityRenderer(ModEntities.VOID_FIST.get(), VoidFistRenderer::new);
+        event.registerEntityRenderer(ModEntities.VOID_PALM.get(), VoidPalmRenderer::new);
         event.registerEntityRenderer(ModEntities.COLOSSAL_EYE.get(), ColossalEyeRenderer::new);
         event.registerEntityRenderer(ModEntities.TITAN_TENTACLE.get(), TitanTentacleRenderer::new);
         event.registerEntityRenderer(ModEntities.ABYSS_TEAR.get(), AbyssTearRenderer::new);

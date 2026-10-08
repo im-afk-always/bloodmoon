@@ -202,7 +202,10 @@ public class VoidEyeRenderer<T extends VoidEye> extends EntityRenderer<T> {
         lid(ps, lid, R * 1.006F, Mth.lerp(Mth.clamp(open, 0F, 1.2F), 0F, 48F), false, overlay);   // un poco por fuera: evita z-fighting atrás
 
         renderBackTentacles(e, ps, buf, t, R, overlay);
-        if (unbound) UnboundExtras.renderPupilVortex((UnboundObserver) e, ps, buf, t, age, R);
+        if (unbound) {
+            UnboundExtras.renderEyeTentacles((UnboundObserver) e, ps, buf, t, R, overlay);
+            UnboundExtras.renderPupilVortex((UnboundObserver) e, ps, buf, t, age, R);
+        }
         ps.popPose();
 
         if (e.isDeadOrDying()) renderDeathRays(e, ps, buf, pt, camRel.subtract(0, e.eyeRadius(), 0).scale(1 / scaleK));

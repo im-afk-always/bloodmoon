@@ -48,7 +48,12 @@ public final class BloodMoonCommand {
                         .then(Commands.literal("executioner").executes(ctx -> summonKnight(ctx, true)))
                         .then(Commands.literal("dragon").executes(BloodMoonCommand::summonDragon))
                         .then(Commands.literal("eye").executes(BloodMoonCommand::summonEye))
-                        .then(Commands.literal("unbound").executes(BloodMoonCommand::summonUnbound)))
+                        .then(Commands.literal("unbound").executes(BloodMoonCommand::summonUnbound))
+                        .then(Commands.literal("palm").executes(ctx -> {
+                            var src = ctx.getSource();
+                            boolean ok = com.agustin.bloodmoon.entity.VoidPalm.summon(src.getLevel(), null, src.getPosition()) != null;
+                            return ok ? 1 : 0;
+                        })))
                 .then(Commands.literal("intro").executes(ctx -> {
                     net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(ctx.getSource().getPlayerOrException(),
                             new com.agustin.bloodmoon.network.IntroPayload());

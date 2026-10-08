@@ -97,20 +97,31 @@ final class UnboundExtras {
             ps.popPose();
         }
 
-        // ---- cortina de tentáculos colgantes
+    }
+
+    /**
+     * Cortina de tentáculos que nacen de la nuca y la parte baja del Ojo (marco del Ojo: pupila hacia +Z), así giran
+     * con él cuando mira hacia abajo o hacia los costados; cuelgan un poco por su propio peso.
+     */
+    static void renderEyeTentacles(UnboundObserver e, PoseStack ps, MultiBufferSource buf, float t, float R, int overlay) {
+        int s = e.getState();
+        boolean frenzy = e.getPhase() >= 5 || s == VoidEye.S_SCREAM || s == UnboundObserver.S_COLOSSAL || s == UnboundObserver.S_TEARS;
+        final float agit = frenzy ? 1.8F : 1F;
         for (int pass = 0; pass < 2; pass++) {
             VertexConsumer vc = buf.getBuffer(pass == 0 ? RenderType.entityCutoutNoCull(VoidEyeRenderer.TENTACLE) : RenderType.eyes(VoidEyeRenderer.TENTACLE_GLOW));
             for (int i = 0; i < 12; i++) {
-                float a = Mth.TWO_PI * i / 12 + 0.2F;
-                final float ph = i * 1.31F;
-                final float agit = frenzy ? 1.8F : 1F;
+                float ph = Mth.TWO_PI * i / 12 + 0.25F;
+                float th = 2.05F + 0.22F * Mth.sin(i * 2.3F);          // detrás del ecuador del Ojo
+                float nx = Mth.sin(th) * Mth.cos(ph), ny = Mth.sin(th) * Mth.sin(ph), nz = Mth.cos(th);
+                float dy = ny - 0.55F, dz = nz - 0.6F, dx = nx;          // hacia atrás y hacia abajo
+                float dl = Mth.sqrt(dx * dx + dy * dy + dz * dz);
+                final float phase = i * 1.31F;
                 ps.pushPose();
-                ps.translate(Mth.cos(a) * 5.4F, -7.0F, Mth.sin(a) * 5.4F);
-                ps.mulPose(Axis.YP.rotationDegrees(-(float) Math.toDegrees(a)));
-                ps.mulPose(Axis.ZP.rotationDegrees(-172F));
-                TentacleMesh.render(ps, vc, FULL, overlay, (18F + (i % 3) * 3F) * (0.4F + 0.6F * k), 0.95F, 18, (j, along) -> new float[]{
-                        0.07F * Mth.sin(t * 0.05F * agit + ph + j * 0.4F) * agit,
-                        0.05F * Mth.cos(t * 0.04F * agit + ph + j * 0.35F) * agit - 0.01F},
+                ps.translate(nx * R * 0.96F, ny * R * 0.96F, nz * R * 0.96F);
+                ps.mulPose(new Quaternionf().rotationTo(0F, 1F, 0F, dx / dl, dy / dl, dz / dl));
+                TentacleMesh.render(ps, vc, FULL, overlay, 17F + (i % 3) * 3.5F, 0.95F, 18, (j, along) -> new float[]{
+                        0.08F * Mth.sin(t * 0.05F * agit + phase + j * 0.4F) * agit,
+                        0.07F * Mth.cos(t * 0.04F * agit + phase + j * 0.35F) * agit},
                         pass == 0 ? 1F : 0.55F, pass == 0 ? 1F : 0.2F, pass == 0 ? 1F : 0.8F, 1F);
                 ps.popPose();
             }

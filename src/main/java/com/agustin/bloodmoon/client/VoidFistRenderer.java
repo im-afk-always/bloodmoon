@@ -134,7 +134,7 @@ public class VoidFistRenderer extends EntityRenderer<VoidFist> {
         ps.popPose();
     }
 
-    private static void ellipsoid(PoseStack ps, VertexConsumer vc, float cx, float cy, float cz, float rx, float ry, float rz, float r, float g, float b) {
+    static void ellipsoid(PoseStack ps, VertexConsumer vc, float cx, float cy, float cz, float rx, float ry, float rz, float r, float g, float b) {
         ps.pushPose();
         ps.translate(cx, cy, cz);
         ps.scale(rx, ry, rz);
@@ -159,7 +159,7 @@ public class VoidFistRenderer extends EntityRenderer<VoidFist> {
     }
 
     /** Tubo a lo largo de una polilínea (marcos de transporte paralelo), con la textura fluyendo en v. */
-    private static void tube(PoseStack.Pose pose, VertexConsumer vc, Vec3[] pts, float[] rad, float scale, float flow, float r, float g, float b) {
+    static void tube(PoseStack.Pose pose, VertexConsumer vc, Vec3[] pts, float[] rad, float scale, float flow, float r, float g, float b) {
         int n = pts.length, sides = 10;
         Vector3f[][] ring = new Vector3f[n][sides + 1];
         Vector3f[][] nor = new Vector3f[n][sides + 1];

@@ -58,6 +58,8 @@ public class UnboundObserver extends VoidEye {
 
     private int colossalCd = 120;
     private int lastUltimate = -1;
+    private boolean palmDone;
+    private int palmTimer;
     private final java.util.List<net.minecraft.world.entity.item.FallingBlockEntity> torn = new java.util.ArrayList<>();
     private ResourceKey<Level> returnDim;
     private Vec3 returnHome;
@@ -127,7 +129,8 @@ public class UnboundObserver extends VoidEye {
         }
         LivingEntity target = pickTarget(arena);
         updateMadness(sl, arena);
-        if (state == S_IDLE || state == S_GAZE || state == S_GAZE_CHARGE || state == S_TENTACLES || state == S_WATCHERS || state == S_FIST) colossalCd--;
+        if (palmTimer > 0) palmTimer--;
+        else if (state == S_IDLE || state == S_GAZE || state == S_GAZE_CHARGE || state == S_TENTACLES || state == S_WATCHERS || state == S_FIST) colossalCd--;
         tickTorn();
 
         switch (state) {
@@ -188,6 +191,11 @@ public class UnboundObserver extends VoidEye {
             }
             case S_SCREAM -> {
                 lookAt(center().add(Mth.sin(tickCount * 0.9F) * 8, 30, Mth.cos(tickCount * 0.7F) * 8), 20F);
+                if (stateTick == 30 && getPhase() >= 5 && !palmDone) {     // la Palma del Vacío
+                    palmDone = true;
+                    palmTimer = VoidPalm.BLAST;
+                    VoidPalm.summon(sl, this, new Vec3(getX(), getHome().y, getZ()));
+                }
                 if (stateTick >= SCREAM_TICKS) setIdle(20);
             }
             default -> setIdle(15);
@@ -558,6 +566,7 @@ public class UnboundObserver extends VoidEye {
         torn.clear();
         if (level() instanceof ServerLevel sl) {
             for (ColossalEye c : sl.getEntitiesOfClass(ColossalEye.class, getBoundingBox().inflate(200, 300, 200))) c.discard();
+            for (VoidPalm p : sl.getEntitiesOfClass(VoidPalm.class, getBoundingBox().inflate(300, 400, 300))) p.cancel(sl);
         }
     }
 
@@ -572,6 +581,7 @@ public class UnboundObserver extends VoidEye {
             tag.putDouble("ReturnY", returnHome.y);
             tag.putDouble("ReturnZ", returnHome.z);
         }
+        tag.putBoolean("PalmDone", palmDone);
     }
 
     @Override
@@ -582,6 +592,7 @@ public class UnboundObserver extends VoidEye {
             returnHome = new Vec3(tag.getDouble("ReturnX"), tag.getDouble("ReturnY"), tag.getDouble("ReturnZ"));
         }
         entityData.set(DATA_PHASE, (byte) Math.max(4, getPhase()));
+        palmDone = tag.getBoolean("PalmDone");
         bossEvent.setName(Component.translatable(UNBOUND_KEY).withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD));
     }
 }
