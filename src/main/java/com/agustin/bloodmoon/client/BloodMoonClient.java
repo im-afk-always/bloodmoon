@@ -60,6 +60,8 @@ public class BloodMoonClient {
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onFogColor);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onLogout);
         NeoForge.EVENT_BUS.addListener(MoonlessSkyRenderer::onRenderStage);
+        NeoForge.EVENT_BUS.addListener(BloodSkyRenderer::onRenderStage);
+        NeoForge.EVENT_BUS.addListener(BloodMoonClient::onRenderFog);
         NeoForge.EVENT_BUS.addListener(ModBossBars::onBossBar);
         NeoForge.EVENT_BUS.addListener(AstralFlameRenderer::onRenderLiving);
         NeoForge.EVENT_BUS.addListener(NukeClouds::onFogColor);
@@ -155,6 +157,20 @@ public class BloodMoonClient {
         event.setRed(lerp(event.getRed(), type.fogR, k));
         event.setGreen(lerp(event.getGreen(), type.fogG, k));
         event.setBlue(lerp(event.getBlue(), type.fogB, k));
+    }
+
+    /** Durante la Luna de Sangre la bruma carmesí empieza más cerca: el horizonte se pierde en rojo. */
+    private static void onRenderFog(ViewportEvent.RenderFog event) {
+        if (event.getType() != FogType.NONE || event.getMode() != net.minecraft.client.renderer.FogRenderer.FogMode.FOG_TERRAIN) return;
+        if (Minecraft.getInstance().level == null || Minecraft.getInstance().level.dimension() != net.minecraft.world.level.Level.OVERWORLD) return;
+        MoonType type = ClientMoonState.visual();
+        if (!type.customSky()) return;
+        float k = ClientMoonState.intensity((float) event.getPartialTick());
+        if (k <= 0F) return;
+        float near = lerp(event.getNearPlaneDistance(), event.getFarPlaneDistance() * 0.3F, k);
+        if (near >= event.getNearPlaneDistance()) return;
+        event.setNearPlaneDistance(near);
+        event.setCanceled(true);
     }
 
     private static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {

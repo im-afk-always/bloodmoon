@@ -20,6 +20,9 @@ public final class MoonTextures {
     public static ResourceLocation currentMoon() {
         if (!ClientMoonState.moonSwapped()) return null;
         MoonType type = ClientMoonState.visual();
+        if (type.customSky()) {   // la luna realista la dibuja BloodSkyRenderer: la vanilla queda negra (invisible, se suma)
+            return TintedTextures.get(VANILLA_MOON, ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "dynamic/moon_hidden"), 0, 0, 0, 1F);
+        }
         ResourceLocation target = ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "dynamic/moon_" + type.key());
         return TintedTextures.get(VANILLA_MOON, target, type.tintR, type.tintG, type.tintB, 1.15F);
     }
