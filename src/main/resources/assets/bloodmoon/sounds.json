@@ -101,5 +101,14 @@
         "stream": false
       }
     ]
+  },
+  "music_beyond": {
+    "sounds": [
+      {
+        "name": "bloodmoon:music_beyond",
+        "stream": true,
+        "volume": 0.7
+      }
+    ]
   }
 }

@@ -62,6 +62,7 @@ public class BloodMoonClient {
         NeoForge.EVENT_BUS.addListener(MoonlessSkyRenderer::onRenderStage);
         NeoForge.EVENT_BUS.addListener(BloodSkyRenderer::onRenderStage);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onRenderFog);
+        NeoForge.EVENT_BUS.addListener(BloodMoonClient::onSelectMusic);
         NeoForge.EVENT_BUS.addListener(ModBossBars::onBossBar);
         NeoForge.EVENT_BUS.addListener(AstralFlameRenderer::onRenderLiving);
         NeoForge.EVENT_BUS.addListener(NukeClouds::onFogColor);
@@ -171,6 +172,22 @@ public class BloodMoonClient {
         if (near >= event.getNearPlaneDistance()) return;
         event.setNearPlaneDistance(near);
         event.setCanceled(true);
+    }
+
+    private static net.minecraft.sounds.Music beyondMusic;
+    private static boolean wasInBeyond;
+
+    /** En el Más Allá de la Grieta suena la música de la batalla final, en bucle, en lugar de la normal. */
+    private static void onSelectMusic(net.neoforged.neoforge.client.event.SelectMusicEvent event) {
+        Minecraft mc = Minecraft.getInstance();
+        boolean inBeyond = mc.level != null && mc.level.dimension() == com.agustin.bloodmoon.registry.ModDimensions.BEYOND;
+        if (inBeyond) {
+            if (beyondMusic == null) beyondMusic = new net.minecraft.sounds.Music(com.agustin.bloodmoon.registry.ModSounds.MUSIC_BEYOND, 0, 0, true);
+            event.setMusic(beyondMusic);
+        } else if (wasInBeyond) {
+            mc.getMusicManager().stopPlaying();   // al volver, la pista de la batalla no sigue sonando en el mundo normal
+        }
+        wasInBeyond = inBeyond;
     }
 
     private static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {

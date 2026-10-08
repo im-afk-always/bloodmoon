@@ -26,6 +26,9 @@ public final class ModSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> EYE_IMPLODE = register("eye_implode");
     public static final DeferredHolder<SoundEvent, SoundEvent> EYE_TENTACLE = register("eye_tentacle");
 
+    /** Música de la batalla final: suena en el Más Allá de la Grieta en lugar de la música normal. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> MUSIC_BEYOND = register("music_beyond");
+
     private static DeferredHolder<SoundEvent, SoundEvent> register(String name) {
         return SOUNDS.register(name, () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, name)));
     }
