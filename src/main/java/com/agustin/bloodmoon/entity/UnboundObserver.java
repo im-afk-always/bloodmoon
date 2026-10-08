@@ -628,7 +628,13 @@ public class UnboundObserver extends VoidEye {
                 || direct instanceof VoidFist || attacker instanceof ColossalEye) return false;
         if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypeTags.IS_DROWNING) || source.is(DamageTypeTags.IS_FIRE)) return false;
         float mult = s == S_EXPOSED ? 1.4F : 0.4F;
-        return hurtRaw(source, amount * mult);
+        float dmg = amount * mult;
+        if (!judgmentDone) {   // no puede morir sin haber lanzado el Juicio Final: la vida se frena en el 20%
+            float floor = getMaxHealth() * 0.2F - 0.5F;
+            if (getHealth() <= floor + 0.01F) return false;
+            dmg = Math.min(dmg, getHealth() - floor);
+        }
+        return hurtRaw(source, dmg);
     }
 
     // ------------------------------------------------------------------ muerte: se derrumba e implosiona; todos vuelven
