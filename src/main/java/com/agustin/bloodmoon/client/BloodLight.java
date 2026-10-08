@@ -8,13 +8,13 @@ import net.minecraft.world.level.Level;
 /**
  * Tiñe el lightmap (la tabla 16x16 luz-del-cielo x luz-de-bloque que ilumina todo el mundo) con el color de la luna:
  * lo que recibe luz del cielo queda bañado en carmesí (la luna aporta un mínimo de luz a cielo abierto) y la luz de las
- * antorchas se vuelve rojo brasa. Todo queda más oscuro y con más contraste.
+ * antorchas se vuelve naranja de fuego. Todo queda más oscuro y con más contraste.
  */
 public final class BloodLight {
     /** Oscurecimiento general del mundo teñido (con más contraste en las sombras). */
     private static final float DIM = 0.85F;
-    /** Las antorchas también se tiñen (casi del todo), hacia un rojo brasa. */
-    private static final float TORCH_TINT = 0.85F, TORCH_R = 1F, TORCH_G = 0.3F, TORCH_B = 0.15F;
+    /** La luz de las antorchas se calienta hacia un naranja de fuego: charcos de luz cálida en el mundo carmesí. */
+    private static final float TORCH_TINT = 0.55F, TORCH_R = 1F, TORCH_G = 0.6F, TORCH_B = 0.32F;
 
     private BloodLight() {}
 
@@ -39,7 +39,7 @@ public final class BloodLight {
         // a cielo abierto la luna aporta un mínimo de luz; después todo se oscurece y gana contraste
         float light = lum + (Math.max(lum, type.lightFloor * (float) Math.pow(s, 1.6)) - lum) * dom;
         light = DIM * (float) Math.pow(light, 1.2);
-        // la luz del cielo es carmesí; la de las antorchas, rojo brasa
+        // la luz del cielo es carmesí; la de las antorchas, naranja de fuego
         float cr = type.lightR + (TORCH_R - type.lightR) * (1F - dom);
         float cg = type.lightG + (TORCH_G - type.lightG) * (1F - dom);
         float cb = type.lightB + (TORCH_B - type.lightB) * (1F - dom);
