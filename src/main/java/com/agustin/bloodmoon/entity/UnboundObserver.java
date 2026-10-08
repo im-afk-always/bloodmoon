@@ -56,8 +56,11 @@ public class UnboundObserver extends VoidEye {
     /** Juicio Final (una sola vez, al 20%): carga, dispara un rayo colosal desde su propio ojo que persigue despacio, y se apaga. */
     public static final int J_CHARGE = 90, J_FIRE = 180, J_FADE = 20, J_TICKS = J_CHARGE + J_FIRE + J_FADE;
     public static final float J_R = 11F;
-    /** Bloques por tick: caminando apenas se escapa (0.216), corriendo sí (0.28). */
-    private static final double J_CHASE = 0.12;
+    /**
+     * Persecución (bloques/tick). Cargando, el sello te sigue despacio para que corriendo salgas del radio. Disparando,
+     * acelera con la distancia hasta J_CHASE_MAX: corriendo (0.28) mantenés la distancia, caminando (0.216) te alcanza.
+     */
+    private static final double J_CHASE_CHARGE = 0.1, J_CHASE_MIN = 0.07, J_CHASE_MAX = 0.25;
     public static final int TITAN_TICKS = 40, MAW_OPEN = 30, MAW_TICKS = 150, TEARS_TICKS = 100, FIST_TICKS = 30;
     public static final int EMERGE_TICKS = 150, COLOSSAL_TICKS = 40, EXPOSED_TICKS = 110, RETURN_DELAY = 40, BIG_GAZE_TICKS = 64;
     public static final float EYE_R = 16F;
@@ -558,11 +561,12 @@ public class UnboundObserver extends VoidEye {
             Vec3 want = new Vec3(tgt.getX(), h.y, tgt.getZ());
             Vec3 d = want.subtract(jAim);
             double len = d.length();
-            if (len > 1e-3) jAim = jAim.add(d.scale(Math.min(J_CHASE, len) / len));
+            double sp = stateTick < J_CHARGE ? J_CHASE_CHARGE : Mth.clamp(J_CHASE_MIN + 0.012 * len, J_CHASE_MIN, J_CHASE_MAX);
+            if (len > 1e-3) jAim = jAim.add(d.scale(Math.min(sp, len) / len));
         }
         beamAim = jAim;
         entityData.set(DATA_BEAM, new org.joml.Vector3f((float) jAim.x, (float) jAim.y, (float) jAim.z));
-        lookAt(jAim, 8F);
+        lookAt(jAim, 15F);
         Vec3 c = center();
 
         if (stateTick < J_CHARGE) {
