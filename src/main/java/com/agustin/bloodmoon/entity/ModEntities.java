@@ -125,6 +125,26 @@ public final class ModEntities {
                     .updateInterval(1)
                     .build("colossal_eye"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<TitanTentacle>> TITAN_TENTACLE =
+            ENTITIES.register("titan_tentacle", () -> EntityType.Builder
+                    .<TitanTentacle>of(TitanTentacle::new, MobCategory.MISC)
+                    .sized(8.0F, 8.0F)
+                    .fireImmune()
+                    .noSave()
+                    .clientTrackingRange(20)
+                    .updateInterval(1)
+                    .build("titan_tentacle"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<AbyssTear>> ABYSS_TEAR =
+            ENTITIES.register("abyss_tear", () -> EntityType.Builder
+                    .<AbyssTear>of(AbyssTear::new, MobCategory.MISC)
+                    .sized(1.5F, 1.5F)
+                    .fireImmune()
+                    .noSave()
+                    .clientTrackingRange(16)
+                    .updateInterval(1)
+                    .build("abyss_tear"));
+
     private ModEntities() {}
 
     public static void registerAttributes(EntityAttributeCreationEvent event) {

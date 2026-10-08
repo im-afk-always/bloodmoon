@@ -50,15 +50,20 @@ import java.util.List;
  */
 public class UnboundObserver extends VoidEye {
     public static final String UNBOUND_KEY = "entity.bloodmoon.unbound_observer";
-    public static final int S_EMERGE = 20, S_SLAM = 21, S_COLOSSAL = 22;
+    public static final int S_EMERGE = 20, S_SLAM = 21, S_COLOSSAL = 22, S_TITAN = 23, S_MAW = 24, S_TEARS = 25;
+    public static final int TITAN_TICKS = 50, MAW_OPEN = 30, MAW_TICKS = 150, TEARS_TICKS = 110;
     public static final int EMERGE_TICKS = 140, SLAM_TICKS = 34, SLAM_HIT = 20, COLOSSAL_TICKS = 50, EXPOSED_TICKS = 110,
             RETURN_DELAY = 40;
-    public static final float EYE_Y = 26F, EYE_R = 6.5F, KNEEL = 6F;
+    public static final float EYE_Y = 27.4F, EYE_R = 5.8F, KNEEL = 6F;
+    /** Boca de las fauces (frente al pecho), relativa a los pies. */
+    public static final float MAW_Y = 20.2F, MAW_Z = 3.5F;
     private static final double SPEED = 0.17, LEASH = 90;
 
     private static final EntityDataAccessor<Byte> DATA_ARM = SynchedEntityData.defineId(UnboundObserver.class, EntityDataSerializers.BYTE);
 
     private int colossalCd = 260;
+    private int lastUltimate = -1;
+    private final java.util.List<net.minecraft.world.entity.item.FallingBlockEntity> torn = new java.util.ArrayList<>();
     private ResourceKey<Level> returnDim;
     private Vec3 returnHome;
 
@@ -134,7 +139,8 @@ public class UnboundObserver extends VoidEye {
         }
         LivingEntity target = pickTarget(arena);
         updateMadness(sl, arena);
-        if (state != S_COLOSSAL && state != S_EMERGE) colossalCd--;
+        if (state != S_COLOSSAL && state != S_EMERGE && state != S_TITAN && state != S_MAW && state != S_TEARS) colossalCd--;
+        tickTorn();
 
         switch (state) {
             case S_EMERGE -> tickEmerge(sl, arena, target);
@@ -168,6 +174,9 @@ public class UnboundObserver extends VoidEye {
                 if (stateTick >= 30) setIdle(cooldownTicks());
             }
             case S_COLOSSAL -> tickColossal(sl, arena);
+            case S_TITAN -> tickTitan(sl, arena);
+            case S_MAW -> tickMaw(sl, arena);
+            case S_TEARS -> tickTears(sl, arena);
             case S_EXPOSED -> {
                 lookAt(center().add(dirFrom(lookYaw(), 35F).scale(20)), 1.5F);
                 if (tickCount % 20 == 0) playSound(SoundEvents.WARDEN_HEARTBEAT, 8F, 0.4F);
@@ -189,8 +198,14 @@ public class UnboundObserver extends VoidEye {
 
     @Override
     protected void chooseAttack(List<ServerPlayer> arena, LivingEntity target) {
-        if (colossalCd <= 0 && level().getEntitiesOfClass(ColossalEye.class, getBoundingBox().inflate(200, 300, 200)).isEmpty()) {
-            setState(S_COLOSSAL, arena);
+        if (colossalCd <= 0 && level().getEntitiesOfClass(ColossalEye.class, getBoundingBox().inflate(200, 300, 200)).isEmpty()
+                && level().getEntitiesOfClass(TitanTentacle.class, getBoundingBox().inflate(200, 100, 200)).isEmpty()) {
+            int[] ults = {S_COLOSSAL, S_TITAN, S_MAW, S_TEARS};
+            int pick;
+            do pick = ults[random.nextInt(ults.length)]; while (pick == lastUltimate);
+            lastUltimate = pick;
+            colossalCd = getPhase() >= 5 ? 420 : 560;
+            setState(pick, arena);
             return;
         }
         double d = horizontalDist(target);
@@ -219,6 +234,15 @@ public class UnboundObserver extends VoidEye {
             entityData.set(DATA_BEAM, new Vector3f((float) p.x, (float) getHome().y, (float) p.z));
             entityData.set(DATA_ARM, (byte) (random.nextBoolean() ? 1 : -1));
             playSound(SoundEvents.WARDEN_ATTACK_IMPACT, 6F, 0.4F);
+        } else if (s == S_TITAN) {
+            playSound(ModSounds.EYE_SCREAM.get(), 16F, 0.3F);
+            playSound(SoundEvents.WARDEN_ROAR, 10F, 0.5F);
+        } else if (s == S_MAW) {
+            playSound(ModSounds.EYE_PULSE.get(), 16F, 0.5F);
+            playSound(SoundEvents.WARDEN_ROAR, 10F, 0.35F);
+        } else if (s == S_TEARS) {
+            playSound(ModSounds.EYE_WHISPER.get(), 16F, 0.5F);
+            playSound(ModSounds.EYE_AWAKEN.get(), 16F, 1.6F);
         } else if (s == S_COLOSSAL) {
             playSound(ModSounds.EYE_SCREAM.get(), 14F, 0.4F);
             playSound(ModSounds.EYE_AWAKEN.get(), 14F, 1.3F);
@@ -316,9 +340,139 @@ public class UnboundObserver extends VoidEye {
             List<ServerPlayer> valid = arena.stream().filter(p -> !p.isCreative()).toList();
             ServerPlayer t = valid.isEmpty() ? arena.get(random.nextInt(arena.size())) : valid.get(random.nextInt(valid.size()));
             ColossalEye.summon(sl, this, t);
-            colossalCd = getPhase() >= 5 ? 520 : 700;
         }
         if (stateTick >= COLOSSAL_TICKS) setIdle(30);
+    }
+
+    // ------------------------------------------------------------------ Tentáculo Titánico
+
+    private void tickTitan(ServerLevel sl, List<ServerPlayer> arena) {
+        lookAt(center().add(dirFrom(getYRot(), 50F).scale(20)), 4F);
+        if (stateTick == 14) {
+            List<ServerPlayer> valid = arena.stream().filter(p -> !p.isCreative()).toList();
+            ServerPlayer t = valid.isEmpty() ? arena.get(random.nextInt(arena.size())) : valid.get(random.nextInt(valid.size()));
+            TitanTentacle.summon(sl, this, t);
+            if (getPhase() >= 5 && valid.size() > 1) {      // en la fase final, uno por cada uno de dos jugadores
+                ServerPlayer t2 = valid.get(random.nextInt(valid.size()));
+                if (t2 != t) TitanTentacle.summon(sl, this, t2);
+            }
+        }
+        if (stateTick >= TITAN_TICKS) setIdle(30);
+    }
+
+    // ------------------------------------------------------------------ Las Fauces
+
+    /** Boca de las fauces en el mundo. */
+    public Vec3 mawPoint() {
+        Vec3 f = dirFrom(getYRot(), 0F);
+        return position().add(f.x * MAW_Z, MAW_Y, f.z * MAW_Z);
+    }
+
+    private void tickMaw(ServerLevel sl, List<ServerPlayer> arena) {
+        if (stateTick < MAW_OPEN && !arena.isEmpty()) faceToward(pickTarget(arena).position(), 3F);
+        Vec3 m = mawPoint();
+        lookAt(m.add(dirFrom(getYRot(), 20F).scale(20)), 3F);
+        if (stateTick >= MAW_OPEN && stateTick < MAW_TICKS - 10) {
+            double k = 0.05 + 0.09 * Math.min(1.0, (stateTick - MAW_OPEN) / 60.0);
+            for (ServerPlayer p : arena) {
+                if (p.isCreative()) continue;
+                Vec3 d = m.subtract(p.getEyePosition());
+                double len = d.length();
+                if (len > 70) continue;
+                // cubrirse detrás de un obelisco corta la succión
+                var hit = sl.clip(new net.minecraft.world.level.ClipContext(p.getEyePosition(), m, net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                        net.minecraft.world.level.ClipContext.Fluid.NONE, p));
+                if (hit.getType() != net.minecraft.world.phys.HitResult.Type.MISS && hit.getLocation().distanceTo(m) > 8) continue;
+                Vec3 h = new Vec3(d.x, Math.max(-0.2, d.y * 0.05), d.z).normalize().scale(k * (p.isShiftKeyDown() ? 0.6 : 1.0));
+                p.push(h.x, h.y, h.z);
+                p.hurtMarked = true;
+                if (len < 9 && stateTick % 10 == 0) {
+                    p.hurt(damageSources().indirectMagic(this, this), 9F);
+                    addMadness(p, 8F);
+                }
+            }
+            // arranca el piso y lo traga
+            if (torn.size() < 120) for (int i = 0; i < 4; i++) tearBlock(sl, m);
+            if (stateTick % 20 == 0) playSound(ModSounds.EYE_PULSE.get(), 12F, 0.4F + random.nextFloat() * 0.2F);
+            sl.sendParticles(ParticleTypes.REVERSE_PORTAL, m.x, m.y, m.z, 30, 1.5, 1.5, 1.5, 0.6);
+        }
+        if (stateTick == MAW_TICKS - 10) {               // la expulsión
+            playSound(ModSounds.SUPERNOVA_BLAST.get(), 18F, 1.2F);
+            sl.sendParticles(ParticleTypes.EXPLOSION_EMITTER, m.x, m.y, m.z, 4, 2, 2, 2, 0);
+            sl.sendParticles(ParticleTypes.SONIC_BOOM, m.x, m.y, m.z, 6, 3, 3, 3, 0);
+            for (ServerPlayer p : arena) {
+                if (p.isCreative()) continue;
+                Vec3 d = p.position().subtract(m.x, p.getY(), m.z);
+                double len = Math.max(1, d.length());
+                if (len > 34) continue;
+                p.hurt(damageSources().indirectMagic(this, this), (float) (16 * (1 - len / 40)));
+                p.setDeltaMovement(d.x / len * 2.4, 0.9, d.z / len * 2.4);
+                p.hurtMarked = true;
+            }
+            for (var fb : torn) fb.discard();
+            torn.clear();
+        }
+        if (stateTick >= MAW_TICKS) setState(S_EXPOSED, arena);
+    }
+
+    private void tearBlock(ServerLevel sl, Vec3 m) {
+        Vec3 f = dirFrom(getYRot(), 0F);
+        double ang = Math.atan2(f.z, f.x) + (random.nextDouble() - 0.5) * 1.6;
+        double r = 8 + random.nextDouble() * 30;
+        int x = Mth.floor(getX() + Math.cos(ang) * r), z = Mth.floor(getZ() + Math.sin(ang) * r);
+        BlockPos top = BlockPos.containing(x, getHome().y - 1, z);
+        for (int dy = 2; dy >= -4; dy--) {
+            BlockPos p = top.above(dy);
+            BlockState st = sl.getBlockState(p);
+            if (!st.isAir() && st.getDestroySpeed(sl, p) >= 0 && sl.getBlockState(p.above()).isAir()) {
+                var fb = net.minecraft.world.entity.item.FallingBlockEntity.fall(sl, p, st);
+                fb.disableDrop();
+                fb.setNoGravity(true);
+                fb.setDeltaMovement(0, 0.6, 0);
+                torn.add(fb);
+                return;
+            }
+        }
+    }
+
+    /** Los bloques arrancados vuelan hacia la boca y desaparecen al llegar. */
+    private void tickTorn() {
+        if (torn.isEmpty()) return;
+        Vec3 m = mawPoint();
+        var it = torn.iterator();
+        while (it.hasNext()) {
+            var fb = it.next();
+            if (fb.isRemoved()) { it.remove(); continue; }
+            Vec3 d = m.subtract(fb.position());
+            double len = d.length();
+            if (len < 3.5 || fb.tickCount > 90) {
+                if (level() instanceof ServerLevel sl) sl.sendParticles(ParticleTypes.SQUID_INK, fb.getX(), fb.getY(), fb.getZ(), 4, 0.3, 0.3, 0.3, 0.02);
+                fb.discard();
+                it.remove();
+                continue;
+            }
+            double sp = Math.min(2.2, 0.35 + fb.tickCount * 0.05);
+            Vec3 swirl = new Vec3(-d.z, 0, d.x).normalize().scale(0.25);
+            fb.setDeltaMovement(d.scale(sp / len).add(swirl));
+            fb.hurtMarked = true;
+        }
+    }
+
+    // ------------------------------------------------------------------ Lágrimas del Cielo
+
+    private void tickTears(ServerLevel sl, List<ServerPlayer> arena) {
+        lookAt(center().add(0, 50, 0), 5F);
+        if (stateTick >= 20 && stateTick % 3 == 0 && !arena.isEmpty()) {
+            ServerPlayer p = arena.get(random.nextInt(arena.size()));
+            Vec3 t;
+            if (random.nextFloat() < 0.35F && !p.isCreative()) t = new Vec3(p.getX(), getHome().y, p.getZ());
+            else {
+                double a = random.nextDouble() * Math.PI * 2, r = 4 + random.nextDouble() * 26;
+                t = new Vec3(p.getX() + Math.cos(a) * r, getHome().y, p.getZ() + Math.sin(a) * r);
+            }
+            AbyssTear.spawn(sl, this, t, 46 + random.nextInt(12));
+        }
+        if (stateTick >= TEARS_TICKS) setIdle(30);
     }
 
     /** Lo llama el Ojo Colosal cuando termina su rayo: el Desatado queda de rodillas. */
@@ -387,6 +541,8 @@ public class UnboundObserver extends VoidEye {
     @Override
     public void die(DamageSource source) {
         super.die(source);
+        for (var fb : torn) fb.discard();
+        torn.clear();
         if (level() instanceof ServerLevel sl) {
             for (ColossalEye c : sl.getEntitiesOfClass(ColossalEye.class, getBoundingBox().inflate(200, 300, 200))) c.discard();
         }

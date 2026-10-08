@@ -5,6 +5,7 @@ import com.agustin.bloodmoon.entity.VoidEye;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.culling.Frustum;
@@ -14,17 +15,22 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Quaternionf;
 
 /**
- * El Observador Desatado: seis patas-tentáculo, pelvis, abdomen y un pecho ancho de músculo desollado con venas
- * que brillan, dos brazos que terminan en manojos de tentáculos y, arriba, el Ojo encajado en una capucha de carne
- * con sus párpados. Emerge del piso, se inclina para golpear, alza los brazos para invocar al Ojo Colosal,
- * cae de rodillas exhausto y al morir se hunde mientras el ojo se agrieta.
+ * El Observador Desatado, esculpido (malla .bmsh con color y brillo por vértice):
+ * una falda de carne con dientes que se deshace en diez patas-tentáculo; un torso demacrado de columna en S y
+ * omóplatos salientes; un costillar partido al medio que se abre como unas fauces (las costillas son los dientes)
+ * y deja ver un núcleo que brilla; dos brazos de hueso y tendón con dedos larguísimos y dos bracitos atrofiados;
+ * arriba, el Ojo en una cuenca de carne, coronado por cuernos y rodeado de ojos menores que parpadean; una barba de
+ * tentáculos le cuelga bajo el Ojo y un halo roto de esquirlas de hueso gira detrás.
  */
 public class UnboundObserverRenderer extends EntityRenderer<UnboundObserver> {
-    private static final ResourceLocation MUSCLE = VoidEyeRenderer.tex("muscle"), MUSCLE_GLOW = VoidEyeRenderer.tex("muscle_glow"),
-            SIGIL = VoidEyeRenderer.tex("sigil");
+    private static final ResourceLocation SIGIL = VoidEyeRenderer.tex("sigil");
     private static final int FULL = VoidEyeRenderer.FULL;
+    // posiciones del esqueleto (iguales a las del escultor)
+    private static final float HIP_Y = 13F;
+    private static final float[] SHOULDER = {6.4F, 23.4F, -0.6F}, SMALL_ARM = {3.4F, 18.8F, 1.2F}, EYE_C = {0F, 27.4F, 0.9F};
 
     public UnboundObserverRenderer(EntityRendererProvider.Context context) {
         super(context);
@@ -38,7 +44,7 @@ public class UnboundObserverRenderer extends EntityRenderer<UnboundObserver> {
 
     @Override
     public ResourceLocation getTextureLocation(UnboundObserver entity) {
-        return MUSCLE;
+        return VoidEyeRenderer.WHITE;
     }
 
     private static float smooth(float x) {
@@ -49,8 +55,8 @@ public class UnboundObserverRenderer extends EntityRenderer<UnboundObserver> {
 
     /** {alzado del brazo (0 colgando, 90 al frente, 180 arriba), apertura lateral, codo}. */
     private static float[] armPose(UnboundObserver e, int side, float age, float t, float walkPos, float walkSpd) {
-        float raise = 16F + 6F * Mth.sin(t * 0.05F + side) + walkSpd * 28F * Mth.sin(walkPos * 0.55F + (side > 0 ? 0F : Mth.PI));
-        float roll = 14F, elbow = 15F;
+        float raise = 14F + 6F * Mth.sin(t * 0.05F + side) + walkSpd * 24F * Mth.sin(walkPos * 0.55F + (side > 0 ? 0F : Mth.PI));
+        float roll = 12F + 3F * Mth.sin(t * 0.04F + side * 2), elbow = 18F + 6F * Mth.sin(t * 0.06F + side);
         switch (e.getState()) {
             case UnboundObserver.S_SLAM -> {
                 if (side == e.slamArm()) {
@@ -69,9 +75,17 @@ public class UnboundObserverRenderer extends EntityRenderer<UnboundObserver> {
                     raise = 35F; roll = 28F;
                 }
             }
-            case UnboundObserver.S_COLOSSAL -> {
+            case UnboundObserver.S_COLOSSAL, UnboundObserver.S_TEARS -> {
                 float k = smooth(age / 14F);
-                raise = Mth.lerp(k, raise, 168F + 4F * Mth.sin(t * 0.3F)); roll = Mth.lerp(k, roll, 22F); elbow = Mth.lerp(k, elbow, 8F);
+                raise = Mth.lerp(k, raise, 168F + 5F * Mth.sin(t * 0.3F + side)); roll = Mth.lerp(k, roll, 24F); elbow = Mth.lerp(k, elbow, 10F);
+            }
+            case UnboundObserver.S_TITAN -> {      // hunde las garras en el piso
+                float k = smooth(age / 10F);
+                raise = Mth.lerp(k, raise, 58F); roll = Mth.lerp(k, roll, 30F); elbow = Mth.lerp(k, elbow, 2F);
+            }
+            case UnboundObserver.S_MAW -> {         // se abre el pecho con las manos
+                float k = smooth(age / UnboundObserver.MAW_OPEN);
+                raise = Mth.lerp(k, raise, 78F); roll = Mth.lerp(k, roll, 70F + 4F * Mth.sin(t * 0.5F)); elbow = Mth.lerp(k, elbow, 35F);
             }
             case VoidEye.S_EXPOSED -> { raise = 64F; roll = 22F; elbow = 6F; }
             case VoidEye.S_SCREAM -> { raise = 45F; roll = 78F + 6F * Mth.sin(t * 0.8F); elbow = 14F; }
@@ -94,9 +108,25 @@ public class UnboundObserverRenderer extends EntityRenderer<UnboundObserver> {
                 yield 35F * (1F - smooth((age - hit) / (float) (UnboundObserver.SLAM_TICKS - hit)));
             }
             case VoidEye.S_EXPOSED -> 22F * smooth(age / 12F);
-            case UnboundObserver.S_COLOSSAL -> -14F * smooth(age / 14F);
+            case UnboundObserver.S_COLOSSAL, UnboundObserver.S_TEARS -> -16F * smooth(age / 14F);
+            case UnboundObserver.S_TITAN -> 30F * smooth(age / 10F) * (1F - smooth((age - 40F) / 10F));
+            case UnboundObserver.S_MAW -> -10F * smooth(age / 20F);
             case VoidEye.S_SCREAM -> -18F;
-            default -> 0F;
+            default -> 1.5F * Mth.sin(age * 0.05F);
+        };
+    }
+
+    /** Apertura de cada mitad del costillar (grados). */
+    private static float ribOpen(UnboundObserver e, float age, float t) {
+        if (e.isDeadOrDying()) return 35F + 10F * Mth.sin(t * 0.7F);
+        return switch (e.getState()) {
+            case UnboundObserver.S_MAW -> age < UnboundObserver.MAW_TICKS - 10
+                    ? 72F * smooth(age / UnboundObserver.MAW_OPEN) + 4F * Mth.sin(t * 0.9F)
+                    : 72F * (1F - smooth((age - (UnboundObserver.MAW_TICKS - 10)) / 3F));
+            case VoidEye.S_SCREAM -> 30F + 6F * Mth.sin(t * 1.3F);
+            case UnboundObserver.S_TEARS, UnboundObserver.S_COLOSSAL -> 16F;
+            case VoidEye.S_EXPOSED -> 10F;
+            default -> 3F + 3F * Mth.sin(t * 0.07F);
         };
     }
 
@@ -104,10 +134,12 @@ public class UnboundObserverRenderer extends EntityRenderer<UnboundObserver> {
 
     @Override
     public void render(UnboundObserver e, float entityYaw, float pt, PoseStack ps, MultiBufferSource buf, int packedLight) {
+        BodyMesh.Part skirt = BodyMesh.get("skirt");
         float t = e.tickCount + pt;
         float age = e.clientStateAge(pt);
         int state = e.getState();
         int overlay = OverlayTexture.pack(OverlayTexture.u(0F), OverlayTexture.v(e.hurtTime > 0));
+        int light = LightTexture.pack(Math.max(LightTexture.block(packedLight), 11), LightTexture.sky(packedLight));
         float walkPos = e.walkAnimation.position(pt), walkSpd = Math.min(1F, e.walkAnimation.speed(pt) * 4F);
         float bodyYaw = Mth.rotLerp(pt, e.yRotO, e.getYRot());
 
@@ -115,45 +147,84 @@ public class UnboundObserverRenderer extends EntityRenderer<UnboundObserver> {
         float kneel = state == VoidEye.S_EXPOSED
                 ? smooth(age / 12F) * (1F - smooth((age - (UnboundObserver.EXPOSED_TICKS - 15)) / 15F)) * UnboundObserver.KNEEL : 0F;
         float sink = e.isDeadOrDying() ? smooth(e.deathTime / (float) VoidEye.DEATH_TICKS) * 12F : 0F;
-        float shake = state == VoidEye.S_SCREAM ? 0.3F : e.isDeadOrDying() ? 0.1F + 0.4F * e.deathTime / VoidEye.DEATH_TICKS : 0F;
-        float glowK = state == VoidEye.S_EXPOSED ? 0.35F + 0.35F * Math.max(0F, Mth.sin(t * 0.31F))
-                : e.getPhase() >= 5 ? 0.8F + 0.2F * Mth.sin(t * 0.2F) : 0.55F + 0.1F * Mth.sin(t * 0.07F);
+        float shake = state == VoidEye.S_SCREAM ? 0.3F : e.isDeadOrDying() ? 0.1F + 0.4F * e.deathTime / VoidEye.DEATH_TICKS
+                : state == UnboundObserver.S_MAW && age > UnboundObserver.MAW_OPEN ? 0.12F : 0F;
+        float glowK = state == VoidEye.S_EXPOSED ? 0.4F + 0.5F * Math.max(0F, Mth.sin(t * 0.31F))
+                : e.getPhase() >= 5 ? 1.0F + 0.25F * Mth.sin(t * 0.2F) : 0.75F + 0.15F * Mth.sin(t * 0.07F);
+        if (e.isDeadOrDying()) glowK = 1.4F;
+        float coreK = state == UnboundObserver.S_MAW ? 1.2F + 0.5F * Mth.sin(t * 0.6F) : 0.6F + 0.2F * Mth.sin(t * 0.11F);
 
         ps.pushPose();
         ps.translate(0F, rise - kneel - sink, 0F);
         if (shake > 0) ps.translate(Mth.sin(t * 2.3F) * shake, 0F, Mth.cos(t * 2.7F) * shake);
         ps.mulPose(Axis.YP.rotationDegrees(-bodyYaw));
 
-        renderLegs(ps, buf, t, walkPos, walkSpd, kneel > 0.1F, overlay);
-        VertexConsumer muscle = buf.getBuffer(RenderType.entityCutoutNoCull(MUSCLE));
+        if (skirt != null) {
+            // falda y patas
+            ps.pushPose();
+            ps.translate(skirt.px, skirt.py, skirt.pz);
+            float pulse = 1F + 0.015F * Mth.sin(t * 0.09F);
+            ps.scale(pulse, 1F, pulse);
+            draw(ps, buf, skirt, false, light, overlay, glowK);
+            ps.popPose();
+            int li = 0;
+            for (BodyMesh.Anchor a : skirt.anchors) {
+                if (a.name().equals("leg")) renderLeg(ps, buf, a, skirt, li++, t, walkPos, walkSpd, kneel > 0.1F, overlay);
+                else if (a.name().equals("small_eye")) smallEye(ps, buf, skirt, a, t, li * 7 + 3, overlay);
+            }
 
-        // pelvis (fija) y torso (se inclina desde la cadera)
-        ellipsoid(ps, muscle, 0, 12.6F, 0, 4.6F, 2.9F, 3.9F, overlay, 1F, 1F, 1F, 0F);
-        ps.pushPose();
-        ps.translate(0F, 12.5F, 0F);
-        ps.mulPose(Axis.XP.rotationDegrees(lean(e, age)));
-        ps.translate(0F, -12.5F, 0F);
-        float breathe = 1F + 0.025F * Mth.sin(t * 0.08F);
-        muscle = buf.getBuffer(RenderType.entityCutoutNoCull(MUSCLE));
-        ellipsoid(ps, muscle, 0, 16.3F, 0.2F, 3.7F * breathe, 3.3F, 3.1F * breathe, overlay, 1F, 1F, 1F, 0.3F);
-        ellipsoid(ps, muscle, 0, 20.6F, 0.4F, 7.3F * breathe, 4.3F, 5.1F * breathe, overlay, 1F, 1F, 1F, 0.6F);
-        ellipsoid(ps, muscle, 7.7F, 22.1F, 0F, 3.4F, 3.0F, 3.2F, overlay, 1F, 1F, 1F, 0.1F);
-        ellipsoid(ps, muscle, -7.7F, 22.1F, 0F, 3.4F, 3.0F, 3.2F, overlay, 1F, 1F, 1F, 0.8F);
-        ellipsoid(ps, muscle, 0, 23.6F, 0.2F, 6.8F, 3.1F, 5.6F, overlay, 1F, 1F, 1F, 0.45F);
-        ellipsoid(ps, muscle, 0, 26.4F, -2.6F, 6.4F, 6.4F, 4.6F, overlay, 0.85F, 0.85F, 0.85F, 0.2F);
-        VertexConsumer glow = buf.getBuffer(RenderType.eyes(MUSCLE_GLOW));
-        float gr = glowK * (e.getPhase() >= 5 ? 1F : 0.75F), gg = glowK * 0.2F, gb = glowK;
-        ellipsoid(ps, glow, 0, 16.3F, 0.2F, 3.72F * breathe, 3.32F, 3.12F * breathe, overlay, gr, gg, gb, 0.3F);
-        ellipsoid(ps, glow, 0, 20.6F, 0.4F, 7.32F * breathe, 4.32F, 5.12F * breathe, overlay, gr, gg, gb, 0.6F);
-        ellipsoid(ps, glow, 0, 23.6F, 0.2F, 6.82F, 3.12F, 5.62F, overlay, gr, gg, gb, 0.45F);
-
-        // brazos
-        for (int side = -1; side <= 1; side += 2) renderArm(e, ps, buf, side, age, t, walkPos, walkSpd, overlay);
-        // tentáculos de la espalda
-        renderBackTentacles(ps, buf, t, e.isDeadOrDying() || state == VoidEye.S_SCREAM ? 2F : 1F, overlay);
-        // el Ojo
-        renderEye(e, ps, buf, pt, t, age, bodyYaw, overlay);
-        ps.popPose();
+            // torso que se inclina desde la cadera
+            ps.pushPose();
+            ps.translate(0F, HIP_Y, 0F);
+            ps.mulPose(Axis.XP.rotationDegrees(lean(e, age)));
+            float breathe = 1F + 0.02F * Mth.sin(t * 0.08F);
+            BodyMesh.Part torso = BodyMesh.get("torso"), crown = BodyMesh.get("crown"), maw = BodyMesh.get("maw"), rib = BodyMesh.get("rib");
+            ps.pushPose();
+            ps.scale(breathe, 1F, breathe);
+            draw(ps, buf, torso, false, light, overlay, glowK);
+            ps.popPose();
+            draw(ps, buf, crown, false, light, overlay, glowK);
+            // núcleo de las fauces
+            ps.pushPose();
+            ps.translate(maw.px, maw.py - HIP_Y, maw.pz);
+            float ms = 1F + 0.06F * Mth.sin(t * (state == UnboundObserver.S_MAW ? 0.9F : 0.15F));
+            ps.scale(ms, ms, ms);
+            draw(ps, buf, maw, false, light, overlay, coreK);
+            ps.popPose();
+            // costillar partido
+            float open = ribOpen(e, age, t);
+            for (int side = 1; side >= -1; side -= 2) {
+                ps.pushPose();
+                ps.translate(side * rib.px, rib.py - HIP_Y, rib.pz);
+                if (side < 0) ps.scale(-1F, 1F, 1F);
+                ps.mulPose(Axis.YP.rotationDegrees(-open));
+                draw(ps, buf, rib, side < 0, light, overlay, glowK);
+                ps.popPose();
+            }
+            // brazos
+            for (int side = 1; side >= -1; side -= 2) renderArm(e, ps, buf, side, age, t, walkPos, walkSpd, light, overlay, glowK);
+            for (int side = 1; side >= -1; side -= 2) renderSmallArm(ps, buf, side, t, state, light, overlay, glowK);
+            // tentáculos de la espalda y la barba
+            renderBackTentacles(ps, buf, t, e.isDeadOrDying() || state == VoidEye.S_SCREAM ? 2F : 1F, overlay);
+            int fi = 0;
+            for (BodyMesh.Anchor a : torso.anchors) {
+                if (a.name().equals("face")) renderFaceTentacle(ps, buf, a, fi++, t, state, overlay);
+                else smallEye(ps, buf, torso, a, t, fi * 13 + 5, overlay);
+            }
+            int ci = 0;
+            for (BodyMesh.Anchor a : crown.anchors) smallEye(ps, buf, crown, a, t, ci++ * 31 + 11, overlay);
+            // halo de esquirlas
+            renderHalo(ps, buf, t, state, light, overlay);
+            // el Ojo
+            renderEye(e, ps, buf, pt, t, age, bodyYaw, overlay);
+            ps.popPose();
+        } else {
+            // sin malla (recursos faltantes): al menos el Ojo
+            ps.pushPose();
+            ps.translate(0F, HIP_Y, 0F);
+            renderEye(e, ps, buf, pt, t, age, bodyYaw, overlay);
+            ps.popPose();
+        }
         ps.popPose();
 
         // efectos en coordenadas del mundo
@@ -163,55 +234,101 @@ public class UnboundObserverRenderer extends EntityRenderer<UnboundObserver> {
         super.render(e, entityYaw, pt, ps, buf, packedLight);
     }
 
-    // ------------------------------------------------------------------ partes
+    // ------------------------------------------------------------------ piezas
 
-    private static void renderLegs(PoseStack ps, MultiBufferSource buf, float t, float walkPos, float walkSpd, boolean spread, int overlay) {
-        for (int pass = 0; pass < 2; pass++) {
-            VertexConsumer vc = buf.getBuffer(pass == 0 ? RenderType.entityCutoutNoCull(VoidEyeRenderer.TENTACLE) : RenderType.eyes(VoidEyeRenderer.TENTACLE_GLOW));
-            for (int i = 0; i < 6; i++) {
-                float a = 30F + 60F * i;
-                float ar = a * Mth.DEG_TO_RAD;
-                final float phase = i * 1.05F;
-                ps.pushPose();
-                ps.translate(Mth.cos(ar) * 3.2F, 12.6F, Mth.sin(ar) * 3.2F);
-                ps.mulPose(Axis.YP.rotationDegrees(-a));
-                ps.mulPose(Axis.ZP.rotationDegrees(spread ? -150F : -164F));
-                TentacleMesh.render(ps, vc, FULL, overlay, 17.5F, 1.55F, 16, (k, along) -> new float[]{
-                        Mth.sin(walkPos * 0.55F + phase) * 0.07F * walkSpd + 0.02F * Mth.sin(t * 0.05F + phase + k * 0.4F),
-                        0.07F + 0.015F * Mth.sin(t * 0.04F + phase)},
-                        pass == 0 ? 1F : 0.5F, pass == 0 ? 1F : 0.15F, pass == 0 ? 1F : 0.7F, 1F);
-                ps.popPose();
-            }
-        }
+    private static void draw(PoseStack ps, MultiBufferSource buf, BodyMesh.Part part, boolean mirror, int light, int overlay, float glow) {
+        if (part == null) return;
+        part.render(ps.last(), buf.getBuffer(RenderType.entityCutoutNoCull(VoidEyeRenderer.WHITE)), light, overlay, 1F, 1F, 1F);
+        part.renderGlow(ps.last(), buf.getBuffer(RenderType.eyes(VoidEyeRenderer.WHITE)), mirror, glow);
     }
 
     private static void renderArm(UnboundObserver e, PoseStack ps, MultiBufferSource buf, int side, float age, float t, float walkPos,
-                                  float walkSpd, int overlay) {
+                                  float walkSpd, int light, int overlay, float glow) {
+        BodyMesh.Part upper = BodyMesh.get("upper_arm"), fore = BodyMesh.get("fore_arm"), hand = BodyMesh.get("hand");
         float[] pose = armPose(e, side, age, t, walkPos, walkSpd);
+        boolean mirror = side < 0;
         ps.pushPose();
-        ps.translate(side * 8.6F, 22.2F, 0F);
-        ps.mulPose(Axis.ZP.rotationDegrees(side * pose[1]));
+        ps.translate(side * SHOULDER[0], SHOULDER[1] - HIP_Y, SHOULDER[2]);
+        if (mirror) ps.scale(-1F, 1F, 1F);
+        ps.mulPose(Axis.ZP.rotationDegrees(pose[1]));
         ps.mulPose(Axis.XP.rotationDegrees(-pose[0]));
-        VertexConsumer muscle = buf.getBuffer(RenderType.entityCutoutNoCull(MUSCLE));
-        ellipsoid(ps, muscle, 0, -4.5F, 0, 2.1F, 5.0F, 2.1F, overlay, 1F, 1F, 1F, 0.2F);
-        ps.translate(0F, -9F, 0F);
+        draw(ps, buf, upper, mirror, light, overlay, glow);
+        ps.translate(0F, -9.4F, 0F);
         ps.mulPose(Axis.XP.rotationDegrees(-pose[2]));
-        muscle = buf.getBuffer(RenderType.entityCutoutNoCull(MUSCLE));
-        ellipsoid(ps, muscle, 0, -4.4F, 0, 1.8F, 4.8F, 1.8F, overlay, 1F, 1F, 1F, 0.7F);
-        ps.translate(0F, -8.6F, 0F);
-        // mano: cinco tentáculos
+        draw(ps, buf, fore, mirror, light, overlay, glow);
+        ps.translate(0F, -9.1F, 0F);
+        ps.mulPose(Axis.XP.rotationDegrees(-8F + 6F * Mth.sin(t * 0.07F + side)));
+        draw(ps, buf, hand, mirror, light, overlay, glow);
+        ps.popPose();
+    }
+
+    private static void renderSmallArm(PoseStack ps, MultiBufferSource buf, int side, float t, int state, int light, int overlay, float glow) {
+        BodyMesh.Part arm = BodyMesh.get("small_arm");
+        boolean mirror = side < 0;
+        float twitch = state == UnboundObserver.S_MAW ? 25F * Mth.sin(t * 0.9F + side) : 8F * Mth.sin(t * 0.13F + side * 1.7F)
+                + (Mth.sin(t * 0.7F + side) > 0.97F ? 12F : 0F);
+        ps.pushPose();
+        ps.translate(side * SMALL_ARM[0], SMALL_ARM[1] - HIP_Y, SMALL_ARM[2]);
+        if (mirror) ps.scale(-1F, 1F, 1F);
+        ps.mulPose(Axis.XP.rotationDegrees(10F + twitch));
+        ps.mulPose(Axis.YP.rotationDegrees(-10F + twitch * 0.5F));
+        draw(ps, buf, arm, mirror, light, overlay, glow);
+        ps.popPose();
+    }
+
+    private static void renderHalo(PoseStack ps, MultiBufferSource buf, float t, int state, int light, int overlay) {
+        BodyMesh.Part shard = BodyMesh.get("shard");
+        if (shard == null) return;
+        float speed = state == VoidEye.S_SCREAM || state == UnboundObserver.S_COLOSSAL ? 2.5F : 0.6F;
+        ps.pushPose();
+        ps.translate(0F, EYE_C[1] - HIP_Y + 0.8F, -4.8F);
+        ps.mulPose(Axis.XP.rotationDegrees(-12F));
+        for (int i = 0; i < 18; i++) {
+            if (i == 3 || i == 9 || i == 10 || i == 15) continue;          // el anillo está roto
+            float a = i * 20F + t * speed;
+            float r = 10.5F + 0.8F * Mth.sin(i * 2.1F + t * 0.03F);
+            ps.pushPose();
+            ps.mulPose(Axis.ZP.rotationDegrees(a));
+            ps.translate(0F, r, 0F);
+            ps.mulPose(Axis.YP.rotationDegrees(t * 1.5F + i * 40));
+            float s = 0.9F + 0.5F * ((i * 7) % 4) / 3F;
+            ps.scale(s, s, s);
+            draw(ps, buf, shard, false, light, overlay, 0F);
+            ps.popPose();
+        }
+        ps.popPose();
+    }
+
+    private static void renderLeg(PoseStack ps, MultiBufferSource buf, BodyMesh.Anchor a, BodyMesh.Part skirt, int i, float t, float walkPos,
+                                  float walkSpd, boolean spread, int overlay) {
+        float x = a.x() + skirt.px, y = a.y() + skirt.py, z = a.z() + skirt.pz;
+        float az = (float) Math.toDegrees(Math.atan2(z, x));
+        final float phase = i * 0.63F;
+        ps.pushPose();
+        ps.translate(x, y, z);
+        ps.mulPose(Axis.YP.rotationDegrees(-az));
+        ps.mulPose(Axis.ZP.rotationDegrees(spread ? -150F : -162F));
         for (int pass = 0; pass < 2; pass++) {
             VertexConsumer vc = buf.getBuffer(pass == 0 ? RenderType.entityCutoutNoCull(VoidEyeRenderer.TENTACLE) : RenderType.eyes(VoidEyeRenderer.TENTACLE_GLOW));
-            for (int f = 0; f < 5; f++) {
-                final float ph = f * 1.3F + side;
-                ps.pushPose();
-                ps.mulPose(Axis.XP.rotationDegrees(180F + (f - 2) * 8F));
-                ps.mulPose(Axis.ZP.rotationDegrees((f - 2) * 16F));
-                TentacleMesh.render(ps, vc, FULL, overlay, 7F, 0.6F, 10, (k, along) -> new float[]{
-                        0.12F * Mth.sin(t * 0.09F + ph + k * 0.6F), 0.1F * Mth.cos(t * 0.07F + ph + k * 0.5F)},
-                        pass == 0 ? 1F : 0.5F, pass == 0 ? 1F : 0.15F, pass == 0 ? 1F : 0.7F, 1F);
-                ps.popPose();
-            }
+            TentacleMesh.render(ps, vc, FULL, overlay, 9.8F, a.r() * 1.05F, 16, (k, along) -> new float[]{
+                    Mth.sin(walkPos * 0.55F + phase) * 0.08F * walkSpd + 0.025F * Mth.sin(t * 0.06F + phase + k * 0.45F),
+                    0.075F + 0.02F * Mth.sin(t * 0.05F + phase)},
+                    pass == 0 ? 1F : 0.5F, pass == 0 ? 1F : 0.15F, pass == 0 ? 1F : 0.7F, 1F);
+        }
+        ps.popPose();
+    }
+
+    private static void renderFaceTentacle(PoseStack ps, MultiBufferSource buf, BodyMesh.Anchor a, int i, float t, int state, int overlay) {
+        float agit = state == VoidEye.S_SCREAM || state == UnboundObserver.S_MAW ? 2.2F : 1F;
+        final float ph = i * 1.37F;
+        ps.pushPose();
+        ps.translate(a.x(), a.y(), a.z());
+        ps.mulPose(new Quaternionf().rotationTo(0F, 1F, 0F, a.nx(), a.ny(), a.nz()));
+        for (int pass = 0; pass < 2; pass++) {
+            VertexConsumer vc = buf.getBuffer(pass == 0 ? RenderType.entityCutoutNoCull(VoidEyeRenderer.TENTACLE) : RenderType.eyes(VoidEyeRenderer.TENTACLE_GLOW));
+            TentacleMesh.render(ps, vc, FULL, overlay, 7.5F + (i % 3), a.r(), 12, (k, along) -> new float[]{
+                    0.1F * Mth.sin(t * 0.07F * agit + ph + k * 0.6F) * agit, 0.09F * Mth.cos(t * 0.05F * agit + ph + k * 0.5F) * agit},
+                    pass == 0 ? 1F : 0.55F, pass == 0 ? 1F : 0.2F, pass == 0 ? 1F : 0.8F, 1F);
         }
         ps.popPose();
     }
@@ -219,13 +336,13 @@ public class UnboundObserverRenderer extends EntityRenderer<UnboundObserver> {
     private static void renderBackTentacles(PoseStack ps, MultiBufferSource buf, float t, float agitation, int overlay) {
         for (int pass = 0; pass < 2; pass++) {
             VertexConsumer vc = buf.getBuffer(pass == 0 ? RenderType.entityCutoutNoCull(VoidEyeRenderer.TENTACLE) : RenderType.eyes(VoidEyeRenderer.TENTACLE_GLOW));
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 6; i++) {
                 final float ph = i * 1.9F;
                 ps.pushPose();
-                ps.translate((i - 2) * 2.4F, 23.5F, -3.6F);
-                ps.mulPose(Axis.XP.rotationDegrees(-55F - Math.abs(i - 2) * 10F));
-                ps.mulPose(Axis.ZP.rotationDegrees((i - 2) * 18F));
-                TentacleMesh.render(ps, vc, FULL, overlay, 15F, 1.15F, 14, (k, along) -> new float[]{
+                ps.translate((i - 2.5F) * 1.8F, 22.8F - HIP_Y, -3.4F);
+                ps.mulPose(Axis.XP.rotationDegrees(-58F - Math.abs(i - 2.5F) * 8F));
+                ps.mulPose(Axis.ZP.rotationDegrees((i - 2.5F) * 16F));
+                TentacleMesh.render(ps, vc, FULL, overlay, 16F, 1.1F, 14, (k, along) -> new float[]{
                         (0.13F * Mth.sin(t * 0.05F * agitation + ph + k * 0.5F) + 0.04F) * agitation,
                         0.12F * Mth.cos(t * 0.04F * agitation + ph + k * 0.45F) * agitation},
                         pass == 0 ? 1F : 0.55F, pass == 0 ? 1F : 0.25F, pass == 0 ? 1F : 0.8F, 1F);
@@ -234,15 +351,62 @@ public class UnboundObserverRenderer extends EntityRenderer<UnboundObserver> {
         }
     }
 
+    // ------------------------------------------------------------------ ojos
+
+    private static float theta(float v) {
+        return v < 0.5F ? v / 0.5F * 0.65F : 0.65F + (v - 0.5F) / 0.5F * (Mth.PI - 0.65F);
+    }
+
+    /** Esfera liviana con la textura del globo ocular (polo frontal = +Z). */
+    private static void lowSphere(PoseStack.Pose pose, VertexConsumer vc, float R, int overlay, float r, float g, float b) {
+        int lat = 10, lon = 16;
+        for (int i = 0; i < lat; i++) {
+            float v0 = i / (float) lat, v1 = (i + 1) / (float) lat, t0 = theta(v0), t1 = theta(v1);
+            for (int j = 0; j < lon; j++) {
+                float u0 = j / (float) lon, u1 = (j + 1) / (float) lon;
+                sv(pose, vc, R, t0, u0, v0, overlay, r, g, b);
+                sv(pose, vc, R, t1, u0, v1, overlay, r, g, b);
+                sv(pose, vc, R, t1, u1, v1, overlay, r, g, b);
+                sv(pose, vc, R, t0, u1, v0, overlay, r, g, b);
+            }
+        }
+    }
+
+    private static void sv(PoseStack.Pose pose, VertexConsumer vc, float R, float th, float u, float v, int overlay, float r, float g, float b) {
+        float ph = u * Mth.TWO_PI;
+        float nx = Mth.sin(th) * Mth.cos(ph), ny = Mth.sin(th) * Mth.sin(ph), nz = Mth.cos(th);
+        vc.addVertex(pose, nx * R, ny * R, nz * R).setColor(r, g, b, 1F).setUv(u, v).setOverlay(overlay).setLight(FULL).setNormal(pose, nx, ny, nz);
+    }
+
+    /** Ojo menor sobre un bulbo: mira para todos lados por su cuenta y parpadea a destiempo. */
+    private static void smallEye(PoseStack ps, MultiBufferSource buf, BodyMesh.Part part, BodyMesh.Anchor a, float t, int seed, int overlay) {
+        if (!a.name().equals("small_eye")) return;
+        float cyc = (t + seed * 17) % (90F + seed % 50);
+        float open = cyc < 6 ? Math.abs(cyc - 3F) / 3F : 1F;
+        float r = a.r();
+        ps.pushPose();
+        boolean root = part.name.equals("skirt");               // la falda se dibuja en el marco de los pies
+        ps.translate(a.x() + (root ? part.px : 0F), a.y() + (root ? part.py : 0F), a.z() + (root ? part.pz : 0F));
+        ps.mulPose(new Quaternionf().rotationTo(0F, 0F, 1F, a.nx(), a.ny(), a.nz()));
+        ps.mulPose(Axis.YP.rotationDegrees(25F * Mth.sin(t * 0.05F + seed)));
+        ps.mulPose(Axis.XP.rotationDegrees(20F * Mth.sin(t * 0.04F + seed * 0.7F)));
+        ps.scale(1F, Math.max(0.08F, open), 1F);
+        PoseStack.Pose pose = ps.last();
+        lowSphere(pose, buf.getBuffer(RenderType.entityCutoutNoCull(VoidEyeRenderer.BALL)), r, overlay, 1F, 1F, 1F);
+        lowSphere(pose, buf.getBuffer(RenderType.eyes(VoidEyeRenderer.BALL_GLOW)), r * 1.01F, overlay, 0.9F, 0.4F, 1F);
+        VoidEyeRenderer.pupilCap(pose, buf.getBuffer(RenderType.entityCutoutNoCull(VoidEyeRenderer.PUPIL)), r * 1.02F, 0.08F, 0.38F, 0F, 1F, FULL, overlay, 1F, 1F, 1F);
+        ps.popPose();
+    }
+
     private static void renderEye(UnboundObserver e, PoseStack ps, MultiBufferSource buf, float pt, float t, float age, float bodyYaw,
                                   int overlay) {
         float R = UnboundObserver.EYE_R;
         ps.pushPose();
-        ps.translate(0F, UnboundObserver.EYE_Y, 0.8F);
+        ps.translate(EYE_C[0], EYE_C[1] - HIP_Y, EYE_C[2]);
         float yaw = Mth.rotLerp(pt, e.yawO, e.yaw), pitch = Mth.lerp(pt, e.pitchO, e.pitch);
-        float rel = Mth.clamp(Mth.wrapDegrees(yaw - bodyYaw), -75F, 75F);
+        float rel = Mth.clamp(Mth.wrapDegrees(yaw - bodyYaw), -60F, 60F);
         ps.mulPose(Axis.YP.rotationDegrees(-rel));
-        ps.mulPose(Axis.XP.rotationDegrees(Mth.clamp(pitch, -60F, 70F)));
+        ps.mulPose(Axis.XP.rotationDegrees(Mth.clamp(pitch, -50F, 60F)));
         float[] gl = VoidEyeRenderer.glow(e, age, t);
         float[] pu = VoidEyeRenderer.pupil(e, age, t);
         PoseStack.Pose pose = ps.last();
@@ -262,34 +426,6 @@ public class UnboundObserverRenderer extends EntityRenderer<UnboundObserver> {
         VoidEyeRenderer.lid(ps, lid, R, Mth.lerp(Mth.clamp(open, 0F, 1.2F), 0F, 62F), true, overlay);
         VoidEyeRenderer.lid(ps, lid, R * 1.006F, Mth.lerp(Mth.clamp(open, 0F, 1.2F), 0F, 48F), false, overlay);
         ps.popPose();
-    }
-
-    // ------------------------------------------------------------------ elipsoide
-
-    /** Elipsoide con textura de músculo; uOff desplaza la textura para que las partes no se vean iguales. */
-    static void ellipsoid(PoseStack ps, VertexConsumer vc, float cx, float cy, float cz, float rx, float ry, float rz, int overlay,
-                          float r, float g, float b, float uOff) {
-        ps.pushPose();
-        ps.translate(cx, cy, cz);
-        ps.scale(rx, ry, rz);
-        PoseStack.Pose pose = ps.last();
-        int lat = 14, lon = 22;
-        for (int i = 0; i < lat; i++) {
-            float t0 = Mth.PI * i / lat, t1 = Mth.PI * (i + 1) / lat;
-            for (int j = 0; j < lon; j++) {
-                float p0 = Mth.TWO_PI * j / lon, p1 = Mth.TWO_PI * (j + 1) / lon;
-                ev(pose, vc, t0, p0, j / (float) lon, i / (float) lat, overlay, r, g, b, uOff);
-                ev(pose, vc, t0, p1, (j + 1) / (float) lon, i / (float) lat, overlay, r, g, b, uOff);
-                ev(pose, vc, t1, p1, (j + 1) / (float) lon, (i + 1) / (float) lat, overlay, r, g, b, uOff);
-                ev(pose, vc, t1, p0, j / (float) lon, (i + 1) / (float) lat, overlay, r, g, b, uOff);
-            }
-        }
-        ps.popPose();
-    }
-
-    private static void ev(PoseStack.Pose pose, VertexConsumer vc, float th, float ph, float u, float v, int overlay, float r, float g, float b, float uOff) {
-        float x = Mth.sin(th) * Mth.cos(ph), y = Mth.cos(th), z = Mth.sin(th) * Mth.sin(ph);
-        vc.addVertex(pose, x, y, z).setColor(r, g, b, 1F).setUv(u * 2F + uOff, v).setOverlay(overlay).setLight(FULL).setNormal(pose, x, y, z);
     }
 
     // ------------------------------------------------------------------ efectos

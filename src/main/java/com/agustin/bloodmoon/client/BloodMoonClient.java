@@ -85,6 +85,8 @@ public class BloodMoonClient {
         event.registerEntityRenderer(ModEntities.WATCHER_EYE.get(), WatcherEyeRenderer::new);
         event.registerEntityRenderer(ModEntities.UNBOUND_OBSERVER.get(), UnboundObserverRenderer::new);
         event.registerEntityRenderer(ModEntities.COLOSSAL_EYE.get(), ColossalEyeRenderer::new);
+        event.registerEntityRenderer(ModEntities.TITAN_TENTACLE.get(), TitanTentacleRenderer::new);
+        event.registerEntityRenderer(ModEntities.ABYSS_TEAR.get(), AbyssTearRenderer::new);
     }
 
     private static void onRegisterLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
@@ -128,6 +130,7 @@ public class BloodMoonClient {
         event.registerReloadListener((ResourceManagerReloadListener) manager -> {
             TintedTextures.invalidate();
             VoidArmorModels.invalidate();
+            BodyMesh.invalidate();
         });
     }
 

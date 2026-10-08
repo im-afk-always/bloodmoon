@@ -127,6 +127,14 @@ public final class EyeFightFx {
         flashO = flash;
         flash *= 0.88F;
         for (Entity en : mc.level.entitiesForRendering()) {
+            if (en instanceof com.agustin.bloodmoon.entity.TitanTentacle tt && tt.distanceToSqr(mc.player) < 200 * 200) {
+                if (tt.tickCount == com.agustin.bloodmoon.entity.TitanTentacle.SLAM) { shake = Math.max(shake, 2.2F); flash = Math.max(flash, 0.25F); }
+                else if (tt.tickCount < com.agustin.bloodmoon.entity.TitanTentacle.EMERGE) shake = Math.max(shake, 0.35F);
+            }
+            if (en instanceof com.agustin.bloodmoon.entity.AbyssTear at && at.tickCount == at.flight() - 1) {
+                double d = at.target().distanceTo(mc.player.position());
+                if (d < 40) shake = Math.max(shake, (float) (0.9 * (1 - d / 40)));
+            }
             if (en instanceof com.agustin.bloodmoon.entity.ColossalEye ce && ce.distanceToSqr(mc.player) < 320 * 320) {
                 int a = ce.tickCount;
                 if (a == com.agustin.bloodmoon.entity.ColossalEye.FIRE) { flash = 0.75F; shake = Math.max(shake, 2F); }
@@ -152,6 +160,8 @@ public final class EyeFightFx {
                 case VoidEye.S_GAZE, VoidEye.S_SWEEP -> shake = Math.max(shake, 0.12F);
                 case VoidEye.S_ASCEND -> shake = Math.max(shake, 0.3F + 0.9F * age / VoidEye.ASCEND_TICKS);
                 case com.agustin.bloodmoon.entity.UnboundObserver.S_EMERGE -> shake = Math.max(shake, 0.5F * (age < 125 ? 1F : 0F));
+                case com.agustin.bloodmoon.entity.UnboundObserver.S_MAW -> { if (age > com.agustin.bloodmoon.entity.UnboundObserver.MAW_OPEN) shake = Math.max(shake, 0.35F); }
+                case com.agustin.bloodmoon.entity.UnboundObserver.S_TEARS, com.agustin.bloodmoon.entity.UnboundObserver.S_TITAN -> shake = Math.max(shake, 0.2F);
                 case com.agustin.bloodmoon.entity.UnboundObserver.S_SLAM -> {
                     if (age >= com.agustin.bloodmoon.entity.UnboundObserver.SLAM_HIT && age < com.agustin.bloodmoon.entity.UnboundObserver.SLAM_HIT + 6)
                         shake = Math.max(shake, 0.8F);
