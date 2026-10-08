@@ -9,7 +9,7 @@ Una vez por jugador y por mundo; `/bloodmoon intro` lo repite.
 | Luna | Frecuencia (default) | Visual |
 |---|---|---|
 | Luna de Sangre | cada 3 noches | Luna vanilla teñida de rojo, cielo negro sin estrellas |
-| Súper Luna de Sangre | cada 13 noches | Rojo más intenso, horizonte sangriento |
+| Luna de la Cosecha | cada 13 noches | Cielo carmesí, luna realista con halo, todo teñido de rojo |
 | Luna Dorada | cada 7 noches | Luna vanilla dorada, cielo oscuro con brillo dorado (sin efectos de juego) |
 | Noche sin Luna | cada 50 noches | La noche cae lento hasta negro total; una ruptura nace en el cenit, se propaga a los horizontes y se abre en una grieta; dentro, un ojo púrpura de pupila felina que frunce la mirada. Toda la noche surgen hordas de **Centinelas** (espada) y **Arqueros del Vacío** (arco): esqueletos de hueso negro con armadura del Vacío encantada; se desvanecen al amanecer. A medianoche cae del cielo como un bólido negro el **Emisario Desconocido** o **El Ejecutor**, dejando un cráter |
 
@@ -18,13 +18,12 @@ Prioridad si coinciden: Sin Luna > Súper > Sangre > Dorada.
 ## Luna de Sangre
 Mob cap de hostiles x2, rastreo x2, arañas Velocidad I, zombis Fuerza I, esqueletos 2 flechas.
 
-**Ambiente:** el mundo entero queda bañado en luz carmesí (la luz del cielo se tiñe y la luna ilumina a cielo
-abierto; las antorchas conservan su color cálido), el cielo y el horizonte se vuelven rojo sangre, la bruma empieza
-más cerca, y en vez de la luna pixelada aparece una luna realista con resplandor, corona y halo, entre nubes suaves
-que se encienden al pasar cerca de ella (reemplazan a las nubes cúbicas). En la Súper Luna, más grande e intensa.
+## Luna de la Cosecha (incluye todo lo de la Luna de Sangre)
+**Ambiente:** el mundo entero queda bañado en luz carmesí (la luz del cielo se tiñe, la luna ilumina a cielo abierto y
+las antorchas arden en rojo brasa), más oscuro y con más contraste; cielo y horizonte rojo sangre, bruma más cercana,
+una luna realista con un halo tenue y nubes suaves que se encienden cerca de ella (reemplazan a las cúbicas).
 Con paquetes de shaders (Iris/OptiFine) el tinte de la luz puede perderse en parte.
 
-## Súper Luna de Sangre (incluye todo lo anterior)
 - Creepers: Velocidad I, explosión x10.
 - **Cursed Creeper** (10% de los creepers naturales): cargado con aura roja, explosión x20, deja fuego, barra de jefe roja.
 - Zombis: diamante completo + espada de diamante, Velocidad I + Fuerza I.

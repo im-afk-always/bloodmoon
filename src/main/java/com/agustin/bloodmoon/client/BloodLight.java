@@ -7,10 +7,15 @@ import net.minecraft.world.level.Level;
 
 /**
  * Tiñe el lightmap (la tabla 16x16 luz-del-cielo x luz-de-bloque que ilumina todo el mundo) con el color de la luna:
- * lo que recibe luz del cielo queda bañado en carmesí, y la luna aporta un mínimo de luz a cielo abierto. La luz de
- * las antorchas conserva su color cálido; donde se mezclan, el tinte se reparte según cuál domine.
+ * lo que recibe luz del cielo queda bañado en carmesí (la luna aporta un mínimo de luz a cielo abierto) y la luz de las
+ * antorchas se vuelve rojo brasa. Todo queda más oscuro y con más contraste.
  */
 public final class BloodLight {
+    /** Oscurecimiento general del mundo teñido (con más contraste en las sombras). */
+    private static final float DIM = 0.85F;
+    /** Las antorchas también se tiñen (casi del todo), hacia un rojo brasa. */
+    private static final float TORCH_TINT = 0.85F, TORCH_R = 1F, TORCH_G = 0.3F, TORCH_B = 0.15F;
+
     private BloodLight() {}
 
     /**
@@ -31,14 +36,18 @@ public final class BloodLight {
         // cuánto de esta celda es luz del cielo (y no de antorchas)
         float dom = s * s / (s * s + 1.4F * bl * bl + 0.001F);
         float lum = 0.2126F * r + 0.7152F * g + 0.0722F * b;
-        // la luna roja ilumina: un mínimo de luz a cielo abierto, con caída suave hacia la sombra
-        float light = Math.max(lum, type.lightFloor * (float) Math.pow(s, 1.6));
-        // las luces fuertes se desaturan un poco (no todo es rojo puro)
-        float hi = light * light * 0.35F;
-        float tr = Math.min(1F, light * type.lightR + hi * 0.2F);
-        float tg = Math.min(1F, light * type.lightG + hi * 0.25F);
-        float tb = Math.min(1F, light * type.lightB + hi * 0.22F);
-        float m = k * dom;
+        // a cielo abierto la luna aporta un mínimo de luz; después todo se oscurece y gana contraste
+        float light = lum + (Math.max(lum, type.lightFloor * (float) Math.pow(s, 1.6)) - lum) * dom;
+        light = DIM * (float) Math.pow(light, 1.2);
+        // la luz del cielo es carmesí; la de las antorchas, rojo brasa
+        float cr = type.lightR + (TORCH_R - type.lightR) * (1F - dom);
+        float cg = type.lightG + (TORCH_G - type.lightG) * (1F - dom);
+        float cb = type.lightB + (TORCH_B - type.lightB) * (1F - dom);
+        float hi = light * light * 0.25F;
+        float tr = Math.min(1F, light * cr + hi * 0.2F);
+        float tg = Math.min(1F, light * cg + hi * 0.2F);
+        float tb = Math.min(1F, light * cb + hi * 0.18F);
+        float m = k * (dom + (1F - dom) * TORCH_TINT);
         r += (tr - r) * m;
         g += (tg - g) * m;
         b += (tb - b) * m;

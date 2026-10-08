@@ -23,8 +23,8 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 /**
- * Cielo de la Luna de Sangre: una luna realista (mares, cráteres, oscurecimiento del borde) teñida de carmesí, con un
- * resplandor amplio, una corona intensa y un halo de 22° alrededor; y una capa de nubes suaves (en vez de las cúbicas
+ * Cielo de la Luna de la Cosecha: una luna realista (mares, cráteres, oscurecimiento del borde) teñida de carmesí, con
+ * un resplandor suave y un único halo tenue; y una capa de nubes suaves (en vez de las cúbicas
  * vanilla) que se curva hacia el horizonte, deriva con el viento y se enciende de rojo cerca de la luna.
  * Se dibuja después del cielo vanilla y antes del terreno.
  */
@@ -95,16 +95,11 @@ public final class BloodSkyRenderer {
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
-        // resplandor amplio que tiñe el cielo alrededor
-        fan(m, y, R * 7F * breathe, 0.95F, 0.12F, 0.07F, 0.42F * k);
-        fan(m, y, R * 3.2F, 1F, 0.18F, 0.1F, 0.45F * k);
-        // halo de 22°: un anillo nítido e intenso, con un segundo anillo tenue por fuera
-        float h = type.halo * k;
-        ring(m, y, R * 3.5F, R * 3.95F, R * 4.7F, 1F, 0.28F, 0.17F, 0.34F * h);
-        ring(m, y, R * 3.82F, R * 3.95F, R * 4.08F, 1F, 0.5F, 0.36F, 0.2F * h);
-        ring(m, y, R * 5.6F, R * 6.0F, R * 6.8F, 1F, 0.22F, 0.14F, 0.08F * h);
-        // corona pegada al disco
-        ring(m, y, R * 0.9F, R * 1.02F, R * 1.8F, 1F, 0.32F, 0.2F, 0.6F * k);
+        // resplandor suave que tiñe el cielo alrededor
+        fan(m, y, R * 6F * breathe, 0.95F, 0.12F, 0.07F, 0.3F * k);
+        fan(m, y, R * 2.2F, 1F, 0.16F, 0.1F, 0.3F * k);
+        // un único halo, tenue
+        ring(m, y, R * 3.6F, R * 3.95F, R * 4.4F, 1F, 0.26F, 0.16F, 0.15F * type.halo * k);
 
         // el disco: textura realista teñida (mezcla normal: tapa el cielo de atrás)
         RenderSystem.defaultBlendFunc();
@@ -112,7 +107,7 @@ public final class BloodSkyRenderer {
         RenderSystem.setShaderTexture(0, MOON);
         Minecraft.getInstance().getTextureManager().getTexture(MOON).setFilter(true, false);
         BufferBuilder bb = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-        float cr = 1F, cg = 0.32F, cb = 0.24F;
+        float cr = 1F, cg = 0.24F, cb = 0.17F;
         bb.addVertex(m, -R, y, -R).setUv(0F, 0F).setColor(cr, cg, cb, k);
         bb.addVertex(m, R, y, -R).setUv(1F, 0F).setColor(cr, cg, cb, k);
         bb.addVertex(m, R, y, R).setUv(1F, 1F).setColor(cr, cg, cb, k);
@@ -121,7 +116,7 @@ public final class BloodSkyRenderer {
         // brillo propio encima del disco (aditivo): la luna "arde"
         RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
         bb = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-        float g = 0.75F * k;
+        float g = 0.4F * k;
         bb.addVertex(m, -R, y, -R).setUv(0F, 0F).setColor(1F, 0.35F, 0.25F, g);
         bb.addVertex(m, R, y, -R).setUv(1F, 0F).setColor(1F, 0.35F, 0.25F, g);
         bb.addVertex(m, R, y, R).setUv(1F, 1F).setColor(1F, 0.35F, 0.25F, g);
