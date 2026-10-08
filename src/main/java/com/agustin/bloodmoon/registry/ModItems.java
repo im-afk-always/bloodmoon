@@ -50,6 +50,12 @@ public final class ModItems {
             () -> new DeferredSpawnEggItem(ModEntities.VOID_SENTINEL, 0x1A1620, 0x8A2BE2, new Item.Properties()));
     public static final DeferredItem<DeferredSpawnEggItem> VOID_ARCHER_SPAWN_EGG = ITEMS.register("void_archer_spawn_egg",
             () -> new DeferredSpawnEggItem(ModEntities.VOID_ARCHER, 0x1A1620, 0xD08CFF, new Item.Properties()));
+    public static final DeferredItem<DeferredSpawnEggItem> VOID_EYE_SPAWN_EGG = ITEMS.register("void_eye_spawn_egg",
+            () -> new DeferredSpawnEggItem(ModEntities.VOID_EYE, 0x0D0014, 0xB05CFF, new Item.Properties()));
+    /** Trofeo del Observador. */
+    public static final DeferredItem<Item> OBSERVER_IRIS = ITEMS.register("observer_iris",
+            () -> new Item(new Item.Properties().stacksTo(16).fireResistant().rarity(Rarity.EPIC)
+                    .component(net.minecraft.core.component.DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true)));
     public static final DeferredItem<DeferredSpawnEggItem> CURSED_CREEPER_SPAWN_EGG = ITEMS.register("cursed_creeper_spawn_egg",
             () -> new DeferredSpawnEggItem(ModEntities.CURSED_CREEPER, 0x0DA70B, 0xD01818, new Item.Properties()));
 
@@ -70,6 +76,8 @@ public final class ModItems {
             event.accept(EXECUTIONER_MAUL);
         } else if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(END_COMPASS);
+        } else if (event.getTabKey() == CreativeModeTabs.INGREDIENTS) {
+            event.accept(OBSERVER_IRIS);
         } else if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
             event.accept(VOID_BLOCK);
             event.accept(VOID_STONE);
@@ -79,6 +87,7 @@ public final class ModItems {
             event.accept(FIRST_SOUL_DRAGON_SPAWN_EGG);
             event.accept(VOID_SENTINEL_SPAWN_EGG);
             event.accept(VOID_ARCHER_SPAWN_EGG);
+            event.accept(VOID_EYE_SPAWN_EGG);
             event.accept(CURSED_CREEPER_SPAWN_EGG);
         }
     }

@@ -80,6 +80,32 @@ public final class ModEntities {
                     .clientTrackingRange(8)
                     .build("void_archer"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<VoidEye>> VOID_EYE =
+            ENTITIES.register("void_eye", () -> EntityType.Builder
+                    .<VoidEye>of(VoidEye::new, MobCategory.MONSTER)
+                    .sized(18.0F, 18.0F)
+                    .fireImmune()
+                    .clientTrackingRange(16)
+                    .updateInterval(1)
+                    .build("void_eye"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<EyeTentacle>> EYE_TENTACLE =
+            ENTITIES.register("eye_tentacle", () -> EntityType.Builder
+                    .<EyeTentacle>of(EyeTentacle::new, MobCategory.MONSTER)
+                    .sized(1.4F, 7.5F)
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .build("eye_tentacle"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<WatcherEye>> WATCHER_EYE =
+            ENTITIES.register("watcher_eye", () -> EntityType.Builder
+                    .<WatcherEye>of(WatcherEye::new, MobCategory.MISC)
+                    .sized(0.9F, 0.9F)
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .updateInterval(1)
+                    .build("watcher_eye"));
+
     private ModEntities() {}
 
     public static void registerAttributes(EntityAttributeCreationEvent event) {
@@ -89,6 +115,8 @@ public final class ModEntities {
         event.put(FIRST_SOUL_DRAGON.get(), FirstSoulDragon.createAttributes().build());
         event.put(VOID_SENTINEL.get(), VoidSkeleton.createAttributes().build());
         event.put(VOID_ARCHER.get(), VoidSkeleton.createAttributes().build());
+        event.put(VOID_EYE.get(), VoidEye.createAttributes().build());
+        event.put(EYE_TENTACLE.get(), EyeTentacle.createAttributes().build());
         event.put(APOCALYPSE_RIDER.get(), AbstractSkeleton.createAttributes()
                 .add(Attributes.MAX_HEALTH, 80.0)
                 .add(Attributes.SCALE, 2.0)

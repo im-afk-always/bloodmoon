@@ -25,9 +25,12 @@ public final class LabyrinthDesign {
     public static final int FLOOR = 64, HEIGHT = 256, CELL = 24, WALL = 4, REGION = 12;
     static final int T_NORMAL = 0, T_CHASM = 1, T_PLAZA = 2, T_TOWER = 3, T_SHRINE = 4;
     static final int ARENA_R = 56;
+    /** Una región de cada bloque de SUPER×SUPER regiones (≈1730 bloques) alberga el Santuario del Ojo. */
+    public static final int SUPER = 6;
 
     private final long seed;
     private final Noise n;
+    private final SanctumDesign sanctum;
     private final Map<Long, boolean[]> mazes = Collections.synchronizedMap(new LinkedHashMap<>(64, 0.75F, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<Long, boolean[]> e) {
@@ -38,6 +41,53 @@ public final class LabyrinthDesign {
     public LabyrinthDesign(long seed) {
         this.seed = seed;
         this.n = new Noise(seed);
+        this.sanctum = new SanctumDesign(n);
+    }
+
+    // ------------------------------------------------------------------ santuarios
+
+    /** ¿La región (rx, rz) es la del santuario de su super-región? */
+    public boolean isSanctumRegion(int rx, int rz) {
+        int sx = Math.floorDiv(rx, SUPER), sz = Math.floorDiv(rz, SUPER);
+        int a = 1 + (int) (n.rnd(sx, 0, sz, 300) * (SUPER - 2)), b = 1 + (int) (n.rnd(sx, 1, sz, 300) * (SUPER - 2));
+        return rx - sx * SUPER == a && rz - sz * SUPER == b;
+    }
+
+    private static int regionOf(int block) {
+        return Math.floorDiv(block, REGION * CELL);
+    }
+
+    /** Centro (x, z) del santuario más cercano a (x, z), buscando en la super-región y sus vecinas. */
+    public int[] nearestSanctum(int x, int z) {
+        int size = REGION * CELL;
+        int sx = Math.floorDiv(regionOf(x), SUPER), sz = Math.floorDiv(regionOf(z), SUPER);
+        int[] best = null;
+        double bestD = Double.MAX_VALUE;
+        for (int ox = -1; ox <= 1; ox++) {
+            for (int oz = -1; oz <= 1; oz++) {
+                for (int a = 0; a < SUPER; a++) {
+                    for (int b = 0; b < SUPER; b++) {
+                        int rx = (sx + ox) * SUPER + a, rz = (sz + oz) * SUPER + b;
+                        if (!isSanctumRegion(rx, rz)) continue;
+                        int cx = rx * size + size / 2, cz = rz * size + size / 2;
+                        double d = (cx - x) * (double) (cx - x) + (cz - z) * (double) (cz - z);
+                        if (d < bestD) {
+                            bestD = d;
+                            best = new int[]{cx, cz};
+                        }
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
+    private boolean sanctumAt(int x, int z) {
+        return isSanctumRegion(regionOf(x), regionOf(z));
+    }
+
+    private int zoneRadius(int x, int z) {
+        return sanctumAt(x, z) ? SanctumDesign.R_ZONE : ARENA_R + 6;
     }
 
     // ------------------------------------------------------------------ laberinto
@@ -103,7 +153,7 @@ public final class LabyrinthDesign {
     }
 
     int cellType(int cx, int cz) {
-        if (inArenaZone(cx * CELL + CELL / 2, cz * CELL + CELL / 2)) return T_NORMAL;
+        if (inArenaZone(cx * CELL + CELL / 2, cz * CELL + CELL / 2, 0)) return T_NORMAL;
         double v = n.rnd(cx, 0, cz, 110);
         if (v < 0.07) return T_CHASM;
         if (v < 0.12) return T_PLAZA;
@@ -119,10 +169,11 @@ public final class LabyrinthDesign {
         return new int[]{rx * size + size / 2, rz * size + size / 2};
     }
 
-    static boolean inArenaZone(int x, int z) {
+    boolean inArenaZone(int x, int z, int margin) {
         int[] c = regionCenter(x, z);
         double dx = x - c[0], dz = z - c[1];
-        return dx * dx + dz * dz < (ARENA_R + 6) * (ARENA_R + 6);
+        int rad = zoneRadius(x, z) + margin;
+        return dx * dx + dz * dz < rad * (double) rad;
     }
 
     /** Centro de una celda transitable (no abismo) cerca de (x, z), para construir un portal de llegada. */
@@ -133,7 +184,7 @@ public final class LabyrinthDesign {
                 for (int dz = -ring; dz <= ring; dz++) {
                     if (Math.max(Math.abs(dx), Math.abs(dz)) != ring) continue;
                     int px = (cx + dx) * CELL + CELL / 2 + 1, pz = (cz + dz) * CELL + CELL / 2 + 1;
-                    if (inArenaZone(px, pz)) continue;
+                    if (inArenaZone(px, pz, 0)) continue;
                     int t = cellType(cx + dx, cz + dz);
                     if (t == T_NORMAL || t == T_PLAZA) return new int[]{px + (t == T_PLAZA ? 5 : 0), pz + (t == T_PLAZA ? 5 : 0)};
                 }
@@ -150,7 +201,12 @@ public final class LabyrinthDesign {
         int[] c = regionCenter(x, z);
         double adx = x - c[0], adz = z - c[1];
         double ar = Math.sqrt(adx * adx + adz * adz);
-        if (ar < ARENA_R + 6) {
+        if (sanctumAt(x, z)) {
+            if (ar < SanctumDesign.R_ZONE) {
+                sanctum.fill(x, z, adx, adz, ar, Math.floorMod(regionOf(x) * 7 + regionOf(z) * 13, 997), out);
+                return;
+            }
+        } else if (ar < ARENA_R + 6) {
             arenaRuin(x, z, adx, adz, ar, out);
             return;
         }

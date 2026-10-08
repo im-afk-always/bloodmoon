@@ -34,6 +34,17 @@ public class EndCompassItem extends Item {
         if (!(level instanceof ServerLevel sl)) return InteractionResultHolder.success(stack);
 
         player.getCooldowns().addCooldown(this, 100);
+        if (level.dimension() == com.agustin.bloodmoon.registry.ModDimensions.VOID_LABYRINTH) {
+            BlockPos sanctum = com.agustin.bloodmoon.world.EyeSanctums.nearest(sl, player.blockPosition());
+            if (sanctum == null) return InteractionResultHolder.fail(stack);
+            stack.set(DataComponents.LODESTONE_TRACKER,
+                    new LodestoneTracker(Optional.of(GlobalPos.of(level.dimension(), sanctum)), false));
+            int d = (int) Math.sqrt(player.blockPosition().distSqr(new BlockPos(sanctum.getX(), player.getBlockY(), sanctum.getZ())));
+            player.displayClientMessage(Component.translatable("item.bloodmoon.end_compass.found_sanctum", d)
+                    .withStyle(ChatFormatting.LIGHT_PURPLE), true);
+            level.playSound(null, player.blockPosition(), SoundEvents.LODESTONE_COMPASS_LOCK, SoundSource.PLAYERS, 1F, 0.4F);
+            return InteractionResultHolder.success(stack);
+        }
         if (level.dimension() != Level.OVERWORLD) {
             player.displayClientMessage(Component.translatable("item.bloodmoon.end_compass.wrong_dimension")
                     .withStyle(ChatFormatting.DARK_PURPLE), true);

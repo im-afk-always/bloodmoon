@@ -95,6 +95,8 @@ public class LabyrinthSky extends DimensionSpecialEffects {
         }
         draw(bb);
 
+        EyeFightFx.renderSky(modelViewMatrix, time, partialTick);
+
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableBlend();
         RenderSystem.enableCull();

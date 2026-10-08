@@ -39,6 +39,7 @@ public final class SmokeTest {
         try {
             ok &= labyrinth(server);
             ok &= coliseum(server);
+            ok &= sanctum(server);
         } catch (Throwable t) {
             BloodMoonMod.LOGGER.error("SMOKETEST FAIL exception", t);
             ok = false;
@@ -68,6 +69,50 @@ public final class SmokeTest {
         boolean ok = counts.keySet().stream().anyMatch(k -> k.contains("deepslate")) && counts.size() > 2;
         if (!ok) BloodMoonMod.LOGGER.error("SMOKETEST FAIL labyrinth looks empty");
         return ok;
+    }
+
+    /** Santuario del Ojo: la arena se genera y el Observador puede despertar y tickear. */
+    private static boolean sanctum(MinecraftServer server) {
+        ServerLevel lab = server.getLevel(ModDimensions.VOID_LABYRINTH);
+        if (lab == null) return false;
+        BlockPos c = com.agustin.bloodmoon.world.EyeSanctums.nearest(lab, BlockPos.ZERO);
+        if (c == null) {
+            BloodMoonMod.LOGGER.error("SMOKETEST FAIL no sanctum");
+            return false;
+        }
+        long t0 = System.nanoTime();
+        for (int cx = -3; cx <= 3; cx++) for (int cz = -3; cz <= 3; cz++) lab.getChunk((c.getX() >> 4) + cx, (c.getZ() >> 4) + cz);
+        BloodMoonMod.LOGGER.info("SMOKETEST sanctum at {} chunks in {} ms", c, (System.nanoTime() - t0) / 1_000_000);
+        int F = LabyrinthDesign.FLOOR;
+        BlockState floor = lab.getBlockState(new BlockPos(c.getX() + 20, F - 1, c.getZ() + 3));
+        BlockState seal = lab.getBlockState(new BlockPos(c.getX(), F + 1, c.getZ()));
+        BlockState abyss = lab.getBlockState(new BlockPos(c.getX() + 60, F - 1, c.getZ() + 20));
+        int pillars = 0;
+        for (int k = 0; k < 8; k++) {
+            double a = Math.toRadians(22.5 + 45 * k);
+            BlockPos p = new BlockPos((int) Math.floor(c.getX() + Math.cos(a) * 30), F + 3, (int) Math.floor(c.getZ() + Math.sin(a) * 30));
+            if (!lab.getBlockState(p).isAir()) pillars++;
+        }
+        BloodMoonMod.LOGGER.info("SMOKETEST sanctum floor={} seal={} abyss={} pillars={}", floor, seal, abyss, pillars);
+        if (floor.isAir() || !seal.is(ModBlocks.VOID_BLOCK.get()) || !abyss.isAir() || pillars < 5) {
+            BloodMoonMod.LOGGER.error("SMOKETEST FAIL sanctum layout");
+            return false;
+        }
+        var home = net.minecraft.world.phys.Vec3.atBottomCenterOf(new BlockPos(c.getX(), F, c.getZ()));
+        var eye = com.agustin.bloodmoon.world.EyeSanctums.spawn(lab, home);
+        if (eye == null || !eye.isAlive()) {
+            BloodMoonMod.LOGGER.error("SMOKETEST FAIL eye spawn");
+            return false;
+        }
+        for (int i = 0; i < 5; i++) eye.tick();
+        var tentacle = com.agustin.bloodmoon.entity.ModEntities.EYE_TENTACLE.get().create(lab);
+        tentacle.moveTo(home.x + 20, F, home.z);
+        lab.addFreshEntity(tentacle);
+        for (int i = 0; i < 30; i++) tentacle.tick();
+        BloodMoonMod.LOGGER.info("SMOKETEST eye state={} y={} tentacle ext={}", eye.getState(), eye.getY(), tentacle.extension(0F));
+        eye.discard();
+        tentacle.discard();
+        return true;
     }
 
     private static boolean coliseum(MinecraftServer server) {

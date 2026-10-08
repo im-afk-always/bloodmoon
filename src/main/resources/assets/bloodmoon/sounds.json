@@ -15,5 +15,91 @@
         "name": "bloodmoon:supernova_charge"
       }
     ]
+  },
+  "eye_awaken": {
+    "subtitle": "bloodmoon.subtitle.eye_awaken",
+    "sounds": [
+      {
+        "name": "bloodmoon:eye_awaken",
+        "stream": true
+      }
+    ]
+  },
+  "eye_scream": {
+    "subtitle": "bloodmoon.subtitle.eye_scream",
+    "sounds": [
+      {
+        "name": "bloodmoon:eye_scream",
+        "stream": false
+      }
+    ]
+  },
+  "eye_charge": {
+    "subtitle": "bloodmoon.subtitle.eye_charge",
+    "sounds": [
+      {
+        "name": "bloodmoon:eye_charge",
+        "stream": false
+      }
+    ]
+  },
+  "eye_beam": {
+    "subtitle": "bloodmoon.subtitle.eye_beam",
+    "sounds": [
+      {
+        "name": "bloodmoon:eye_beam",
+        "stream": false
+      }
+    ]
+  },
+  "eye_whisper": {
+    "subtitle": "bloodmoon.subtitle.eye_whisper",
+    "sounds": [
+      {
+        "name": "bloodmoon:eye_whisper1"
+      },
+      {
+        "name": "bloodmoon:eye_whisper2"
+      },
+      {
+        "name": "bloodmoon:eye_whisper3"
+      }
+    ]
+  },
+  "eye_pulse": {
+    "subtitle": "bloodmoon.subtitle.eye_pulse",
+    "sounds": [
+      {
+        "name": "bloodmoon:eye_pulse",
+        "stream": false
+      }
+    ]
+  },
+  "eye_wave": {
+    "subtitle": "bloodmoon.subtitle.eye_wave",
+    "sounds": [
+      {
+        "name": "bloodmoon:eye_wave",
+        "stream": false
+      }
+    ]
+  },
+  "eye_implode": {
+    "subtitle": "bloodmoon.subtitle.eye_implode",
+    "sounds": [
+      {
+        "name": "bloodmoon:eye_implode",
+        "stream": true
+      }
+    ]
+  },
+  "eye_tentacle": {
+    "subtitle": "bloodmoon.subtitle.eye_tentacle",
+    "sounds": [
+      {
+        "name": "bloodmoon:eye_tentacle",
+        "stream": false
+      }
+    ]
   }
 }

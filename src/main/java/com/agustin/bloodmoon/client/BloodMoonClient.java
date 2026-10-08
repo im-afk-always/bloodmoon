@@ -52,6 +52,7 @@ public class BloodMoonClient {
         modBus.addListener(SupernovaFx::onRegisterProviders);
         SupernovaFx.init();
         IntroEye.init();
+        EyeFightFx.init();
 
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onFogColor);
@@ -63,6 +64,9 @@ public class BloodMoonClient {
         NeoForge.EVENT_BUS.addListener(NukeClouds::onCameraAngles);
         NeoForge.EVENT_BUS.addListener(SupernovaFx::onFogColor);
         NeoForge.EVENT_BUS.addListener(SupernovaFx::onCameraAngles);
+        NeoForge.EVENT_BUS.addListener(EyeFightFx::onCameraAngles);
+        NeoForge.EVENT_BUS.addListener(EyeFightFx::onFov);
+        NeoForge.EVENT_BUS.addListener(EyeFightFx::onFogColor);
     }
 
     private static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
@@ -74,6 +78,9 @@ public class BloodMoonClient {
         event.registerEntityRenderer(ModEntities.SOUL_CHARGE.get(), SoulChargeRenderer::new);
         event.registerEntityRenderer(ModEntities.VOID_SENTINEL.get(), VoidSkeletonRenderer::new);
         event.registerEntityRenderer(ModEntities.VOID_ARCHER.get(), VoidSkeletonRenderer::new);
+        event.registerEntityRenderer(ModEntities.VOID_EYE.get(), VoidEyeRenderer::new);
+        event.registerEntityRenderer(ModEntities.EYE_TENTACLE.get(), EyeTentacleRenderer::new);
+        event.registerEntityRenderer(ModEntities.WATCHER_EYE.get(), WatcherEyeRenderer::new);
     }
 
     private static void onRegisterLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
@@ -97,7 +104,10 @@ public class BloodMoonClient {
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "astral_burn"), AstralFlameRenderer::renderOverlay);
         event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "nuke_flash"), NukeClouds::renderFlash);
+        event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
+                ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "eye_madness"), EyeFightFx::renderMadness);
         event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "supernova"), SupernovaFx::renderOverlay);
+        event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "eye_title"), EyeFightFx::renderTitle);
         event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "intro_eye"), IntroEye::render);
     }
 
@@ -124,6 +134,7 @@ public class BloodMoonClient {
         NukeClouds.tick();
         SupernovaFx.tick();
         IntroEye.tick();
+        EyeFightFx.tick();
     }
 
     /** El color de niebla es también el del horizonte: oscuro con el tinte de cada luna. */
@@ -144,6 +155,7 @@ public class BloodMoonClient {
         NukeClouds.reset();
         SupernovaFx.reset();
         IntroEye.reset();
+        EyeFightFx.reset();
         TintedTextures.invalidate();
     }
 

@@ -27,6 +27,7 @@ public final class BloodMoonConfig {
     public static final ModConfigSpec.DoubleValue DRAGON_SCALE;
     public static final ModConfigSpec.DoubleValue DRAGON_CHARGE_POWER;
     public static final ModConfigSpec.IntValue SUPERNOVA_CRATER_DEPTH;
+    public static final ModConfigSpec.IntValue EYE_RESPAWN_DAYS;
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
@@ -77,6 +78,11 @@ public final class BloodMoonConfig {
         SUPERNOVA_CRATER_DEPTH = b.comment("Profundidad (= radio) del cráter semiesférico que deja la supernova al morir el dragón. 0 = sin cráter.",
                         "Ignora mobGriefing. 100 bloques mueve ~2 millones de bloques: se excava en ~7 s para no congelar el servidor.")
                 .defineInRange("supernovaCraterDepth", 100, 0, 160);
+        b.pop();
+
+        b.push("observer");
+        EYE_RESPAWN_DAYS = b.comment("Días de juego que duerme un Santuario del Ojo después de derrotar al Observador.")
+                .defineInRange("eyeRespawnDays", 3, 0, 365);
         b.pop();
 
         SPEC = b.build();

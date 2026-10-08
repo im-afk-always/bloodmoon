@@ -15,6 +15,17 @@ public final class ModSounds {
     /** La luz colapsando en un punto, justo antes del estallido. */
     public static final DeferredHolder<SoundEvent, SoundEvent> SUPERNOVA_CHARGE = register("supernova_charge");
 
+    // El Observador
+    public static final DeferredHolder<SoundEvent, SoundEvent> EYE_AWAKEN = register("eye_awaken");
+    public static final DeferredHolder<SoundEvent, SoundEvent> EYE_SCREAM = register("eye_scream");
+    public static final DeferredHolder<SoundEvent, SoundEvent> EYE_CHARGE = register("eye_charge");
+    public static final DeferredHolder<SoundEvent, SoundEvent> EYE_BEAM = register("eye_beam");
+    public static final DeferredHolder<SoundEvent, SoundEvent> EYE_WHISPER = register("eye_whisper");
+    public static final DeferredHolder<SoundEvent, SoundEvent> EYE_PULSE = register("eye_pulse");
+    public static final DeferredHolder<SoundEvent, SoundEvent> EYE_WAVE = register("eye_wave");
+    public static final DeferredHolder<SoundEvent, SoundEvent> EYE_IMPLODE = register("eye_implode");
+    public static final DeferredHolder<SoundEvent, SoundEvent> EYE_TENTACLE = register("eye_tentacle");
+
     private static DeferredHolder<SoundEvent, SoundEvent> register(String name) {
         return SOUNDS.register(name, () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, name)));
     }

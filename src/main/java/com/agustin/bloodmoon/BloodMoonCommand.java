@@ -20,6 +20,8 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /bloodmoon summon dragon               -> el Dragón de la Primera Alma desciende sobre vos
  * /bloodmoon summon emissary|executioner -> invoca un caballero del Vacío donde estás (no se retira al amanecer)
  * /bloodmoon locate coliseum             -> Coliseo del Vacío más cercano (clic para teletransportarte)
+ * /bloodmoon summon eye                  -> el Observador despierta sobre vos (su estrado = donde estás parado)
+ * /bloodmoon locate sanctum              -> Santuario del Ojo más cercano (en el Laberinto del Vacío)
  * Requiere permiso 2 (OP / trucos activados).
  */
 public final class BloodMoonCommand {
@@ -43,13 +45,16 @@ public final class BloodMoonCommand {
                         .then(Commands.literal("rider").executes(BloodMoonCommand::summonRider))
                         .then(Commands.literal("emissary").executes(ctx -> summonKnight(ctx, false)))
                         .then(Commands.literal("executioner").executes(ctx -> summonKnight(ctx, true)))
-                        .then(Commands.literal("dragon").executes(BloodMoonCommand::summonDragon)))
+                        .then(Commands.literal("dragon").executes(BloodMoonCommand::summonDragon))
+                        .then(Commands.literal("eye").executes(BloodMoonCommand::summonEye)))
                 .then(Commands.literal("intro").executes(ctx -> {
                     net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(ctx.getSource().getPlayerOrException(),
                             new com.agustin.bloodmoon.network.IntroPayload());
                     return 1;
                 }))
-                .then(Commands.literal("locate").then(Commands.literal("coliseum").executes(BloodMoonCommand::locateColiseum))));
+                .then(Commands.literal("locate")
+                        .then(Commands.literal("coliseum").executes(BloodMoonCommand::locateColiseum))
+                        .then(Commands.literal("sanctum").executes(BloodMoonCommand::locateSanctum))));
     }
 
     private static Component moonName(MoonType type) {
@@ -127,6 +132,39 @@ public final class BloodMoonCommand {
         boolean ok = BloodMoonManager.spawnSoulDragon(src.getLevel(), src.getPosition(), false) != null;
         src.sendSuccess(() -> Component.translatable(ok ? "bloodmoon.command.summon.dragon" : "bloodmoon.command.summon.fail"), true);
         return ok ? 1 : 0;
+    }
+
+    private static int summonEye(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack src = ctx.getSource();
+        boolean ok = com.agustin.bloodmoon.world.EyeSanctums.spawn(src.getLevel(), src.getPosition()) != null;
+        src.sendSuccess(() -> Component.translatable(ok ? "bloodmoon.command.summon.eye" : "bloodmoon.command.summon.fail"), true);
+        return ok ? 1 : 0;
+    }
+
+    private static int locateSanctum(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack src = ctx.getSource();
+        ServerLevel lab = src.getServer().getLevel(com.agustin.bloodmoon.registry.ModDimensions.VOID_LABYRINTH);
+        if (lab == null) {
+            src.sendFailure(Component.translatable("bloodmoon.command.locate.none"));
+            return 0;
+        }
+        BlockPos from = BlockPos.containing(src.getPosition());
+        BlockPos c = com.agustin.bloodmoon.world.EyeSanctums.nearest(lab, from);
+        if (c == null) {
+            src.sendFailure(Component.translatable("bloodmoon.command.locate.none"));
+            return 0;
+        }
+        int dist = (int) Math.sqrt(from.distSqr(new BlockPos(c.getX(), from.getY(), c.getZ())));
+        String dim = lab.dimension().location().toString();
+        Component coords = net.minecraft.network.chat.ComponentUtils.wrapInSquareBrackets(
+                Component.literal(c.getX() + ", " + c.getY() + ", " + c.getZ())).withStyle(style -> style
+                .withColor(net.minecraft.ChatFormatting.GREEN)
+                .withClickEvent(new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.SUGGEST_COMMAND,
+                        "/execute in " + dim + " run tp @s " + (c.getX() + 94) + " " + c.getY() + " " + c.getZ()))
+                .withHoverEvent(new net.minecraft.network.chat.HoverEvent(net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT,
+                        Component.translatable("chat.coordinates.tooltip"))));
+        src.sendSuccess(() -> Component.translatable("bloodmoon.command.locate.sanctum", coords, dist), false);
+        return 1;
     }
 
     private static int summonRider(CommandContext<CommandSourceStack> ctx) {
