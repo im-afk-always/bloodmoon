@@ -141,7 +141,7 @@ public final class SmokeTest {
         b.addFreshEntity(boss);
         for (int i = 0; i < 5; i++) boss.tick();
         // agujero del Ojo Colosal
-        BlockPos hole = new BlockPos(c[0] + 60, F - 1, c[1]);
+        BlockPos hole = new BlockPos(c[0], F - 1, c[1] + 25);
         com.agustin.bloodmoon.world.BeyondHoles.start(b, hole, 20F);
         for (int i = 0; i < 40; i++) com.agustin.bloodmoon.world.BeyondHoles.tick(b);
         boolean through = b.getBlockState(hole.atY(5)).isAir() && b.getBlockState(hole.atY(F - 1)).isAir()
