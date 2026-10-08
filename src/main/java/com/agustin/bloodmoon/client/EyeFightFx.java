@@ -202,6 +202,12 @@ public final class EyeFightFx {
                 case com.agustin.bloodmoon.entity.UnboundObserver.S_EMERGE -> shake = Math.max(shake, 0.5F * (age < 125 ? 1F : 0F));
                 case com.agustin.bloodmoon.entity.UnboundObserver.S_MAW -> { if (age > com.agustin.bloodmoon.entity.UnboundObserver.MAW_OPEN) shake = Math.max(shake, 0.35F); }
                 case com.agustin.bloodmoon.entity.UnboundObserver.S_TEARS, com.agustin.bloodmoon.entity.UnboundObserver.S_TITAN -> shake = Math.max(shake, 0.2F);
+                case com.agustin.bloodmoon.entity.UnboundObserver.S_JUDGMENT -> {
+                    int C = com.agustin.bloodmoon.entity.UnboundObserver.J_CHARGE, F = com.agustin.bloodmoon.entity.UnboundObserver.J_FIRE;
+                    if (age < C) shake = Math.max(shake, 0.1F + 0.6F * age / C);
+                    else if (age < C + F) shake = Math.max(shake, 0.85F);
+                    if (age >= C && age < C + 1) { flash = Math.max(flash, 0.7F); shake = Math.max(shake, 2.2F); }
+                }
                 default -> {}
             }
             if (eye.isDeadOrDying()) shake = Math.max(shake, 0.2F + 0.8F * eye.deathTime / (float) VoidEye.DEATH_TICKS);

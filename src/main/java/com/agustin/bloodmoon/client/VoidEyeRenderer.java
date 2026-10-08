@@ -87,6 +87,7 @@ public class VoidEyeRenderer<T extends VoidEye> extends EntityRenderer<T> {
             case VoidEye.S_AWAKEN -> smooth((age - 105) / 45F);
             case UnboundObserver.S_EMERGE -> smooth((age - 90) / 40F);
             case UnboundObserver.S_MAW -> 1.15F;
+            case UnboundObserver.S_JUDGMENT -> age < UnboundObserver.J_CHARGE ? Mth.lerp(smooth(age / 15F), 1F, 0.6F) : 1.18F;
             case VoidEye.S_GAZE_CHARGE, VoidEye.S_SWEEP_CHARGE -> Mth.lerp(smooth(age / 10F), 1F, 0.55F);   // entrecierra: apunta
             case VoidEye.S_GAZE, VoidEye.S_SWEEP, VoidEye.S_SCREAM -> 1.12F;
             case VoidEye.S_EXPOSED -> 0.72F + 0.06F * Mth.sin(t * 0.15F);
@@ -111,6 +112,9 @@ public class VoidEyeRenderer<T extends VoidEye> extends EntityRenderer<T> {
             case VoidEye.S_AWAKEN -> new float[]{0.12F, 0.36F};
             case UnboundObserver.S_MAW -> new float[]{Mth.lerp(smooth(age / UnboundObserver.MAW_OPEN), 0.08F, 0.46F), Mth.lerp(smooth(age / UnboundObserver.MAW_OPEN), 0.37F, 0.46F)};
             case UnboundObserver.S_FIST, UnboundObserver.S_TITAN -> new float[]{0.03F, 0.42F};
+            case UnboundObserver.S_JUDGMENT -> age < UnboundObserver.J_CHARGE
+                    ? new float[]{Mth.lerp(smooth(age / 20F), 0.07F, 0.022F), 0.43F}
+                    : new float[]{Mth.lerp(smooth((age - UnboundObserver.J_CHARGE) / 4F), 0.022F, 0.24F), 0.4F};
             default -> new float[]{0.075F * breathe, 0.37F};
         };
     }
@@ -124,6 +128,7 @@ public class VoidEyeRenderer<T extends VoidEye> extends EntityRenderer<T> {
             case VoidEye.S_AWAKEN -> 0.15F + 0.75F * smooth((age - 90) / 60F);
             case VoidEye.S_GAZE_CHARGE, VoidEye.S_SWEEP_CHARGE -> 0.6F + 0.4F * smooth(age / 25F) + 0.1F * Mth.sin(t * 1.4F);
             case VoidEye.S_GAZE, VoidEye.S_SWEEP, VoidEye.S_SCREAM -> 1F;
+            case UnboundObserver.S_JUDGMENT -> age < UnboundObserver.J_CHARGE ? 0.6F + 0.4F * smooth(age / 40F) + 0.15F * Mth.sin(t * 1.8F) : 1.1F;
             case VoidEye.S_EXPOSED -> 0.35F + 0.35F * Math.max(0F, Mth.sin(t * 0.31F));
             default -> 0.62F + 0.08F * Mth.sin(t * 0.08F);
         };
@@ -154,6 +159,8 @@ public class VoidEyeRenderer<T extends VoidEye> extends EntityRenderer<T> {
             scale = 1F - smooth((d - (VoidEye.DEATH_TICKS - 28)) / 26F) * 0.97F;
         } else if (e.getState() == VoidEye.S_SCREAM) {
             shake = 0.35F;
+        } else if (unbound && e.getState() == UnboundObserver.S_JUDGMENT) {
+            shake = age < UnboundObserver.J_CHARGE ? 0.25F * smooth(age / UnboundObserver.J_CHARGE) : 0.3F;
         } else if (e.getState() == VoidEye.S_AWAKEN && age > 60) {
             shake = 0.12F * smooth((age - 60) / 60F);
         }
@@ -187,7 +194,7 @@ public class VoidEyeRenderer<T extends VoidEye> extends EntityRenderer<T> {
         sphere(pose, buf.getBuffer(RenderType.entityCutoutNoCull(BALL)), R, FULL, overlay, 1F, 1F, 1F);
         sphere(pose, buf.getBuffer(RenderType.eyes(BALL_GLOW)), R * 1.001F, FULL, overlay, gl[0], gl[1], gl[2]);
         pupilCap(pose, buf.getBuffer(RenderType.entityCutoutNoCull(PUPIL)), R * 1.004F, pu[0], pu[1], 0F, 1F, FULL, overlay, 1F, 1F, 1F);
-        if (e.isBeamState()) {   // borde incandescente de la pupila mientras apunta y dispara
+        if (e.isBeamState() || (unbound && e.getState() == UnboundObserver.S_JUDGMENT)) {   // borde incandescente de la pupila mientras apunta y dispara
             float k = e.isFiring() ? 1F : smooth(age / 20F);
             pupilCap(pose, buf.getBuffer(RenderType.eyes(WHITE)), R * 1.005F, pu[0], pu[1], 1F, 1.9F, FULL, overlay, k, 0.55F * k, k);
         }
@@ -213,6 +220,8 @@ public class VoidEyeRenderer<T extends VoidEye> extends EntityRenderer<T> {
 
         // ---------------- ataques en coordenadas del mundo (relativas a la entidad)
         if (e.isBeamState() && !e.isDeadOrDying()) renderBeam(e, ps, buf, pt, t, age, origin, camRel);
+        if (unbound && e.getState() == UnboundObserver.S_JUDGMENT && !e.isDeadOrDying())
+            UnboundExtras.renderJudgment((UnboundObserver) e, ps, buf, t, age, origin, this.entityRenderDispatcher.cameraOrientation());
         int s = e.getState();
         if (s == VoidEye.S_PULL || (s == VoidEye.S_WAVE && age < 12)) renderVortex(e, ps, buf, t, age, origin);
         if (s == VoidEye.S_WAVE) renderWave(e, ps, buf, age, origin);

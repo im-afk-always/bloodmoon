@@ -4,6 +4,7 @@ import com.agustin.bloodmoon.network.EyeTitlePayload;
 import com.agustin.bloodmoon.registry.ModBlocks;
 import com.agustin.bloodmoon.registry.ModDimensions;
 import com.agustin.bloodmoon.registry.ModSounds;
+import com.agustin.bloodmoon.world.BeyondHoles;
 import com.agustin.bloodmoon.world.BeyondRift;
 import com.agustin.bloodmoon.world.EyeSanctums;
 import net.minecraft.ChatFormatting;
@@ -28,6 +29,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -43,12 +45,19 @@ import java.util.List;
  * - Tentáculos del Abismo y Ojos Vigías.
  * - Definitivos (se turnan): Ojo Colosal, Tentáculo Titánico, Las Fauces (la pupila traga el piso) y Lágrimas del Cielo
  *   (meteoros que, al tocar el suelo, se encienden, colapsan y estallan como pequeñas supernovas).
- * - Tras el Ojo Colosal y las Fauces baja exhausto (vulnerable). Al 50% grita y todo se acelera.
+ * - Tras el Ojo Colosal y las Fauces baja exhausto (vulnerable). Al 50% grita, invoca la Palma y todo se acelera.
+ * - Juicio Final (una vez, al 20%): anillos que concentran su poder y un rayo colosal desde su propio ojo que
+ *   persigue a un jugador más lento de lo que se corre, abriendo una zanja hasta el vacío.
  * - Al morir implosiona y todos vuelven al Santuario con el botín.
  */
 public class UnboundObserver extends VoidEye {
     public static final String UNBOUND_KEY = "entity.bloodmoon.unbound_observer";
-    public static final int S_EMERGE = 20, S_FIST = 21, S_COLOSSAL = 22, S_TITAN = 23, S_MAW = 24, S_TEARS = 25;
+    public static final int S_EMERGE = 20, S_FIST = 21, S_COLOSSAL = 22, S_TITAN = 23, S_MAW = 24, S_TEARS = 25, S_JUDGMENT = 26;
+    /** Juicio Final (una sola vez, al 20%): carga, dispara un rayo colosal desde su propio ojo que persigue despacio, y se apaga. */
+    public static final int J_CHARGE = 90, J_FIRE = 180, J_FADE = 20, J_TICKS = J_CHARGE + J_FIRE + J_FADE;
+    public static final float J_R = 11F;
+    /** Bloques por tick: caminando apenas se escapa (0.216), corriendo sí (0.28). */
+    private static final double J_CHASE = 0.12;
     public static final int TITAN_TICKS = 40, MAW_OPEN = 30, MAW_TICKS = 150, TEARS_TICKS = 100, FIST_TICKS = 30;
     public static final int EMERGE_TICKS = 150, COLOSSAL_TICKS = 40, EXPOSED_TICKS = 110, RETURN_DELAY = 40, BIG_GAZE_TICKS = 64;
     public static final float EYE_R = 16F;
@@ -58,7 +67,9 @@ public class UnboundObserver extends VoidEye {
 
     private int colossalCd = 120;
     private int lastUltimate = -1;
-    private boolean palmDone;
+    private boolean palmDone, judgmentDone;
+    private Vec3 jAim = Vec3.ZERO, jLastHole;
+    private int jTarget = -1;
     private int palmTimer;
     private final java.util.List<net.minecraft.world.entity.item.FallingBlockEntity> torn = new java.util.ArrayList<>();
     private ResourceKey<Level> returnDim;
@@ -133,6 +144,13 @@ public class UnboundObserver extends VoidEye {
             setState(S_SCREAM, arena);
             state = S_SCREAM;
         }
+        if (!judgmentDone && getPhase() >= 5 && getHealth() <= getMaxHealth() * 0.2F && palmTimer <= 0
+                && (state == S_IDLE || state == S_GAZE_CHARGE || state == S_FIST || state == S_TENTACLES || state == S_WATCHERS
+                || state == S_EXPOSED)) {
+            judgmentDone = true;
+            setState(S_JUDGMENT, arena);
+            state = S_JUDGMENT;
+        }
         LivingEntity target = pickTarget(arena);
         updateMadness(sl, arena);
         if (palmTimer > 0) palmTimer--;
@@ -187,6 +205,7 @@ public class UnboundObserver extends VoidEye {
             case S_TITAN -> tickTitan(sl, arena);
             case S_MAW -> tickMaw(sl, arena);
             case S_TEARS -> tickTears(sl, arena);
+            case S_JUDGMENT -> tickJudgment(sl, arena);
             case S_EXPOSED -> {
                 lookAt(center().add(dirFrom(lookYaw(), 35F).scale(20)), 1.5F);
                 if (tickCount % 20 == 0) playSound(SoundEvents.WARDEN_HEARTBEAT, 10F, 0.35F);
@@ -268,6 +287,18 @@ public class UnboundObserver extends VoidEye {
         } else if (s == S_COLOSSAL) {
             playSound(ModSounds.EYE_SCREAM.get(), 14F, 0.4F);
             playSound(ModSounds.EYE_AWAKEN.get(), 14F, 1.3F);
+        } else if (s == S_JUDGMENT) {
+            List<ServerPlayer> valid = arena.stream().filter(p -> !p.isCreative()).toList();
+            LivingEntity t = valid.isEmpty() ? target : valid.get(random.nextInt(valid.size()));
+            jTarget = t.getId();
+            jAim = new Vec3(t.getX(), getHome().y, t.getZ());
+            jLastHole = null;
+            entityData.set(DATA_BEAM, new org.joml.Vector3f((float) jAim.x, (float) jAim.y, (float) jAim.z));
+            playSound(ModSounds.EYE_SCREAM.get(), 20F, 0.3F);
+            playSound(ModSounds.EYE_CHARGE.get(), 20F, 0.35F);
+            playSound(SoundEvents.BEACON_POWER_SELECT, 16F, 0.4F);
+            Component msg = Component.translatable("bloodmoon.judgment.warning").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD);
+            for (ServerPlayer p : arena) p.displayClientMessage(msg, false);
         }
     }
 
@@ -280,11 +311,12 @@ public class UnboundObserver extends VoidEye {
         double y;
         if (s == S_EMERGE) y = Mth.lerp(Math.min(1.0, stateTick / (double) (EMERGE_TICKS - 30)), h.y + 150, h.y + HOVER);
         else if (s == S_EXPOSED) y = h.y + 1.5;
+        else if (s == S_JUDGMENT) y = h.y + HOVER + 12;
         else if (s == S_SCREAM || s == S_TEARS || s == S_COLOSSAL) y = h.y + HOVER + 6;
         else y = h.y + HOVER;
         y += (s == S_EXPOSED ? 0.3 : 1.2) * Math.sin(tickCount * 0.04);
         double x = getX(), z = getZ();
-        if (target != null && s != S_EXPOSED && s != S_MAW && s != S_EMERGE && !isBeamState()) {
+        if (target != null && s != S_EXPOSED && s != S_MAW && s != S_EMERGE && s != S_JUDGMENT && !isBeamState()) {
             double dx = target.getX() - x, dz = target.getZ() - z, d = Math.sqrt(dx * dx + dz * dz);
             if (d > 26) {
                 double step = SPEED * (getPhase() >= 5 ? 1.3 : 1);
@@ -507,6 +539,73 @@ public class UnboundObserver extends VoidEye {
         if (stateTick >= TEARS_TICKS) setIdle(20);
     }
 
+    // ------------------------------------------------------------------ Juicio Final: el rayo colosal desde su propio ojo
+
+    public boolean isJudgmentFiring() {
+        return getState() == S_JUDGMENT && stateTick >= J_CHARGE && stateTick < J_CHARGE + J_FIRE;
+    }
+
+    private void tickJudgment(ServerLevel sl, List<ServerPlayer> arena) {
+        Entity te = sl.getEntity(jTarget);
+        LivingEntity tgt = te instanceof ServerPlayer p && p.isAlive() && arena.contains(p) && !p.isCreative() ? p : null;
+        if (tgt == null && !arena.isEmpty()) {
+            tgt = pickTarget(arena);
+            jTarget = tgt.getId();
+        }
+        Vec3 h = getHome();
+        // el punto de impacto persigue al objetivo, más lento que correr
+        if (tgt != null && stateTick < J_CHARGE + J_FIRE) {
+            Vec3 want = new Vec3(tgt.getX(), h.y, tgt.getZ());
+            Vec3 d = want.subtract(jAim);
+            double len = d.length();
+            if (len > 1e-3) jAim = jAim.add(d.scale(Math.min(J_CHASE, len) / len));
+        }
+        beamAim = jAim;
+        entityData.set(DATA_BEAM, new org.joml.Vector3f((float) jAim.x, (float) jAim.y, (float) jAim.z));
+        lookAt(jAim, 8F);
+        Vec3 c = center();
+
+        if (stateTick < J_CHARGE) {
+            if (stateTick % 20 == 0) playSound(SoundEvents.WARDEN_HEARTBEAT, 18F, 0.35F + stateTick / 200F);
+            if (stateTick == J_CHARGE - 40) playSound(ModSounds.SUPERNOVA_CHARGE.get(), 20F, 0.5F);
+            if (stateTick % 3 == 0) sl.sendParticles(ParticleTypes.REVERSE_PORTAL, c.x, c.y, c.z, 40, EYE_R * 1.4, EYE_R * 1.4, EYE_R * 1.4, 0.9);
+        }
+        if (stateTick == J_CHARGE) {
+            playSound(ModSounds.SUPERNOVA_BLAST.get(), 24F, 0.6F);
+            playSound(ModSounds.EYE_BEAM.get(), 24F, 0.4F);
+        }
+        if (isJudgmentFiring()) {
+            int ft = stateTick - J_CHARGE;
+            if (ft % 25 == 0) playSound(ModSounds.EYE_BEAM.get(), 22F, 0.4F);
+            if (ft % 5 == 0) judgmentBurn(sl, c);
+            if (canMelt(sl) && (jLastHole == null || jLastHole.distanceTo(jAim) >= 7)) {
+                BeyondHoles.start(sl, BlockPos.containing(jAim.x, h.y - 1, jAim.z), J_R);
+                jLastHole = jAim;
+            }
+            if (stateTick % 2 == 0) sl.sendParticles(ParticleTypes.EXPLOSION, jAim.x, h.y + 1, jAim.z, 5, J_R * 0.5, 1, J_R * 0.5, 0);
+            if (stateTick % 3 == 0) sl.sendParticles(ParticleTypes.END_ROD, jAim.x, h.y + 2, jAim.z, 30, J_R * 0.4, 2, J_R * 0.4, 0.6);
+        }
+        if (stateTick >= J_TICKS) setState(S_EXPOSED, arena);
+    }
+
+    private void judgmentBurn(ServerLevel sl, Vec3 eye) {
+        Vec3 h = getHome();
+        AABB box = new AABB(Math.min(jAim.x, eye.x) - J_R, h.y - 60, Math.min(jAim.z, eye.z) - J_R,
+                Math.max(jAim.x, eye.x) + J_R, eye.y + J_R, Math.max(jAim.z, eye.z) + J_R);
+        for (LivingEntity e : sl.getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && !ally(e))) {
+            if (e instanceof net.minecraft.world.entity.player.Player p && (p.isCreative() || p.isSpectator())) continue;
+            Vec3 ec = e.position().add(0, e.getBbHeight() / 2, 0);
+            double dx = e.getX() - jAim.x, dz = e.getZ() - jAim.z;
+            boolean inColumn = dx * dx + dz * dz <= (J_R + 0.5) * (J_R + 0.5) && e.getY() < h.y + 6;
+            if (!inColumn && distToSegment(ec, eye, jAim) > J_R * 0.8) continue;
+            e.hurt(damageSources().indirectMagic(this, this), 28F);
+            e.addEffect(new net.minecraft.world.effect.MobEffectInstance(com.agustin.bloodmoon.registry.ModEffects.ASTRAL_BURN, 80, 1), this);
+            e.setDeltaMovement(e.getDeltaMovement().multiply(0.5, 1, 0.5).add(0, -0.3, 0));
+            e.hurtMarked = true;
+            if (e instanceof ServerPlayer p) addMadness(p, 12F);
+        }
+    }
+
     /** Lo llama el Ojo Colosal cuando termina su rayo: el Desatado queda de rodillas. */
     public void onColossalFired() {
         if (isDeadOrDying() || !(level() instanceof ServerLevel sl)) return;
@@ -597,6 +696,7 @@ public class UnboundObserver extends VoidEye {
             tag.putDouble("ReturnZ", returnHome.z);
         }
         tag.putBoolean("PalmDone", palmDone);
+        tag.putBoolean("JudgmentDone", judgmentDone);
     }
 
     @Override
@@ -608,6 +708,7 @@ public class UnboundObserver extends VoidEye {
         }
         entityData.set(DATA_PHASE, (byte) Math.max(4, getPhase()));
         palmDone = tag.getBoolean("PalmDone");
+        judgmentDone = tag.getBoolean("JudgmentDone");
         bossEvent.setName(Component.translatable(UNBOUND_KEY).withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD));
     }
 }

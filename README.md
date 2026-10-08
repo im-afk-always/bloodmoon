@@ -108,6 +108,9 @@ de runas, dos cinturones de bloques (Vacío y obsidiana llorosa), un halo de mon
 - **Puño del Vacío:** de una grieta junto al Ojo brota un brazo de energía oscura que se suspende sobre vos (sello en el piso) y cae como un puño: onda y cráter. Dos en la segunda mitad.
 - Tentáculos del Abismo y Ojos Vigías. Definitivos cada ~15 s (~11 s bajo el 50%), sin repetirse:
 - **Ojo Colosal:** un ojo de 48 bloques en el cielo; un círculo te persigue, se fija y cae un rayo de 20 de radio que perfora la llanura hasta el vacío. Desde la mitad de su vida, uno de cada dos definitivos es el Ojo Colosal.
+- **Juicio Final (una sola vez, al 20%):** cinco pares de anillos mágicos concéntricos se materializan a lo largo de su mirada y
+  se cierran sobre ella durante 4,5 s; luego dispara desde su propio ojo un rayo colosal (11 de radio) que persigue a un jugador
+  a 0,12 bloques/tick —corriendo se escapa, caminando apenas— durante 9 s, abriendo una zanja hasta el vacío. Después queda expuesto.
 - **Tentáculo Titánico:** revienta el piso, se alza 70 bloques y azota a lo largo de una franja marcada, abriendo una zanja.
 - **Las Fauces:** la pupila se abre como un agujero negro y traga el piso; te arrastra (cubrite detrás de un obelisco) y termina con una expulsión.
 - **Lágrimas del Cielo:** meteoros negros enormes caen despacio; al tocar el piso no pasa nada... se enciende una luz, colapsa de golpe y estalla.
