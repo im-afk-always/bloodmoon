@@ -107,14 +107,13 @@ de runas, dos cinturones de bloques (Vacío y obsidiana llorosa), un halo de mon
 - **Mirada titánica:** rayo tres veces más ancho que funde el piso a su paso; en la segunda mitad, Barrido de 360°.
 - **Puño del Vacío:** de una grieta junto al Ojo brota un brazo de energía oscura que se suspende sobre vos (sello en el piso) y cae como un puño: onda y cráter. Dos en la segunda mitad.
 - Tentáculos del Abismo y Ojos Vigías. Definitivos cada ~15 s (~11 s bajo el 50%), sin repetirse:
-- **Ojo Colosal:** un ojo de 48 bloques en el cielo; un círculo te persigue, se fija y cae un rayo de 20 de radio que perfora la llanura hasta el vacío.
+- **Ojo Colosal:** un ojo de 48 bloques en el cielo; un círculo te persigue, se fija y cae un rayo de 20 de radio que perfora la llanura hasta el vacío. Desde la mitad de su vida, uno de cada dos definitivos es el Ojo Colosal.
 - **Tentáculo Titánico:** revienta el piso, se alza 70 bloques y azota a lo largo de una franja marcada, abriendo una zanja.
 - **Las Fauces:** la pupila se abre como un agujero negro y traga el piso; te arrastra (cubrite detrás de un obelisco) y termina con una expulsión.
 - **Lágrimas del Cielo:** meteoros negros enormes caen despacio; al tocar el piso no pasa nada... se enciende una luz, colapsa de golpe y estalla.
 **La Palma del Vacío (al 50%):** materializa en el cielo una mano de energía de ~100 bloques con un ojo en la palma;
-un contador púrpura arriba de la pantalla da 30 segundos para alejarse. Al tocar el suelo una luz intensa cubre la
-pantalla de blanco, se contrae mientras todo se oscurece, queda un punto blanco suspendido un segundo y estalla como una
-supernova: letal hasta ~75 bloques, daño hasta 150, y un muro de luz arrasa la superficie (obeliscos incluidos) sin abrir agujeros al vacío. `/bloodmoon summon palm` para probarla.
+un contador púrpura arriba de la pantalla da 30 segundos para alejarse. En los últimos 15 s la pantalla se va
+oscureciendo; al tocar el suelo, en la negrura brota de golpe la luz y estalla como una supernova: letal hasta ~75 bloques, daño hasta 150, y un muro de luz arrasa la superficie (obeliscos incluidos) sin abrir agujeros al vacío. `/bloodmoon summon palm` para probarla.
 Tras el Ojo Colosal y las Fauces baja exhausto hasta el piso (vulnerable). Al morir, todos vuelven al Santuario con el botín.
 Morir en el Más Allá no hace perder el inventario. Si pierden, el Santuario se reabre en 5 minutos.
 

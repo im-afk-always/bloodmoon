@@ -15,8 +15,8 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * La Palma del Vacío: una mano de energía oscura de ~100 bloques, palma abajo, con un ojo abierto en el centro de
- * la palma. Desciende sobre dos sellos en el piso (el borde de la onda y la zona letal); al tocar el suelo arde en
- * blanco con una columna de luz, se contrae hasta un punto y, tras el estallido, un muro de luz barre la superficie.
+ * la palma. Desciende sobre dos sellos en el piso (el borde de la onda y la zona letal); se pone incandescente al
+ * acercarse, se deshace en una columna de luz al tocar el suelo y, tras el estallido, un muro de luz barre la superficie.
  */
 public class VoidPalmRenderer extends EntityRenderer<VoidPalm> {
     private static final ResourceLocation ENERGY = VoidEyeRenderer.tex("energy"), ENERGY_GLOW = VoidEyeRenderer.tex("energy_glow"),
@@ -65,13 +65,13 @@ public class VoidPalmRenderer extends EntityRenderer<VoidPalm> {
             ps.popPose();
         }
 
-        // ---- columna de luz al tocar el suelo: crece mientras la pantalla se blanquea y se afina al contraerse
+        // ---- columna de luz que brota al tocar el suelo
         float tw = a - VoidPalm.DESCEND;
-        int W = VoidPalm.WHITE, CT = VoidPalm.CONTRACT;
+        float F = VoidPalm.FLARE;
         if (tw >= 0 && a < VoidPalm.BLAST) {
-            float col = tw < W ? VoidEyeRenderer.smooth(tw / W) : 1F - VoidEyeRenderer.smooth((tw - W) / CT) * 0.85F;
-            float wd = tw < W ? 4F + 34F * VoidEyeRenderer.smooth(tw / W) : Mth.lerp(VoidEyeRenderer.smooth((tw - W) / CT), 38F, 1.2F);
-            float c = Math.min(1F, col);
+            float col = VoidEyeRenderer.smooth(tw / F);
+            float wd = 4F + 40F * col;
+            float c = 0.4F + 0.6F * col;
             ps.pushPose();
             ps.translate(g.x, g.y, g.z);
             for (int i = 0; i < 3; i++) {
@@ -110,12 +110,11 @@ public class VoidPalmRenderer extends EntityRenderer<VoidPalm> {
             }
         }
 
-        // ---- la mano: al tocar el suelo se aplasta y arde en blanco, y luego se contrae al punto
-        float squash;
-        if (a < VoidPalm.DESCEND) squash = 1F;
-        else if (tw < W) squash = 1F - 0.35F * VoidEyeRenderer.smooth(tw / W);
-        else squash = 0.65F * (1F - VoidEyeRenderer.smooth((tw - W) / CT));
-        float white = a < VoidPalm.DESCEND ? 0F : VoidEyeRenderer.smooth(tw / W);
+        // ---- la mano: se pone incandescente al acercarse al suelo y se deshace en la luz del impacto
+        float squash = a < VoidPalm.DESCEND ? 1F : 1F - VoidEyeRenderer.smooth(tw / F);
+        float white = a < VoidPalm.DESCEND
+                ? 0.45F * VoidEyeRenderer.smooth((a - VoidPalm.DESCEND + VoidPalm.DARKEN) / VoidPalm.DARKEN)
+                : 1F;
         if (squash <= 0.01F) {
             super.render(e, entityYaw, pt, ps, buf, packedLight);
             return;

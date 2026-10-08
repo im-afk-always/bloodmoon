@@ -218,9 +218,16 @@ public class UnboundObserver extends VoidEye {
     protected void chooseAttack(List<ServerPlayer> arena, LivingEntity target) {
         if (colossalCd <= 0 && level().getEntitiesOfClass(ColossalEye.class, getBoundingBox().inflate(200, 300, 200)).isEmpty()
                 && level().getEntitiesOfClass(TitanTentacle.class, getBoundingBox().inflate(200, 100, 200)).isEmpty()) {
-            int[] ults = {S_COLOSSAL, S_TITAN, S_MAW, S_TEARS};
             int pick;
-            do pick = ults[random.nextInt(ults.length)]; while (pick == lastUltimate);
+            if (getPhase() >= 5) {
+                // desde la mitad de su vida, uno de cada dos definitivos es el Ojo Colosal (el doble que antes)
+                int[] others = {S_TITAN, S_MAW, S_TEARS};
+                if (lastUltimate != S_COLOSSAL) pick = S_COLOSSAL;
+                else pick = others[random.nextInt(others.length)];
+            } else {
+                int[] ults = {S_COLOSSAL, S_TITAN, S_MAW, S_TEARS};
+                do pick = ults[random.nextInt(ults.length)]; while (pick == lastUltimate);
+            }
             lastUltimate = pick;
             colossalCd = getPhase() >= 5 ? 220 : 300;
             setState(pick, arena);

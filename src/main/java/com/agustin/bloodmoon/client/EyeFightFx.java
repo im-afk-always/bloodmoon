@@ -148,10 +148,9 @@ public final class EyeFightFx {
             if (palmDim != null && mc.level.dimension() != palmDim) palmActive = false;
             int D = com.agustin.bloodmoon.entity.VoidPalm.DESCEND, B = com.agustin.bloodmoon.entity.VoidPalm.BLAST;
             double dist = palmPos.distanceTo(mc.player.position());
-            int W = com.agustin.bloodmoon.entity.VoidPalm.WHITE, CT = com.agustin.bloodmoon.entity.VoidPalm.CONTRACT;
-            if (palmAge >= D && palmAge < D + W) shake = Math.max(shake, 0.3F + 0.9F * (palmAge - D) / (float) W);
-            else if (palmAge >= D + W && palmAge < D + W + CT) shake = Math.max(shake, 0.5F * (1F - (palmAge - D - W) / (float) CT));
-            else if (palmAge >= D + W + CT && palmAge < B) shake = 0F; // el silencio antes del estallido
+            int DK = com.agustin.bloodmoon.entity.VoidPalm.DARKEN;
+            if (palmAge >= D - DK && palmAge < D) shake = Math.max(shake, 0.08F + 0.5F * (palmAge - D + DK) / (float) DK);
+            else if (palmAge >= D && palmAge < B) shake = Math.max(shake, 1.4F);
             if (palmAge == B) {
                 float k = (float) Math.max(0, 1 - dist / 600);
                 flash = Math.max(flash, 1.0F + 0.6F * k);
@@ -486,12 +485,38 @@ public final class EyeFightFx {
         }
     }
 
-    /** Contador de la Palma y, al tocar el suelo, la pantalla que se oscurece y se contrae hasta el impacto. */
+    /**
+     * Contador de la Palma. Durante el final del descenso la pantalla se va oscureciendo (la palma brilla en la
+     * penumbra); al tocar el suelo la pantalla está casi negra y brota de golpe la luz del impacto.
+     */
     private static void renderPalm(GuiGraphics g, float pt) {
         int w = g.guiWidth(), h = g.guiHeight();
         float a = palmAge + pt;
-        int D = com.agustin.bloodmoon.entity.VoidPalm.DESCEND, C = com.agustin.bloodmoon.entity.VoidPalm.COLLAPSE;
+        int D = com.agustin.bloodmoon.entity.VoidPalm.DESCEND, DK = com.agustin.bloodmoon.entity.VoidPalm.DARKEN,
+                B = com.agustin.bloodmoon.entity.VoidPalm.BLAST;
+        if (a >= B) return; // el estallido lo pinta el destello
         g.flush();
+        float[] ip = SupernovaFx.project(palmPos.add(0, 1, 0), w, h);
+        // 1) oscuridad creciente: lenta al principio, cerrándose en los últimos segundos
+        float k = Mth.clamp((a - (D - DK)) / DK, 0F, 1F);
+        float dark = a >= D ? 0.96F : 0.96F * (float) Math.pow(k, 1.7);
+        if (dark > 0.004F) {
+            g.fill(0, 0, w, h, ((int) (dark * 255) << 24) | 0x030006);
+            if (a < D) {
+                // la palma sigue ardiendo en la penumbra, y el punto de impacto late cada vez más fuerte
+                float hgt = com.agustin.bloodmoon.entity.VoidPalm.height(a);
+                float[] pp = SupernovaFx.project(palmPos.add(0, hgt + 6, 0), w, h);
+                if (pp != null) {
+                    float pr = Math.min(Math.max(w, h) * 1.2F, pp[2] * 55F);
+                    disc(g, pp[0], pp[1], pr, 0.15F, 0.45F * dark, 0.6F, 0.2F, 1F, true);
+                    disc(g, pp[0], pp[1], pr * 0.35F, 0.2F, 0.35F * dark, 0.9F, 0.6F, 1F, true);
+                }
+                if (ip != null) {
+                    float beat = 0.6F + 0.4F * Mth.sin(a * (0.15F + 0.5F * k));
+                    disc(g, ip[0], ip[1], Math.max(10F, ip[2] * 20F), 0F, 0.5F * dark * beat, 0.8F, 0.3F, 1F, true);
+                }
+            }
+        }
         if (a < D) {
             float left = Math.max(0F, (D - a) / 20F);
             int secs = (int) Math.ceil(left);
@@ -519,39 +544,13 @@ public final class EyeFightFx {
             g.flush();
             return;
         }
-        if (a >= C + D) return; // el estallido lo pinta el destello
-        int W = com.agustin.bloodmoon.entity.VoidPalm.WHITE, CT = com.agustin.bloodmoon.entity.VoidPalm.CONTRACT;
-        float[] p = SupernovaFx.project(palmPos.add(0, 1, 0), w, h);
-        float cx = p == null ? w / 2F : p[0], cy = p == null ? h / 2F : p[1];
-        // distancia hasta la esquina más lejana: con ese radio el disco cubre toda la pantalla
+        // 2) toca el piso: en la negrura brota de golpe la luz y en un instante lo cubre todo
+        float cx = ip == null ? w / 2F : ip[0], cy = ip == null ? h / 2F : ip[1];
         float far = (float) Math.sqrt(Math.max(cx, w - cx) * Math.max(cx, w - cx) + Math.max(cy, h - cy) * Math.max(cy, h - cy));
-        float t = a - D;
-        if (t < W) {
-            // 1) una luz intensa nace en el punto de impacto y en pocos segundos cubre la pantalla de blanco
-            float k = t / W;
-            float grow = k * k * (1.6F - 0.6F * k);          // arranca lento y se acelera
-            float r = 6F + (far * 1.35F + 40F) * grow;
-            disc(g, cx, cy, r, 0.55F, Math.min(1F, 0.35F + 0.9F * k), 1F, 0.97F, 1F, false);
-            disc(g, cx, cy, r * 0.5F + 10F, 0.2F, 0.6F * (1F - k), 0.85F, 0.55F, 1F, true);   // corona violeta
-            float veil = smooth((k - 0.7F) / 0.3F);
-            if (veil > 0.004F) g.fill(0, 0, w, h, ((int) (veil * 255) << 24) | 0xFFF8FF);
-        } else if (t < W + CT) {
-            // 2) el blanco se contrae hacia el punto y todo alrededor se oscurece
-            float k = (t - W) / CT;
-            float dark = smooth(k / 0.35F) * 0.97F;
-            if (dark > 0.004F) g.fill(0, 0, w, h, ((int) (dark * 255) << 24) | 0x020004);
-            float sk = k * k * k;                              // se cierra cada vez más rápido
-            float r = Mth.lerp(sk, far * 1.4F + 40F, 7F);
-            disc(g, cx, cy, r, 0.6F, 1F, 1F, 0.97F, 1F, false);
-            disc(g, cx, cy, r * 1.25F + 14F, 0F, 0.35F * (1F - k * 0.5F), 0.7F, 0.3F, 1F, true);
-        } else {
-            // 3) negrura y un único punto blanco, suspendido, durante un segundo
-            float k = (t - W - CT) / Math.max(1F, C - W - CT);
-            g.fill(0, 0, w, h, (int) (0.97F * 255) << 24 | 0x020004);
-            float beat = 1F + 0.18F * Mth.sin(a * 1.7F) + 0.5F * smooth((k - 0.8F) / 0.2F);
-            disc(g, cx, cy, 6.5F * beat, 0.55F, 1F, 1F, 1F, 1F, false);
-            disc(g, cx, cy, 22F * beat, 0F, 0.45F, 0.75F, 0.35F, 1F, true);
-        }
+        float t = Mth.clamp((a - D) / (B - D), 0F, 1F);
+        float r = 8F + (far * 1.5F + 40F) * t * t;
+        disc(g, cx, cy, r, 0.5F, 1F, 1F, 0.97F, 1F, false);
+        disc(g, cx, cy, r * 1.3F + 20F, 0F, 0.6F, 0.75F, 0.35F, 1F, true);
         g.flush();
     }
 
