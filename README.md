@@ -18,6 +18,12 @@ Prioridad si coinciden: Sin Luna > Súper > Sangre > Dorada.
 ## Luna de Sangre
 Mob cap de hostiles x2, rastreo x2, arañas Velocidad I, zombis Fuerza I, esqueletos 2 flechas.
 
+**Ambiente:** el mundo entero queda bañado en luz carmesí (la luz del cielo se tiñe y la luna ilumina a cielo
+abierto; las antorchas conservan su color cálido), el cielo y el horizonte se vuelven rojo sangre, la bruma empieza
+más cerca, y en vez de la luna pixelada aparece una luna realista con resplandor, corona y halo, entre nubes suaves
+que se encienden al pasar cerca de ella (reemplazan a las nubes cúbicas). En la Súper Luna, más grande e intensa.
+Con paquetes de shaders (Iris/OptiFine) el tinte de la luz puede perderse en parte.
+
 ## Súper Luna de Sangre (incluye todo lo anterior)
 - Creepers: Velocidad I, explosión x10.
 - **Cursed Creeper** (10% de los creepers naturales): cargado con aura roja, explosión x20, deja fuego, barra de jefe roja.
