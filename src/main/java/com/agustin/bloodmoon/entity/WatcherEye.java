@@ -163,6 +163,11 @@ public class WatcherEye extends Projectile {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
-        discard();   // no sobreviven a una recarga
+    }
+
+    /** No sobreviven a una recarga del mundo. */
+    @Override
+    public boolean shouldBeSaved() {
+        return false;
     }
 }

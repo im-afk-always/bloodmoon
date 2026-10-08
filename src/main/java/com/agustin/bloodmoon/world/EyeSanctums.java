@@ -61,6 +61,7 @@ public final class EyeSanctums {
             if (dx * dx + dz * dz > TRIGGER_R * TRIGGER_R) continue;
             if (p.getY() < LabyrinthDesign.FLOOR - 1 || p.getY() > LabyrinthDesign.FLOOR + 16) continue;
             Vec3 home = new Vec3(c[0] + 0.5, LabyrinthDesign.FLOOR, c[1] + 0.5);
+            if (!level.areEntitiesLoaded(net.minecraft.world.level.ChunkPos.asLong(BlockPos.containing(home)))) continue;
             if (!level.getEntitiesOfClass(VoidEye.class, new AABB(BlockPos.containing(home)).inflate(150)).isEmpty()) continue;
             Data data = Data.get(level);
             long until = data.sleepUntil(BlockPos.containing(home));

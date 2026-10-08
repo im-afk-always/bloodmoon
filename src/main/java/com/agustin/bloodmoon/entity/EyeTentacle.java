@@ -99,7 +99,7 @@ public class EyeTentacle extends Monster {
             }
             return;
         }
-        if (!(level() instanceof ServerLevel sl)) return;
+        if (!(level() instanceof ServerLevel sl) || isDeadOrDying()) return;
         if (tickCount == 1) sl.playSound(null, blockPosition(), SoundEvents.SCULK_SHRIEKER_SHRIEK, getSoundSource(), 1.2F, 0.5F);
         if (tickCount == EMERGE) erupt(sl);
         if (tickCount > EMERGE + ERUPT && tickCount < LIFE) tickSlam(sl);
@@ -157,6 +157,7 @@ public class EyeTentacle extends Monster {
 
     @Override
     public boolean hurt(DamageSource source, float amount) {
+        if (source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY)) return super.hurt(source, amount);
         if (tickCount < EMERGE) return false;
         Entity attacker = source.getEntity();
         if (attacker instanceof VoidEye || attacker instanceof VoidSkeleton) return false;

@@ -189,7 +189,7 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
         float open = lidOpen(e, age, t);
         VertexConsumer lid = buf.getBuffer(RenderType.entityCutoutNoCull(LID));
         lid(ps, lid, R, Mth.lerp(Mth.clamp(open, 0F, 1.2F), 0F, 62F), true, overlay);
-        lid(ps, lid, R, Mth.lerp(Mth.clamp(open, 0F, 1.2F), 0F, 48F), false, overlay);
+        lid(ps, lid, R * 1.006F, Mth.lerp(Mth.clamp(open, 0F, 1.2F), 0F, 48F), false, overlay);   // un poco por fuera: evita z-fighting atrás
 
         renderBackTentacles(e, ps, buf, t, R, overlay);
         ps.popPose();

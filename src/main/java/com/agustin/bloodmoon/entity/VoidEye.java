@@ -221,10 +221,15 @@ public class VoidEye extends Monster {
     public void tick() {
         super.tick();
         if (level().isClientSide) {
+            if (tickCount <= 1) {
+                yaw = yawO = lookYaw();
+                pitch = pitchO = lookPitch();
+            }
             yawO = yaw;
             pitchO = pitch;
-            yaw = Mth.rotLerp(0.35F, yaw, lookYaw());
-            pitch = Mth.lerp(0.35F, pitch, lookPitch());
+            float k = isFiring() ? 0.75F : 0.35F;
+            yaw = Mth.rotLerp(k, yaw, lookYaw());
+            pitch = Mth.lerp(k, pitch, lookPitch());
             clientParticles();
         }
     }
@@ -803,7 +808,8 @@ public class VoidEye extends Monster {
         if (level() instanceof ServerLevel sl) {
             entityData.set(DATA_STATE, (byte) S_IDLE);
             AABB box = new AABB(BlockPos.containing(getHome())).inflate(80);
-            for (EyeTentacle t : sl.getEntitiesOfClass(EyeTentacle.class, box)) t.kill();
+            for (EyeTentacle t : sl.getEntitiesOfClass(EyeTentacle.class, box)) t.discard();
+            bossEvent.setProgress(0F);
             for (WatcherEye w : sl.getEntitiesOfClass(WatcherEye.class, box)) w.pop(false);
             playSound(ModSounds.EYE_SCREAM.get(), 16F, 0.6F);
             for (UUID id : madness.keySet()) {
@@ -846,7 +852,7 @@ public class VoidEye extends Monster {
             lootReleased = true;
             Vec3 h = getHome();
             setPos(h.x, h.y + 2.5, h.z);
-            if (pendingLoot != null) dropAllDeathLoot(sl, pendingLoot);
+            dropAllDeathLoot(sl, pendingLoot != null ? pendingLoot : damageSources().generic());
             remove(RemovalReason.KILLED);
         }
     }
