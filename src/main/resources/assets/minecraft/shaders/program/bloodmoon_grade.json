@@ -15,9 +15,6 @@
     },
     {
       "name": "BloomSampler"
-    },
-    {
-      "name": "BloomWideSampler"
     }
   ],
   "uniforms": [

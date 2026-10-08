@@ -1,124 +1,13 @@
 {
-  "targets": [
-    "bright",
-    "blur",
-    "glow",
-    "wide",
-    "swap"
-  ],
+  "targets": ["bright", "blur", "swap"],
   "passes": [
-    {
-      "name": "bloodmoon_bright",
-      "intarget": "minecraft:main",
-      "outtarget": "bright",
-      "uniforms": [
-        {
-          "name": "Threshold",
-          "values": [
-            0.58
-          ]
-        }
-      ]
-    },
-    {
-      "name": "bloodmoon_blur",
-      "intarget": "bright",
-      "outtarget": "blur",
-      "uniforms": [
-        {
-          "name": "BlurDir",
-          "values": [
-            1.0,
-            0.0
-          ]
-        },
-        {
-          "name": "Radius",
-          "values": [
-            5.0
-          ]
-        }
-      ]
-    },
-    {
-      "name": "bloodmoon_blur",
-      "intarget": "blur",
-      "outtarget": "glow",
-      "uniforms": [
-        {
-          "name": "BlurDir",
-          "values": [
-            0.0,
-            1.0
-          ]
-        },
-        {
-          "name": "Radius",
-          "values": [
-            5.0
-          ]
-        }
-      ]
-    },
-    {
-      "name": "bloodmoon_blur",
-      "intarget": "glow",
-      "outtarget": "blur",
-      "uniforms": [
-        {
-          "name": "BlurDir",
-          "values": [
-            1.0,
-            0.0
-          ]
-        },
-        {
-          "name": "Radius",
-          "values": [
-            18.0
-          ]
-        }
-      ]
-    },
-    {
-      "name": "bloodmoon_blur",
-      "intarget": "blur",
-      "outtarget": "wide",
-      "uniforms": [
-        {
-          "name": "BlurDir",
-          "values": [
-            0.0,
-            1.0
-          ]
-        },
-        {
-          "name": "Radius",
-          "values": [
-            18.0
-          ]
-        }
-      ]
-    },
-    {
-      "name": "bloodmoon_grade",
-      "intarget": "minecraft:main",
-      "outtarget": "swap",
-      "auxtargets": [
-        {
-          "name": "BloomSampler",
-          "id": "glow"
-        },
-        {
-          "name": "BloomWideSampler",
-          "id": "wide"
-        }
-      ]
-    },
-    {
-      "name": "bloodmoon_copy",
-      "intarget": "swap",
-      "outtarget": "minecraft:main"
-    }
+    { "name": "bloodmoon_bright", "intarget": "minecraft:main", "outtarget": "bright" },
+    { "name": "bloodmoon_blur", "intarget": "bright", "outtarget": "blur",
+      "uniforms": [ { "name": "BlurDir", "values": [1.0, 0.0] }, { "name": "Radius", "values": [14.0] } ] },
+    { "name": "bloodmoon_blur", "intarget": "blur", "outtarget": "bright",
+      "uniforms": [ { "name": "BlurDir", "values": [0.0, 1.0] }, { "name": "Radius", "values": [14.0] } ] },
+    { "name": "bloodmoon_grade", "intarget": "minecraft:main", "outtarget": "swap",
+      "auxtargets": [ { "name": "BloomSampler", "id": "bright" } ] },
+    { "name": "bloodmoon_copy", "intarget": "swap", "outtarget": "minecraft:main" }
   ]
 }

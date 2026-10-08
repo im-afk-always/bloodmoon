@@ -1,9 +1,7 @@
 #version 150
-// Luna de la Cosecha: corrección de color carmesí, contraste, resplandor en dos capas y viñeta.
-// Los puntos que emiten luz (llamas, lava, la luna) conservan su color: la gradación roja no los toca.
+// Luna de la Cosecha: corrección de color carmesí, contraste, resplandor y viñeta. Intensity 0..1 sigue el fundido de la luna.
 uniform sampler2D DiffuseSampler;
 uniform sampler2D BloomSampler;
-uniform sampler2D BloomWideSampler;
 uniform vec2 OutSize;
 uniform float Intensity;
 
@@ -12,8 +10,7 @@ out vec4 fragColor;
 
 void main() {
     vec3 c = texture(DiffuseSampler, texCoord).rgb;
-    vec3 glow = texture(BloomSampler, texCoord).rgb;
-    vec3 wide = texture(BloomWideSampler, texCoord).rgb;
+    vec3 bloom = texture(BloomSampler, texCoord).rgb;
     float k = clamp(Intensity, 0.0, 1.0);
 
     // 1) tono: verdes y azules se apagan, el rojo domina; un poco de desaturación hacia el carmesí
@@ -23,14 +20,9 @@ void main() {
     // 2) contraste en S: sombras más profundas, medios tonos intactos
     vec3 s = graded * graded * (3.0 - 2.0 * graded);
     graded = mix(graded, s, 0.35);
-    // 3) los emisores (brillantes y cálidos) quedan con su color natural
-    float hi = max(c.r, max(c.g, c.b));
-    float emissive = smoothstep(0.62, 0.92, hi) * smoothstep(0.05, 0.3, c.g);
-    graded = mix(graded, c, emissive);
-    // 4) resplandor: un halo corto e intenso y otro amplio y suave, con el color de la fuente
-    vec3 bloom = glow * 1.1 + wide * 1.5;
-    graded += bloom * vec3(1.0, 0.86, 0.74);
-    // 5) viñeta: bordes oscuros con un dejo de sangre
+    // 3) resplandor rojizo de lo brillante
+    graded += bloom * vec3(1.0, 0.42, 0.36) * 0.85;
+    // 4) viñeta: bordes oscuros con un dejo de sangre
     vec2 uv = texCoord - 0.5;
     uv.x *= OutSize.x / max(OutSize.y, 1.0);
     float v = smoothstep(0.38, 1.05, length(uv));
