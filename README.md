@@ -1,4 +1,4 @@
-# Blood Moon — NeoForge 1.21.1 (v10)
+# Blood Moon — NeoForge 1.21.1 (v11)
 
 ## Al entrar por primera vez
 La pantalla se oscurece y un ojo púrpura se abre frente al jugador. Encima, un texto en el alfabeto de la mesa de
@@ -100,6 +100,18 @@ Entre fases grita (invulnerable, empuja y oscurece). Al morir se agrieta, la luz
 e implosiona; la pantalla queda en negro con su despedida. Suelta el Iris del Observador, Bloques del Vacío, ecos y
 chatarra de netherite. El Santuario duerme 3 días (`eyeRespawnDays`). Si todos se van, el Ojo vuelve a dormir.
 
+**Fase final — El Más Allá:** al vencerlo en el Santuario no muere: todo cae hacia el Ojo, la pupila se abre como una
+grieta y arrastra a todos al Más Allá (llanura negra sobre el vacío, cielo púrpura con ojos que vagan, pocos obeliscos).
+Ahí renace como **El Observador Desatado**: falda de carne con dientes sobre diez patas-tentáculo, torso demacrado,
+costillar partido que se abre como fauces, cuatro brazos, el Ojo en una cuenca coronada de cuernos, ojos menores,
+barba de tentáculos y un halo roto de esquirlas. Golpe con cráter, Mirada, Tentáculos y Vigías, y cuatro definitivos:
+- **Ojo Colosal:** un ojo de 48 bloques se abre en el cielo; un círculo te persigue, se fija y cae un rayo de 20 de radio que perfora la llanura hasta el vacío.
+- **Tentáculo Titánico:** revienta el piso, se alza 70 bloques y azota a lo largo de una franja marcada, abriendo una zanja.
+- **Las Fauces:** el costillar se abre y traga: arranca el piso y te arrastra (cubrite detrás de un obelisco); termina con una expulsión.
+- **Lágrimas del Cielo:** lluvia de meteoros negros con círculos de aviso que siembran cráteres.
+Tras el Ojo Colosal y las Fauces queda de rodillas (vulnerable). Al morir, todos vuelven al Santuario con el botín.
+Morir en el Más Allá no hace perder el inventario. Si pierden, el Santuario se reabre en 5 minutos.
+
 ## Comandos (OP)
 - `/bloodmoon force [blood|super|golden|moonless]`
 - `/bloodmoon cancel`
@@ -110,6 +122,7 @@ chatarra de netherite. El Santuario duerme 3 días (`eyeRespawnDays`). Si todos 
 - `/bloodmoon summon dragon`
 - `/bloodmoon summon eye` (el estrado es donde estás parado)
 - `/bloodmoon locate sanctum`
+- `/bloodmoon summon unbound` (la forma final, donde estés)
 - `/bloodmoon locate coliseum`
 - `/bloodmoon intro`
 - `/summon bloodmoon:cursed_creeper`
