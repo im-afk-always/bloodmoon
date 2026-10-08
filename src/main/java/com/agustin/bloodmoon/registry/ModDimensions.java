@@ -15,11 +15,17 @@ public final class ModDimensions {
     public static final ResourceKey<Level> VOID_LABYRINTH =
             ResourceKey.create(Registries.DIMENSION, ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "void_labyrinth"));
 
+    public static final ResourceKey<Level> BEYOND =
+            ResourceKey.create(Registries.DIMENSION, ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "beyond"));
+
     public static final DeferredRegister<MapCodec<? extends ChunkGenerator>> CHUNK_GENERATORS =
             DeferredRegister.create(Registries.CHUNK_GENERATOR, BloodMoonMod.MODID);
 
     public static final DeferredHolder<MapCodec<? extends ChunkGenerator>, MapCodec<LabyrinthChunkGenerator>> LABYRINTH =
             CHUNK_GENERATORS.register("labyrinth", () -> LabyrinthChunkGenerator.CODEC);
+
+    public static final DeferredHolder<MapCodec<? extends ChunkGenerator>, MapCodec<com.agustin.bloodmoon.world.BeyondChunkGenerator>> BEYOND_GEN =
+            CHUNK_GENERATORS.register("beyond", () -> com.agustin.bloodmoon.world.BeyondChunkGenerator.CODEC);
 
     private ModDimensions() {}
 }

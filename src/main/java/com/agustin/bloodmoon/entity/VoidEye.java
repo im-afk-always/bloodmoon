@@ -75,31 +75,34 @@ public class VoidEye extends Monster {
             S_PULL = 6, S_WAVE = 7, S_WATCHERS = 8, S_CALL = 9, S_SWEEP_CHARGE = 10, S_SWEEP = 11, S_SCREAM = 12;
     public static final int AWAKEN_TICKS = 170, SCREAM_TICKS = 60, PULL_TICKS = 60, WAVE_TICKS = 52, GAZE_TICKS = 50,
             SWEEP_TICKS = 100, DEATH_TICKS = 150;
+    /** Fase final: al "morir" en fase 3 arrastra a todos al Más Allá y renace como el Observador Desatado. */
+    public static final int S_ASCEND = 13, ASCEND_TICKS = 100;
     public static final double WAVE_SPEED = 0.9, WAVE_START = SanctumDesign.R_DAIS;
-    private static final double ARENA_RANGE = 110, SWEEP_RADIUS = 42;
-    private static final float GUARDED = 0.15F;
+    protected static final double ARENA_RANGE = 110, SWEEP_RADIUS = 42;
+    protected static final float GUARDED = 0.15F;
 
-    private static final EntityDataAccessor<Byte> DATA_STATE = SynchedEntityData.defineId(VoidEye.class, EntityDataSerializers.BYTE);
-    private static final EntityDataAccessor<Byte> DATA_PHASE = SynchedEntityData.defineId(VoidEye.class, EntityDataSerializers.BYTE);
-    private static final EntityDataAccessor<Vector3f> DATA_BEAM = SynchedEntityData.defineId(VoidEye.class, EntityDataSerializers.VECTOR3);
-    private static final EntityDataAccessor<Vector3f> DATA_HOME = SynchedEntityData.defineId(VoidEye.class, EntityDataSerializers.VECTOR3);
-    private static final EntityDataAccessor<Float> DATA_YAW = SynchedEntityData.defineId(VoidEye.class, EntityDataSerializers.FLOAT);
-    private static final EntityDataAccessor<Float> DATA_PITCH = SynchedEntityData.defineId(VoidEye.class, EntityDataSerializers.FLOAT);
+    protected static final EntityDataAccessor<Byte> DATA_STATE = SynchedEntityData.defineId(VoidEye.class, EntityDataSerializers.BYTE);
+    protected static final EntityDataAccessor<Byte> DATA_PHASE = SynchedEntityData.defineId(VoidEye.class, EntityDataSerializers.BYTE);
+    protected static final EntityDataAccessor<Vector3f> DATA_BEAM = SynchedEntityData.defineId(VoidEye.class, EntityDataSerializers.VECTOR3);
+    protected static final EntityDataAccessor<Vector3f> DATA_HOME = SynchedEntityData.defineId(VoidEye.class, EntityDataSerializers.VECTOR3);
+    protected static final EntityDataAccessor<Float> DATA_YAW = SynchedEntityData.defineId(VoidEye.class, EntityDataSerializers.FLOAT);
+    protected static final EntityDataAccessor<Float> DATA_PITCH = SynchedEntityData.defineId(VoidEye.class, EntityDataSerializers.FLOAT);
 
-    private final ServerBossEvent bossEvent;
-    private Vec3 home;
-    private int stateTick;
-    private int cooldown = 40;
-    private int attacksSinceExposed;
-    private int noPlayerTicks;
-    private Vec3 beamAim = Vec3.ZERO;
-    private double sweepAngle, sweepDir = 1;
-    private final Map<UUID, Float> madness = new HashMap<>();
-    private final Map<UUID, Boolean> sight = new HashMap<>();
-    private final Map<Integer, Integer> beamHit = new HashMap<>();
-    private final Set<UUID> waveHit = new HashSet<>();
-    private DamageSource pendingLoot;
-    private boolean lootReleased;
+    protected final ServerBossEvent bossEvent;
+    protected Vec3 home;
+    protected int stateTick;
+    protected int cooldown = 40;
+    protected int attacksSinceExposed;
+    protected int noPlayerTicks;
+    protected Vec3 beamAim = Vec3.ZERO;
+    protected double sweepAngle, sweepDir = 1;
+    protected final Map<UUID, Float> madness = new HashMap<>();
+    protected final Map<UUID, Boolean> sight = new HashMap<>();
+    protected final Map<Integer, Integer> beamHit = new HashMap<>();
+    protected final Set<UUID> waveHit = new HashSet<>();
+    protected DamageSource pendingLoot;
+    protected boolean lootReleased;
+    protected boolean ascended;
 
     // cliente
     public int clientStateStart;
@@ -185,7 +188,12 @@ public class VoidEye extends Monster {
     }
 
     public Vec3 center() {
-        return position().add(0, RADIUS, 0);
+        return position().add(0, eyeRadius(), 0);
+    }
+
+    /** Radio del globo ocular (el Desatado tiene uno más chico, en el pecho). */
+    public float eyeRadius() {
+        return RADIUS;
     }
 
     public float lookYaw() {
@@ -211,7 +219,7 @@ public class VoidEye extends Monster {
         return s == S_GAZE || s == S_SWEEP;
     }
 
-    private static boolean ally(Entity e) {
+    protected static boolean ally(Entity e) {
         return e instanceof VoidEye || e instanceof EyeTentacle || e instanceof VoidSkeleton || e instanceof WatcherEye;
     }
 
@@ -255,7 +263,7 @@ public class VoidEye extends Monster {
 
         int want = getHealth() > getMaxHealth() * 0.66F ? 1 : getHealth() > getMaxHealth() * 0.33F ? 2 : 3;
         int state = getState();
-        if (want > getPhase() && state != S_AWAKEN && state != S_SCREAM) {
+        if (want > getPhase() && state != S_AWAKEN && state != S_SCREAM && state != S_ASCEND) {
             entityData.set(DATA_PHASE, (byte) want);
             setState(S_SCREAM, arena);
             state = S_SCREAM;
@@ -327,11 +335,12 @@ public class VoidEye extends Monster {
                 lookAt(center().add(Mth.sin(tickCount * 0.9F) * 8, 30, Mth.cos(tickCount * 0.7F) * 8), 20F);
                 if (stateTick >= SCREAM_TICKS) setIdle(30);
             }
+            case S_ASCEND -> tickAscend(sl, arena);
             default -> setIdle(20);
         }
     }
 
-    private List<ServerPlayer> arenaPlayers(ServerLevel sl) {
+    protected List<ServerPlayer> arenaPlayers(ServerLevel sl) {
         Vec3 h = getHome();
         List<ServerPlayer> list = new ArrayList<>();
         for (ServerPlayer p : sl.players()) {
@@ -349,7 +358,7 @@ public class VoidEye extends Monster {
         return list;
     }
 
-    private LivingEntity pickTarget(List<ServerPlayer> arena) {
+    protected LivingEntity pickTarget(List<ServerPlayer> arena) {
         LivingEntity t = getTarget();
         if (t instanceof ServerPlayer sp && arena.contains(sp) && !sp.isCreative()) return t;
         ServerPlayer best = null;
@@ -365,7 +374,7 @@ public class VoidEye extends Monster {
         return best;
     }
 
-    private void setState(int s, List<ServerPlayer> arena) {
+    protected void setState(int s, List<ServerPlayer> arena) {
         entityData.set(DATA_STATE, (byte) s);
         stateTick = 0;
         ServerLevel sl = (ServerLevel) level();
@@ -402,17 +411,24 @@ public class VoidEye extends Monster {
                 sl.sendParticles(ParticleTypes.SONIC_BOOM, h.x, h.y + 1, h.z, 1, 0, 0, 0, 0);
             }
             case S_SCREAM -> scream(sl, arena);
-            default -> {}
+            case S_ASCEND -> {
+                for (ServerPlayer p : arena) PacketDistributor.sendToPlayer(p, new EyeTitlePayload(EyeTitlePayload.ASCEND));
+                playSound(ModSounds.EYE_SCREAM.get(), 16F, 0.5F);
+                playSound(ModSounds.EYE_PULSE.get(), 16F, 0.6F);
+                Vec3 c = center();
+                sl.sendParticles(ParticleTypes.SONIC_BOOM, c.x, c.y, c.z, 8, 5, 5, 5, 0);
+            }
+            default -> onExtraState(s, arena, target);
         }
     }
 
-    private void setIdle(int cd) {
+    protected void setIdle(int cd) {
         entityData.set(DATA_STATE, (byte) S_IDLE);
         stateTick = 0;
         cooldown = cd;
     }
 
-    private int cooldownTicks() {
+    protected int cooldownTicks() {
         return switch (getPhase()) {
             case 1 -> 45 + random.nextInt(25);
             case 2 -> 32 + random.nextInt(20);
@@ -420,7 +436,7 @@ public class VoidEye extends Monster {
         };
     }
 
-    private int exposedTicks() {
+    protected int exposedTicks() {
         return switch (getPhase()) {
             case 1 -> 110;
             case 2 -> 90;
@@ -428,7 +444,7 @@ public class VoidEye extends Monster {
         };
     }
 
-    private void chooseAttack(List<ServerPlayer> arena, LivingEntity target) {
+    protected void chooseAttack(List<ServerPlayer> arena, LivingEntity target) {
         int ph = getPhase();
         attacksSinceExposed++;
         if (attacksSinceExposed > (ph == 3 ? 2 : 3)) {
@@ -455,11 +471,11 @@ public class VoidEye extends Monster {
 
     // ------------------------------------------------------------------ movimiento y mirada
 
-    private void hover() {
+    protected void hover() {
         Vec3 h = getHome();
         int s = getState();
         double baseY = h.y + SanctumDesign.EYE_HEIGHT - RADIUS;
-        double y = s == S_EXPOSED ? h.y + 2.6 : s == S_SCREAM ? baseY + 5 : baseY;
+        double y = s == S_EXPOSED ? h.y + 2.6 : s == S_SCREAM ? baseY + 5 : s == S_ASCEND ? baseY + 6 + stateTick * 0.06 : baseY;
         if (isDeadOrDying()) y = baseY + Math.min(10, deathTime * 0.08);
         double bob = s == S_EXPOSED ? 0.3 * Math.sin(tickCount * 0.12) : 0.9 * Math.sin(tickCount * 0.045);
         double a = tickCount * 0.006, drift = s == S_EXPOSED ? 0 : 2.5;
@@ -469,7 +485,7 @@ public class VoidEye extends Monster {
         setDeltaMovement(Vec3.ZERO);
     }
 
-    private void lookAt(Vec3 p, float maxStep) {
+    protected void lookAt(Vec3 p, float maxStep) {
         Vec3 d = p.subtract(center());
         double horiz = Math.sqrt(d.x * d.x + d.z * d.z);
         float wantYaw = (float) (Mth.atan2(-d.x, d.z) * Mth.RAD_TO_DEG);
@@ -483,12 +499,12 @@ public class VoidEye extends Monster {
         yBodyRot = y;
     }
 
-    private void trackAim(LivingEntity target, double k) {
+    protected void trackAim(LivingEntity target, double k) {
         Vec3 t = target.position().add(0, target.getBbHeight() * 0.55, 0);
         beamAim = beamAim.lerp(t, k);
     }
 
-    private Vec3 sweepPoint() {
+    protected Vec3 sweepPoint() {
         Vec3 h = getHome();
         double a = Math.toRadians(sweepAngle);
         return new Vec3(h.x + Math.cos(a) * SWEEP_RADIUS, h.y + 0.7, h.z + Math.sin(a) * SWEEP_RADIUS);
@@ -496,12 +512,12 @@ public class VoidEye extends Monster {
 
     // ------------------------------------------------------------------ Mirada
 
-    private Vec3 beamOrigin() {
+    protected Vec3 beamOrigin() {
         Vec3 c = center();
-        return c.add(beamAim.subtract(c).normalize().scale(RADIUS * 0.95));
+        return c.add(beamAim.subtract(c).normalize().scale(eyeRadius() * 0.95));
     }
 
-    private void updateBeam() {
+    protected void updateBeam() {
         Vec3 o = beamOrigin();
         Vec3 dir = beamAim.subtract(center()).normalize();
         Vec3 far = o.add(dir.scale(140));
@@ -510,7 +526,7 @@ public class VoidEye extends Monster {
         entityData.set(DATA_BEAM, new Vector3f((float) end.x, (float) end.y, (float) end.z));
     }
 
-    private void damageBeam(ServerLevel sl, float damage) {
+    protected void damageBeam(ServerLevel sl, float damage) {
         Vec3 o = beamOrigin(), end = getBeamEnd();
         AABB box = new AABB(o, end).inflate(2.5);
         for (LivingEntity e : sl.getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && !ally(e))) {
@@ -532,7 +548,7 @@ public class VoidEye extends Monster {
         if (stateTick % 25 == 0) playSound(ModSounds.EYE_BEAM.get(), 8F, getState() == S_SWEEP ? 0.8F : 1F);
     }
 
-    private static double distToSegment(Vec3 p, Vec3 a, Vec3 b) {
+    protected static double distToSegment(Vec3 p, Vec3 a, Vec3 b) {
         Vec3 ab = b.subtract(a);
         double t = Mth.clamp(p.subtract(a).dot(ab) / Math.max(1e-6, ab.lengthSqr()), 0, 1);
         return p.distanceTo(a.add(ab.scale(t)));
@@ -540,7 +556,7 @@ public class VoidEye extends Monster {
 
     // ------------------------------------------------------------------ Tentáculos, Vigías, Llamado
 
-    private void spawnTentacles(ServerLevel sl, List<ServerPlayer> arena) {
+    protected void spawnTentacles(ServerLevel sl, List<ServerPlayer> arena) {
         Vec3 h = getHome();
         List<Vec3> spots = new ArrayList<>();
         for (ServerPlayer p : arena) if (!p.isCreative()) spots.add(p.position());
@@ -563,7 +579,7 @@ public class VoidEye extends Monster {
     }
 
     /** Altura del piso firme cerca de y0 (o null si es abismo). */
-    private Double groundY(double x, double z, double y0) {
+    protected Double groundY(double x, double z, double y0) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int dy = 6; dy >= -6; dy--) {
             p.set(Mth.floor(x), Mth.floor(y0) + dy, Mth.floor(z));
@@ -574,7 +590,7 @@ public class VoidEye extends Monster {
         return null;
     }
 
-    private void spawnWatchers(ServerLevel sl, List<ServerPlayer> arena) {
+    protected void spawnWatchers(ServerLevel sl, List<ServerPlayer> arena) {
         int count = Math.min(10, (getPhase() == 3 ? 6 : 4) + arena.size() - 1);
         for (int i = 0; i < count; i++) {
             WatcherEye w = ModEntities.WATCHER_EYE.get().create(sl);
@@ -587,7 +603,7 @@ public class VoidEye extends Monster {
         playSound(ModSounds.EYE_WHISPER.get(), 8F, 0.7F);
     }
 
-    private void callMinions(ServerLevel sl, LivingEntity target) {
+    protected void callMinions(ServerLevel sl, LivingEntity target) {
         Vec3 h = getHome();
         int n = 2 + random.nextInt(2);
         for (int i = 0; i < n; i++) {
@@ -609,7 +625,7 @@ public class VoidEye extends Monster {
 
     // ------------------------------------------------------------------ Singularidad
 
-    private void tickPull(List<ServerPlayer> arena) {
+    protected void tickPull(List<ServerPlayer> arena) {
         Vec3 h = getHome();
         double k = 0.03 + 0.05 * stateTick / PULL_TICKS;
         for (ServerPlayer p : arena) {
@@ -623,7 +639,7 @@ public class VoidEye extends Monster {
         }
     }
 
-    private void tickWave(ServerLevel sl, List<ServerPlayer> arena) {
+    protected void tickWave(ServerLevel sl, List<ServerPlayer> arena) {
         Vec3 h = getHome();
         double radius = WAVE_START + stateTick * WAVE_SPEED;
         for (ServerPlayer p : arena) {
@@ -647,7 +663,7 @@ public class VoidEye extends Monster {
 
     // ------------------------------------------------------------------ Grito (cambio de fase)
 
-    private void scream(ServerLevel sl, List<ServerPlayer> arena) {
+    protected void scream(ServerLevel sl, List<ServerPlayer> arena) {
         playSound(ModSounds.EYE_SCREAM.get(), 14F, 0.8F);
         playSound(SoundEvents.WARDEN_SONIC_BOOM, 10F, 0.5F);
         Vec3 c = center();
@@ -665,7 +681,7 @@ public class VoidEye extends Monster {
 
     // ------------------------------------------------------------------ Despertar
 
-    private void tickAwaken(ServerLevel sl, List<ServerPlayer> arena) {
+    protected void tickAwaken(ServerLevel sl, List<ServerPlayer> arena) {
         lookAt(pickTarget(arena).getEyePosition(), 1.5F);
         if (stateTick == 1) {
             for (ServerPlayer p : arena) PacketDistributor.sendToPlayer(p, new EyeTitlePayload(EyeTitlePayload.AWAKEN));
@@ -677,17 +693,53 @@ public class VoidEye extends Monster {
         if (stateTick >= AWAKEN_TICKS) setIdle(30);
     }
 
+    // ------------------------------------------------------------------ Ascenso (fase final)
+
+    protected boolean canAscend() {
+        return com.agustin.bloodmoon.BloodMoonConfig.EYE_FINAL_PHASE.get();
+    }
+
+    /** Estados propios de subclases. */
+    protected void onExtraState(int s, List<ServerPlayer> arena, LivingEntity target) {}
+
+    /** Todo cae hacia el Ojo; la pupila se abre como una grieta y al final arrastra a todos al Más Allá. */
+    protected void tickAscend(ServerLevel sl, List<ServerPlayer> arena) {
+        if (!arena.isEmpty()) lookAt(pickTarget(arena).getEyePosition(), 4F);
+        Vec3 h = getHome();
+        double k = 0.05 + 0.1 * stateTick / ASCEND_TICKS;
+        for (ServerPlayer p : arena) {
+            if (p.isCreative()) continue;
+            Vec3 d = new Vec3(h.x - p.getX(), 0, h.z - p.getZ());
+            double len = d.length();
+            if (len < 2) continue;
+            p.push(d.x / len * k, 0.02, d.z / len * k);
+            p.hurtMarked = true;
+        }
+        if (stateTick % 20 == 0) playSound(SoundEvents.WARDEN_HEARTBEAT, 14F, 0.3F + stateTick / 200F);
+        if (stateTick % 5 == 0) {
+            Vec3 c = center();
+            sl.sendParticles(ParticleTypes.REVERSE_PORTAL, c.x, c.y, c.z, 120, 12, 12, 12, 1.5);
+        }
+        if (stateTick >= ASCEND_TICKS) {
+            if (com.agustin.bloodmoon.world.BeyondRift.drag(sl, this, arena)) {
+                discard();
+            } else {
+                hurt(damageSources().genericKill(), Float.MAX_VALUE);   // sin Más Allá: muere aquí
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ Locura
 
-    private boolean looksAtMe(ServerPlayer p) {
+    protected boolean looksAtMe(ServerPlayer p) {
         Vec3 eye = p.getEyePosition();
         Vec3 to = center().subtract(eye);
         double d = to.length();
         double ang = Math.acos(Mth.clamp(p.getViewVector(1F).dot(to.scale(1 / d)), -1, 1));
-        if (ang > Math.atan(RADIUS / Math.max(1, d)) + 0.22) return false;
+        if (ang > Math.atan(eyeRadius() / Math.max(1, d)) + 0.22) return false;
         if (tickCount % 4 == 0 || !sight.containsKey(p.getUUID())) {
             BlockHitResult hit = level().clip(new ClipContext(eye, center(), ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, p));
-            sight.put(p.getUUID(), hit.getType() == HitResult.Type.MISS || hit.getLocation().distanceTo(eye) > d - RADIUS - 0.5);
+            sight.put(p.getUUID(), hit.getType() == HitResult.Type.MISS || hit.getLocation().distanceTo(eye) > d - eyeRadius() - 0.5);
         }
         return sight.get(p.getUUID());
     }
@@ -696,7 +748,7 @@ public class VoidEye extends Monster {
         madness.merge(p.getUUID(), amount, Float::sum);
     }
 
-    private void updateMadness(ServerLevel sl, List<ServerPlayer> arena) {
+    protected void updateMadness(ServerLevel sl, List<ServerPlayer> arena) {
         int s = getState();
         float rate = switch (getPhase()) {
             case 1 -> 0.55F;
@@ -719,7 +771,7 @@ public class VoidEye extends Monster {
         }
     }
 
-    private void breakMind(ServerPlayer p) {
+    protected void breakMind(ServerPlayer p) {
         p.hurt(damageSources().magic(), getPhase() == 3 ? 12F : 8F);
         p.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 40, 0), this);
         p.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 100, 0), this);
@@ -733,7 +785,7 @@ public class VoidEye extends Monster {
     public boolean hurt(DamageSource source, float amount) {
         if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) return super.hurt(source, amount);
         int s = getState();
-        if (s == S_AWAKEN || s == S_SCREAM || isDeadOrDying()) return false;
+        if (s == S_AWAKEN || s == S_SCREAM || s == S_ASCEND || isDeadOrDying()) return false;
         Entity attacker = source.getEntity();
         if (attacker != null && ally(attacker)) return false;
         if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypeTags.IS_DROWNING) || source.is(DamageTypeTags.IS_FIRE)) return false;
@@ -741,11 +793,16 @@ public class VoidEye extends Monster {
         if (mult < 1F && level() instanceof ServerLevel sl) {
             Vec3 at = source.getSourcePosition() != null ? source.getSourcePosition() : center();
             Vec3 c = center();
-            Vec3 surf = c.add(at.subtract(c).normalize().scale(RADIUS));
+            Vec3 surf = c.add(at.subtract(c).normalize().scale(eyeRadius()));
             sl.sendParticles(ParticleTypes.ENCHANTED_HIT, surf.x, surf.y, surf.z, 12, 0.4, 0.4, 0.4, 0.3);
             playSound(SoundEvents.AMETHYST_BLOCK_HIT, 3F, 0.4F);
         }
         return super.hurt(source, amount * mult);
+    }
+
+    /** Daño sin los multiplicadores de defensa (para subclases). */
+    protected boolean hurtRaw(DamageSource source, float amount) {
+        return super.hurt(source, amount);
     }
 
     @Override
@@ -804,6 +861,12 @@ public class VoidEye extends Monster {
 
     @Override
     public void die(DamageSource source) {
+        if (canAscend() && !ascended && level() instanceof ServerLevel asl) {
+            ascended = true;              // no muere: abre la Grieta y se lleva a todos
+            setHealth(1F);
+            setState(S_ASCEND, arenaPlayers(asl));
+            return;
+        }
         super.die(source);
         if (level() instanceof ServerLevel sl) {
             entityData.set(DATA_STATE, (byte) S_IDLE);
@@ -830,8 +893,8 @@ public class VoidEye extends Monster {
         hover();
         Vec3 c = center();
         if (deathTime % 4 == 0) {
-            sl.sendParticles(ParticleTypes.END_ROD, c.x, c.y, c.z, 10, RADIUS * 0.5, RADIUS * 0.5, RADIUS * 0.5, 0.3);
-            sl.sendParticles(ParticleTypes.SQUID_INK, c.x, c.y, c.z, 8, RADIUS * 0.6, RADIUS * 0.6, RADIUS * 0.6, 0.05);
+            sl.sendParticles(ParticleTypes.END_ROD, c.x, c.y, c.z, 10, eyeRadius() * 0.5, eyeRadius() * 0.5, eyeRadius() * 0.5, 0.3);
+            sl.sendParticles(ParticleTypes.SQUID_INK, c.x, c.y, c.z, 8, eyeRadius() * 0.6, eyeRadius() * 0.6, eyeRadius() * 0.6, 0.05);
         }
         if (deathTime == 20) playSound(ModSounds.EYE_IMPLODE.get(), 16F, 1F);
         if (deathTime % 25 == 0 && deathTime < DEATH_TICKS - 20) playSound(SoundEvents.WARDEN_HEARTBEAT, 12F, 0.4F + deathTime / 300F);
@@ -859,20 +922,20 @@ public class VoidEye extends Monster {
 
     // ------------------------------------------------------------------ cliente
 
-    private void clientParticles() {
+    protected void clientParticles() {
         Level lv = level();
         Vec3 c = center();
         int s = getState();
         if (isDeadOrDying()) {
             for (int i = 0; i < 6; i++) {
                 Vec3 d = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian()).normalize();
-                Vec3 p = c.add(d.scale(RADIUS));
+                Vec3 p = c.add(d.scale(eyeRadius()));
                 lv.addAlwaysVisibleParticle(ParticleTypes.END_ROD, true, p.x, p.y, p.z, d.x * 0.6, d.y * 0.6, d.z * 0.6);
             }
             return;
         }
         if (random.nextInt(2) == 0) {
-            Vec3 d = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian()).normalize().scale(RADIUS + 1);
+            Vec3 d = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian()).normalize().scale(eyeRadius() + 1);
             lv.addParticle(ParticleTypes.SQUID_INK, c.x + d.x, c.y + d.y, c.z + d.z, 0, -0.02, 0);
         }
         Vec3 h = getHome();
@@ -891,10 +954,10 @@ public class VoidEye extends Monster {
                         h.z + Math.sin(a) * radius, Math.cos(a) * 0.1, 0.02, Math.sin(a) * 0.1);
             }
         } else if (s == S_EXPOSED && random.nextInt(2) == 0) {
-            lv.addParticle(ParticleTypes.DRIPPING_OBSIDIAN_TEAR, c.x + random.nextGaussian() * 4, c.y - RADIUS * 0.8, c.z + random.nextGaussian() * 4, 0, 0, 0);
+            lv.addParticle(ParticleTypes.DRIPPING_OBSIDIAN_TEAR, c.x + random.nextGaussian() * 4, c.y - eyeRadius() * 0.8, c.z + random.nextGaussian() * 4, 0, 0, 0);
         } else if (s == S_AWAKEN) {
             for (int i = 0; i < 4; i++) {
-                Vec3 d = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian()).normalize().scale(RADIUS + 12);
+                Vec3 d = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian()).normalize().scale(eyeRadius() + 12);
                 lv.addAlwaysVisibleParticle(ParticleTypes.PORTAL, true, c.x, c.y, c.z, d.x, d.y, d.z);
             }
         }

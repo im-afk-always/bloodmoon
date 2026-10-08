@@ -40,6 +40,7 @@ public final class SmokeTest {
             ok &= labyrinth(server);
             ok &= coliseum(server);
             ok &= sanctum(server);
+            ok &= beyond(server);
         } catch (Throwable t) {
             BloodMoonMod.LOGGER.error("SMOKETEST FAIL exception", t);
             ok = false;
@@ -113,6 +114,41 @@ public final class SmokeTest {
         eye.discard();
         tentacle.discard();
         return true;
+    }
+
+    /** Más Allá: la llanura se genera, el Desatado y el Ojo Colosal tickean y el agujero llega al vacío. */
+    private static boolean beyond(MinecraftServer server) {
+        ServerLevel b = server.getLevel(ModDimensions.BEYOND);
+        if (b == null) {
+            BloodMoonMod.LOGGER.error("SMOKETEST FAIL beyond dimension missing");
+            return false;
+        }
+        int[] c = com.agustin.bloodmoon.world.design.BeyondDesign.fightCenter(0);
+        int F = com.agustin.bloodmoon.world.design.BeyondDesign.FLOOR;
+        long t0 = System.nanoTime();
+        for (int cx = -3; cx <= 3; cx++) for (int cz = -3; cz <= 3; cz++) b.getChunk((c[0] >> 4) + cx, (c[1] >> 4) + cz);
+        BlockState floor = b.getBlockState(new BlockPos(c[0] + 10, F - 1, c[1] + 3));
+        BlockState sigil = b.getBlockState(new BlockPos(c[0], F - 1, c[1]));
+        BloodMoonMod.LOGGER.info("SMOKETEST beyond chunks in {} ms floor={} sigil={}", (System.nanoTime() - t0) / 1_000_000, floor, sigil);
+        if (floor.isAir() || !sigil.is(ModBlocks.VOID_BLOCK.get())) {
+            BloodMoonMod.LOGGER.error("SMOKETEST FAIL beyond layout");
+            return false;
+        }
+        var home = new net.minecraft.world.phys.Vec3(c[0] + 0.5, F, c[1] + 0.5);
+        var boss = com.agustin.bloodmoon.entity.ModEntities.UNBOUND_OBSERVER.get().create(b);
+        boss.moveTo(home.x, home.y, home.z, 0F, 0F);
+        boss.setHome(home);
+        b.addFreshEntity(boss);
+        for (int i = 0; i < 5; i++) boss.tick();
+        // agujero del Ojo Colosal
+        BlockPos hole = new BlockPos(c[0] + 60, F - 1, c[1]);
+        com.agustin.bloodmoon.world.BeyondHoles.start(b, hole, 20F);
+        for (int i = 0; i < 40; i++) com.agustin.bloodmoon.world.BeyondHoles.tick(b);
+        boolean through = b.getBlockState(hole.atY(5)).isAir() && b.getBlockState(hole.atY(F - 1)).isAir()
+                && b.getBlockState(hole.offset(14, 0, 0)).isAir() && !b.getBlockState(hole.offset(30, 0, 0)).isAir();
+        BloodMoonMod.LOGGER.info("SMOKETEST beyond boss state={} hole through={}", boss.getState(), through);
+        boss.discard();
+        return through;
     }
 
     private static boolean coliseum(MinecraftServer server) {

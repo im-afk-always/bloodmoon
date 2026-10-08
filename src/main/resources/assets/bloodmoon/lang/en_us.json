@@ -93,5 +93,10 @@
   "bloodmoon.subtitle.eye_pulse": "Everything falls toward the Eye",
   "bloodmoon.subtitle.eye_wave": "A wave sweeps the floor",
   "bloodmoon.subtitle.eye_implode": "The Eye implodes",
-  "bloodmoon.subtitle.eye_tentacle": "Something bursts from the ground"
+  "bloodmoon.subtitle.eye_tentacle": "Something bursts from the ground",
+  "entity.bloodmoon.unbound_observer": "The Unbound Observer",
+  "entity.bloodmoon.colossal_eye": "Colossal Eye",
+  "bloodmoon.eye.title2": "THE UNBOUND OBSERVER",
+  "bloodmoon.eye.subtitle2": "Beyond the Rift there is no way back",
+  "bloodmoon.command.summon.unbound": "The Unbound Observer rises from the ground."
 }

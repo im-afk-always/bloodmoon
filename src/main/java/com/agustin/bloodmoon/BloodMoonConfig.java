@@ -28,6 +28,7 @@ public final class BloodMoonConfig {
     public static final ModConfigSpec.DoubleValue DRAGON_CHARGE_POWER;
     public static final ModConfigSpec.IntValue SUPERNOVA_CRATER_DEPTH;
     public static final ModConfigSpec.IntValue EYE_RESPAWN_DAYS;
+    public static final ModConfigSpec.BooleanValue EYE_FINAL_PHASE;
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
@@ -83,6 +84,8 @@ public final class BloodMoonConfig {
         b.push("observer");
         EYE_RESPAWN_DAYS = b.comment("Días de juego que duerme un Santuario del Ojo después de derrotar al Observador.")
                 .defineInRange("eyeRespawnDays", 3, 0, 365);
+        EYE_FINAL_PHASE = b.comment("Fase final: al vencerlo en el Santuario, el Observador arrastra a todos al Más Allá y renace como el Observador Desatado.")
+                .define("eyeFinalPhase", true);
         b.pop();
 
         SPEC = b.build();

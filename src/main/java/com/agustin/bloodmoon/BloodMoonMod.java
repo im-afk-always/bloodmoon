@@ -58,6 +58,11 @@ public class BloodMoonMod {
         NeoForge.EVENT_BUS.addListener(SupernovaCrater::onServerStopped);
         NeoForge.EVENT_BUS.addListener(VoidPortals::onRightClickBlock);
         NeoForge.EVENT_BUS.addListener(com.agustin.bloodmoon.world.EyeSanctums::onLevelTick);
+        NeoForge.EVENT_BUS.addListener(com.agustin.bloodmoon.world.BeyondRift::onLevelTick);
+        NeoForge.EVENT_BUS.addListener(com.agustin.bloodmoon.world.BeyondRift::onDrops);
+        NeoForge.EVENT_BUS.addListener(com.agustin.bloodmoon.world.BeyondRift::onRespawn);
+        NeoForge.EVENT_BUS.addListener(com.agustin.bloodmoon.world.BeyondHoles::onLevelTick);
+        NeoForge.EVENT_BUS.addListener(com.agustin.bloodmoon.world.BeyondHoles::onServerStopped);
         NeoForge.EVENT_BUS.addListener(SmokeTest::onServerStarted);
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.server.ServerStoppedEvent e) -> ColiseumSites.clear());
     }

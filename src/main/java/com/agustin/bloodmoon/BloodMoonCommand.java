@@ -21,6 +21,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /bloodmoon summon emissary|executioner -> invoca un caballero del Vacío donde estás (no se retira al amanecer)
  * /bloodmoon locate coliseum             -> Coliseo del Vacío más cercano (clic para teletransportarte)
  * /bloodmoon summon eye                  -> el Observador despierta sobre vos (su estrado = donde estás parado)
+ * /bloodmoon summon unbound              -> el Observador Desatado emerge donde estás (prueba de la fase final)
  * /bloodmoon locate sanctum              -> Santuario del Ojo más cercano (en el Laberinto del Vacío)
  * Requiere permiso 2 (OP / trucos activados).
  */
@@ -46,7 +47,8 @@ public final class BloodMoonCommand {
                         .then(Commands.literal("emissary").executes(ctx -> summonKnight(ctx, false)))
                         .then(Commands.literal("executioner").executes(ctx -> summonKnight(ctx, true)))
                         .then(Commands.literal("dragon").executes(BloodMoonCommand::summonDragon))
-                        .then(Commands.literal("eye").executes(BloodMoonCommand::summonEye)))
+                        .then(Commands.literal("eye").executes(BloodMoonCommand::summonEye))
+                        .then(Commands.literal("unbound").executes(BloodMoonCommand::summonUnbound)))
                 .then(Commands.literal("intro").executes(ctx -> {
                     net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(ctx.getSource().getPlayerOrException(),
                             new com.agustin.bloodmoon.network.IntroPayload());
@@ -138,6 +140,22 @@ public final class BloodMoonCommand {
         CommandSourceStack src = ctx.getSource();
         boolean ok = com.agustin.bloodmoon.world.EyeSanctums.spawn(src.getLevel(), src.getPosition()) != null;
         src.sendSuccess(() -> Component.translatable(ok ? "bloodmoon.command.summon.eye" : "bloodmoon.command.summon.fail"), true);
+        return ok ? 1 : 0;
+    }
+
+    private static int summonUnbound(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack src = ctx.getSource();
+        var boss = ModEntities.UNBOUND_OBSERVER.get().create(src.getLevel());
+        boolean ok = boss != null;
+        if (ok) {
+            var p = src.getPosition();
+            boss.moveTo(p.x, p.y, p.z, 0F, 0F);
+            boss.setHome(p);
+            boss.finalizeSpawn(src.getLevel(), src.getLevel().getCurrentDifficultyAt(BlockPos.containing(p)),
+                    net.minecraft.world.entity.MobSpawnType.COMMAND, null);
+            src.getLevel().addFreshEntity(boss);
+        }
+        src.sendSuccess(() -> Component.translatable(ok ? "bloodmoon.command.summon.unbound" : "bloodmoon.command.summon.fail"), true);
         return ok ? 1 : 0;
     }
 

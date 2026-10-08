@@ -29,15 +29,15 @@ import org.joml.Vector3f;
  * (grietas de luz, rayos y encogimiento hasta un punto).
  */
 public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
-    private static ResourceLocation tex(String name) {
+    static ResourceLocation tex(String name) {
         return ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/entity/void_eye/" + name + ".png");
     }
 
-    private static final ResourceLocation BALL = tex("ball"), BALL_GLOW = tex("ball_glow"), CRACKS = tex("cracks"),
+    static final ResourceLocation BALL = tex("ball"), BALL_GLOW = tex("ball_glow"), CRACKS = tex("cracks"),
             LID = tex("lid"), PUPIL = tex("pupil"), TENTACLE = tex("tentacle"), TENTACLE_GLOW = tex("tentacle_glow"),
             RUNES = tex("runes"), BEAM = tex("beam"), FLARE = tex("flare"), WALL = tex("wave"), VORTEX = tex("vortex"), WHITE = tex("white");
 
-    private static final int FULL = LightTexture.FULL_BRIGHT;
+    static final int FULL = LightTexture.FULL_BRIGHT;
     private static final float IRIS_SPLIT = 0.65F;
     private static final float[][] RAYS = new float[12][3];
     private static final float[][] TENTACLES = new float[8][4];
@@ -73,13 +73,13 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
 
     // ------------------------------------------------------------------ estado visual
 
-    private static float smooth(float x) {
+    static float smooth(float x) {
         x = Mth.clamp(x, 0F, 1F);
         return x * x * (3F - 2F * x);
     }
 
     /** Apertura de párpados 0..1. */
-    private static float lidOpen(VoidEye e, float age, float t) {
+    static float lidOpen(VoidEye e, float age, float t) {
         if (e.isDeadOrDying()) return 0.55F * (1F - smooth((e.deathTime - VoidEye.DEATH_TICKS + 40) / 30F)) + 0.05F * Mth.sin(t * 1.3F);
         int s = e.getState();
         float open = switch (s) {
@@ -97,7 +97,7 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
     }
 
     /** {ancho, alto} de la pupila en radianes. */
-    private static float[] pupil(VoidEye e, float age, float t) {
+    static float[] pupil(VoidEye e, float age, float t) {
         if (e.isDeadOrDying()) return new float[]{0.2F + 0.1F * Mth.sin(t), 0.3F};
         float breathe = 1F + 0.08F * Mth.sin(t * 0.07F);
         return switch (e.getState()) {
@@ -111,7 +111,7 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
     }
 
     /** Intensidad y tinte del brillo del iris. */
-    private static float[] glow(VoidEye e, float age, float t) {
+    static float[] glow(VoidEye e, float age, float t) {
         float k;
         int s = e.getState();
         if (e.isDeadOrDying()) k = 1F;
@@ -213,7 +213,7 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
         return v < 0.5F ? v / 0.5F * IRIS_SPLIT : IRIS_SPLIT + (v - 0.5F) / 0.5F * (Mth.PI - IRIS_SPLIT);
     }
 
-    private static void sphere(PoseStack.Pose pose, VertexConsumer vc, float R, int light, int overlay, float r, float g, float b) {
+    static void sphere(PoseStack.Pose pose, VertexConsumer vc, float R, int light, int overlay, float r, float g, float b) {
         int lat = 40, lon = 48;
         for (int i = 0; i < lat; i++) {
             float v0 = i / (float) lat, v1 = (i + 1) / (float) lat;
@@ -235,7 +235,7 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
     }
 
     /** Elipse sobre la esfera (anillo de s0 a s1 veces el tamaño), centrada en el polo frontal. */
-    private static void pupilCap(PoseStack.Pose pose, VertexConsumer vc, float R, float w, float h, float s0, float s1, int light, int overlay,
+    static void pupilCap(PoseStack.Pose pose, VertexConsumer vc, float R, float w, float h, float s0, float s1, int light, int overlay,
                                  float r, float g, float b) {
         int rings = 6, seg = 36;
         for (int i = 0; i < rings; i++) {
@@ -258,7 +258,7 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
     }
 
     /** Medio cascarón de párpado; ρ = grados que se retira hacia atrás (0 = cerrado). */
-    private static void lid(PoseStack ps, VertexConsumer vc, float R, float rho, boolean upper, int overlay) {
+    static void lid(PoseStack ps, VertexConsumer vc, float R, float rho, boolean upper, int overlay) {
         ps.pushPose();
         if (!upper) ps.scale(1F, -1F, 1F);
         ps.mulPose(Axis.XP.rotationDegrees(-rho));
@@ -290,7 +290,7 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
 
     // ------------------------------------------------------------------ tentáculos de la nuca
 
-    private static void renderBackTentacles(VoidEye e, PoseStack ps, MultiBufferSource buf, float t, float R, int overlay) {
+    static void renderBackTentacles(VoidEye e, PoseStack ps, MultiBufferSource buf, float t, float R, int overlay) {
         VertexConsumer body = buf.getBuffer(RenderType.entityCutoutNoCull(TENTACLE));
         boolean awake = e.getState() != VoidEye.S_AWAKEN;
         float agitation = e.isDeadOrDying() ? 2.2F : e.getState() == VoidEye.S_SCREAM ? 2F : e.isFiring() ? 1.4F : 1F;
@@ -315,7 +315,7 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
 
     // ------------------------------------------------------------------ anillos y bloques en órbita
 
-    private static void renderRunes(VoidEye e, PoseStack ps, MultiBufferSource buf, float t, float k) {
+    static void renderRunes(VoidEye e, PoseStack ps, MultiBufferSource buf, float t, float k) {
         VertexConsumer vc = buf.getBuffer(RenderType.eyes(RUNES));
         float[][] rings = {{13.5F, 24F, 0.6F, 1.6F}, {16F, -62F, -0.4F, 1.2F}, {19F, 75F, 0.25F, 1.0F}};
         boolean fast = e.getPhase() == 3;
@@ -333,7 +333,7 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
     }
 
     /** Banda cilíndrica vertical (alto h) de radio r, visible de ambos lados. */
-    private static void band(PoseStack.Pose pose, VertexConsumer vc, float radius, float h, int seg, float uRepeat,
+    static void band(PoseStack.Pose pose, VertexConsumer vc, float radius, float h, int seg, float uRepeat,
                              float r, float g, float b, float y0) {
         for (int j = 0; j < seg; j++) {
             float a0 = Mth.TWO_PI * j / seg, a1 = Mth.TWO_PI * (j + 1) / seg;
@@ -345,7 +345,7 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
     }
 
     /** Cuadrilátero con las dos caras (los tipos aditivos descartan la cara trasera). */
-    private static void quad2(PoseStack.Pose pose, VertexConsumer vc, float ax, float ay, float az, float bx, float by, float bz,
+    static void quad2(PoseStack.Pose pose, VertexConsumer vc, float ax, float ay, float az, float bx, float by, float bz,
                               float cx, float cy, float cz, float dx, float dy, float dz, float u0, float u1, float r, float g, float b) {
         add(pose, vc, ax, ay, az, u0, 1, r, g, b);
         add(pose, vc, bx, by, bz, u1, 1, r, g, b);
@@ -361,7 +361,7 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
         vc.addVertex(pose, x, y, z).setColor(r, g, b, 1F).setUv(u, v).setOverlay(OverlayTexture.NO_OVERLAY).setLight(FULL).setNormal(pose, 0F, 1F, 0F);
     }
 
-    private static void renderOrbitingBlocks(PoseStack ps, MultiBufferSource buf, float t, float k) {
+    static void renderOrbitingBlocks(PoseStack ps, MultiBufferSource buf, float t, float k) {
         if (k <= 0.01F) return;
         var blocks = Minecraft.getInstance().getBlockRenderer();
         var state = ModBlocks.VOID_BLOCK.get().defaultBlockState();
@@ -387,7 +387,7 @@ public class VoidEyeRenderer extends EntityRenderer<VoidEye> {
 
     // ------------------------------------------------------------------ Mirada
 
-    private static void ribbon(PoseStack.Pose pose, VertexConsumer vc, Vec3 a, Vec3 b, Vec3 cam, float width, float vScroll,
+    static void ribbon(PoseStack.Pose pose, VertexConsumer vc, Vec3 a, Vec3 b, Vec3 cam, float width, float vScroll,
                                float r, float g, float bl) {
         Vec3 axis = b.subtract(a);
         double len = axis.length();

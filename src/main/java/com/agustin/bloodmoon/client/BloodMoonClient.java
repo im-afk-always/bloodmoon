@@ -47,6 +47,8 @@ public class BloodMoonClient {
         modBus.addListener(BloodMoonClient::onAddLayers);
         modBus.addListener((net.neoforged.neoforge.client.event.RegisterDimensionSpecialEffectsEvent e) -> e.register(
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "void_labyrinth"), new LabyrinthSky()));
+        modBus.addListener((net.neoforged.neoforge.client.event.RegisterDimensionSpecialEffectsEvent e) -> e.register(
+                ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "beyond"), new BeyondSky()));
         modBus.addListener(NukeClouds::onRegisterProviders);
         NukeClouds.init();
         modBus.addListener(SupernovaFx::onRegisterProviders);
@@ -81,6 +83,8 @@ public class BloodMoonClient {
         event.registerEntityRenderer(ModEntities.VOID_EYE.get(), VoidEyeRenderer::new);
         event.registerEntityRenderer(ModEntities.EYE_TENTACLE.get(), EyeTentacleRenderer::new);
         event.registerEntityRenderer(ModEntities.WATCHER_EYE.get(), WatcherEyeRenderer::new);
+        event.registerEntityRenderer(ModEntities.UNBOUND_OBSERVER.get(), UnboundObserverRenderer::new);
+        event.registerEntityRenderer(ModEntities.COLOSSAL_EYE.get(), ColossalEyeRenderer::new);
     }
 
     private static void onRegisterLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {

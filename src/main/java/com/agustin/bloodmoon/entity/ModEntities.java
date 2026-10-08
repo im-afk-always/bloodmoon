@@ -106,6 +106,25 @@ public final class ModEntities {
                     .updateInterval(1)
                     .build("watcher_eye"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<UnboundObserver>> UNBOUND_OBSERVER =
+            ENTITIES.register("unbound_observer", () -> EntityType.Builder
+                    .<UnboundObserver>of(UnboundObserver::new, MobCategory.MONSTER)
+                    .sized(14.0F, 33.0F)
+                    .fireImmune()
+                    .clientTrackingRange(16)
+                    .updateInterval(1)
+                    .build("unbound_observer"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<ColossalEye>> COLOSSAL_EYE =
+            ENTITIES.register("colossal_eye", () -> EntityType.Builder
+                    .<ColossalEye>of(ColossalEye::new, MobCategory.MISC)
+                    .sized(4.0F, 4.0F)
+                    .fireImmune()
+                    .noSave()
+                    .clientTrackingRange(20)
+                    .updateInterval(1)
+                    .build("colossal_eye"));
+
     private ModEntities() {}
 
     public static void registerAttributes(EntityAttributeCreationEvent event) {
@@ -117,6 +136,7 @@ public final class ModEntities {
         event.put(VOID_ARCHER.get(), VoidSkeleton.createAttributes().build());
         event.put(VOID_EYE.get(), VoidEye.createAttributes().build());
         event.put(EYE_TENTACLE.get(), EyeTentacle.createAttributes().build());
+        event.put(UNBOUND_OBSERVER.get(), VoidEye.createAttributes().build());
         event.put(APOCALYPSE_RIDER.get(), AbstractSkeleton.createAttributes()
                 .add(Attributes.MAX_HEALTH, 80.0)
                 .add(Attributes.SCALE, 2.0)

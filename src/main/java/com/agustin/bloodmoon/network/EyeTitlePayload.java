@@ -11,7 +11,7 @@ import java.util.function.Consumer;
 
 /** Servidor -> cliente: cinemática de texto del Observador (despertar o despedida). */
 public record EyeTitlePayload(int mode) implements CustomPacketPayload {
-    public static final int AWAKEN = 0, FAREWELL = 1;
+    public static final int AWAKEN = 0, FAREWELL = 1, ASCEND = 2;
 
     public static final Type<EyeTitlePayload> TYPE =
             new Type<>(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "eye_title"));

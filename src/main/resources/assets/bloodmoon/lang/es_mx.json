@@ -93,5 +93,10 @@
   "bloodmoon.subtitle.eye_pulse": "Todo cae hacia el Ojo",
   "bloodmoon.subtitle.eye_wave": "Una onda recorre el piso",
   "bloodmoon.subtitle.eye_implode": "El Ojo implosiona",
-  "bloodmoon.subtitle.eye_tentacle": "Algo brota del suelo"
+  "bloodmoon.subtitle.eye_tentacle": "Algo brota del suelo",
+  "entity.bloodmoon.unbound_observer": "El Observador Desatado",
+  "entity.bloodmoon.colossal_eye": "Ojo Colosal",
+  "bloodmoon.eye.title2": "EL OBSERVADOR DESATADO",
+  "bloodmoon.eye.subtitle2": "Más allá de la Grieta no hay regreso",
+  "bloodmoon.command.summon.unbound": "El Observador Desatado emerge del suelo."
 }

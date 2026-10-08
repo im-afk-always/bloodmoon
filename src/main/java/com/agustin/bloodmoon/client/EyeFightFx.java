@@ -77,6 +77,7 @@ public final class EyeFightFx {
     private static boolean nearEye;
     private static int titleMode = -1;
     private static float titleAge;
+    private static float flash, flashO;
     private static final String[] WHISPERS = new String[8];
     private static final float[][] WHISPER_POS = new float[5][4];
 
@@ -121,7 +122,19 @@ public final class EyeFightFx {
         madnessO = madness;
         madness += (madnessTarget - madness) * 0.25F;
         shake *= 0.9F;
-        if (titleMode >= 0 && ++titleAge > (titleMode == EyeTitlePayload.AWAKEN ? 240 : 200)) titleMode = -1;
+        int titleLen = titleMode == EyeTitlePayload.AWAKEN ? 240 : titleMode == EyeTitlePayload.ASCEND ? 340 : 200;
+        if (titleMode >= 0 && ++titleAge > titleLen) titleMode = -1;
+        flashO = flash;
+        flash *= 0.88F;
+        for (Entity en : mc.level.entitiesForRendering()) {
+            if (en instanceof com.agustin.bloodmoon.entity.ColossalEye ce && ce.distanceToSqr(mc.player) < 320 * 320) {
+                int a = ce.tickCount;
+                if (a == com.agustin.bloodmoon.entity.ColossalEye.FIRE) { flash = 0.75F; shake = Math.max(shake, 2F); }
+                if (ce.isFiring()) shake = Math.max(shake, 0.9F);
+                else if (a >= com.agustin.bloodmoon.entity.ColossalEye.LOCK) shake = Math.max(shake, 0.25F);
+                else shake = Math.max(shake, 0.08F);
+            }
+        }
 
         VoidEye eye = findEye(mc);
         nearEye = eye != null;
@@ -137,6 +150,12 @@ public final class EyeFightFx {
                 case VoidEye.S_PULL -> shake = Math.max(shake, 0.15F + 0.25F * age / VoidEye.PULL_TICKS);
                 case VoidEye.S_AWAKEN -> shake = Math.max(shake, 0.6F * smooth((age - 50) / 100F) * (age < 165 ? 1F : 0F));
                 case VoidEye.S_GAZE, VoidEye.S_SWEEP -> shake = Math.max(shake, 0.12F);
+                case VoidEye.S_ASCEND -> shake = Math.max(shake, 0.3F + 0.9F * age / VoidEye.ASCEND_TICKS);
+                case com.agustin.bloodmoon.entity.UnboundObserver.S_EMERGE -> shake = Math.max(shake, 0.5F * (age < 125 ? 1F : 0F));
+                case com.agustin.bloodmoon.entity.UnboundObserver.S_SLAM -> {
+                    if (age >= com.agustin.bloodmoon.entity.UnboundObserver.SLAM_HIT && age < com.agustin.bloodmoon.entity.UnboundObserver.SLAM_HIT + 6)
+                        shake = Math.max(shake, 0.8F);
+                }
                 default -> {}
             }
             if (eye.isDeadOrDying()) shake = Math.max(shake, 0.2F + 0.8F * eye.deathTime / (float) VoidEye.DEATH_TICKS);
@@ -376,10 +395,28 @@ public final class EyeFightFx {
     // ------------------------------------------------------------------ superposición: títulos
 
     public static void renderTitle(GuiGraphics g, DeltaTracker delta) {
+        float fl = Mth.lerp(delta.getGameTimeDeltaPartialTick(false), flashO, flash);
+        if (fl > 0.01F) {
+            g.fill(0, 0, g.guiWidth(), g.guiHeight(), ((int) (Math.min(1F, fl) * 255) << 24) | 0xFFF0FF);
+            g.flush();
+        }
         if (titleMode < 0) return;
         float a = titleAge + delta.getGameTimeDeltaPartialTick(false);
         int w = g.guiWidth(), h = g.guiHeight();
         g.flush();
+        if (titleMode == EyeTitlePayload.ASCEND) {
+            // la pupila se abre como una grieta: blanco total, el viaje, y el nombre de la forma final
+            float white = smooth((a - 55) / 40F) * (1F - smooth((a - 125) / 55F));
+            if (white > 0.004F) g.fill(0, 0, w, h, ((int) (white * 255) << 24) | 0xFBF4FF);
+            g.flush();
+            float fade = smooth((a - 150) / 15F) * (1F - smooth((a - 300) / 35F));
+            band(g, w, h, (int) (h * 0.22F), (int) (h * 0.16F), fade * 0.55F);
+            String title = Component.translatable("bloodmoon.eye.title2").getString();
+            String sub = Component.translatable("bloodmoon.eye.subtitle2").getString();
+            glyphLine(g, title, w / 2F, h * 0.24F, 2.6F, a, 160, 2.5F, fade, 0xFF8AD8);
+            glyphLine(g, sub, w / 2F, h * 0.24F + 30, 1.3F, a, 160 + title.length() * 2.5F + 10, 1.5F, fade, 0xB07CE8);
+            return;
+        }
         if (titleMode == EyeTitlePayload.AWAKEN) {
             float fade = smooth(a / 20F) * (1F - smooth((a - 205) / 30F));
             band(g, w, h, (int) (h * 0.22F), (int) (h * 0.16F), fade * 0.55F);

@@ -28,6 +28,7 @@ public final class ModBossBars {
             Executioner.NAME_KEY, new Style(true, 0x5C0A3C, 0xFF5CC8, 0x7A1450, 0xD94C9A),
             FirstSoulDragon.NAME_KEY, new Style(true, 0x14002E, 0xB98CFF, 0x2A0A4A, 0xE0AAFF),
             com.agustin.bloodmoon.entity.VoidEye.NAME_KEY, new Style(true, 0x1A0008, 0xFF4FD8, 0x3A0A30, 0xFF9CF0),
+            com.agustin.bloodmoon.entity.UnboundObserver.UNBOUND_KEY, new Style(true, 0x2A0010, 0xFF2E7E, 0x4A0A20, 0xFF8AB0),
             "entity.bloodmoon.cursed_creeper", new Style(false, 0x6A040F, 0xE5383B, 0x5A0A0A, 0xA4161A),
             "entity.bloodmoon.apocalypse_rider", new Style(false, 0x2B2B2B, 0xB0B0B0, 0x3A3A3A, 0x6E6E6E));
 
