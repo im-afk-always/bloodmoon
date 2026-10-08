@@ -29,6 +29,7 @@ public class BloodMoonMod {
 
     public BloodMoonMod(IEventBus modBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.COMMON, BloodMoonConfig.SPEC);
+        container.registerConfig(ModConfig.Type.CLIENT, BloodMoonClientConfig.SPEC);
 
         ModEntities.ENTITIES.register(modBus);
         ModBlocks.BLOCKS.register(modBus);
