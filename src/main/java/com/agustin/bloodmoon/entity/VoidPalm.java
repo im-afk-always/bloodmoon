@@ -30,13 +30,15 @@ import org.joml.Vector3f;
 
 /**
  * La Palma del Vacío: al llegar a la mitad de su vida, el Observador Desatado materializa en el cielo una mano de
- * energía de 100 bloques que desciende durante 30 segundos (contador en pantalla). Al tocar el suelo la pantalla
- * se oscurece y se contrae hasta el punto de impacto, y estalla como una supernova: la onda se esparce por la
- * superficie arrasándolo todo hasta ~110 bloques, sin abrir agujeros al vacío.
+ * energía de 100 bloques que desciende durante 30 segundos (contador en pantalla). Al tocar el suelo una luz blanca
+ * cubre la pantalla, se contrae a un punto mientras todo se oscurece, se sostiene un segundo y estalla como una
+ * supernova: la onda se esparce por la superficie arrasándolo todo hasta 150 bloques, sin abrir agujeros al vacío.
  */
 public class VoidPalm extends Entity {
-    public static final int DESCEND = 600, COLLAPSE = 40, BLAST = DESCEND + COLLAPSE, END = BLAST + 90;
-    public static final float START_H = 210F, BLAST_R = 110F, LETHAL_R = 55F;
+    /** Toca el piso en DESCEND; la luz cubre la pantalla (WHITE), se contrae (CONTRACT), se sostiene en un punto (HOLD) y estalla. */
+    public static final int DESCEND = 600, WHITE = 50, CONTRACT = 30, HOLD = 20, COLLAPSE = WHITE + CONTRACT + HOLD,
+            BLAST = DESCEND + COLLAPSE, END = BLAST + 60;
+    public static final float START_H = 210F, BLAST_R = 150F, LETHAL_R = 75F;
 
     private static final EntityDataAccessor<Vector3f> DATA_GROUND = SynchedEntityData.defineId(VoidPalm.class, EntityDataSerializers.VECTOR3);
 
@@ -104,8 +106,10 @@ public class VoidPalm extends Entity {
         if (t == DESCEND - 100) sound(sl, ModSounds.EYE_CHARGE.get(), 0.3F);
         if (t == DESCEND) {
             sound(sl, SoundEvents.GENERIC_EXPLODE.value(), 0.25F);
-            sound(sl, ModSounds.SUPERNOVA_CHARGE.get(), 0.6F);
+            sound(sl, SoundEvents.BEACON_ACTIVATE, 0.5F);
         }
+        if (t == DESCEND + WHITE - 10) sound(sl, ModSounds.SUPERNOVA_CHARGE.get(), 0.6F);
+        if (t == DESCEND + WHITE + CONTRACT) sound(sl, ModSounds.EYE_IMPLODE.get(), 1.6F);
         if (t == BLAST) blast(sl, g);
         if (t >= END) discard();
     }
@@ -126,7 +130,7 @@ public class VoidPalm extends Entity {
             e.hurtMarked = true;
         }
         if (sl.dimension() == ModDimensions.BEYOND || sl.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)) {
-            SurfaceBlast.start(sl, BlockPos.containing(g.x, g.y - 1, g.z), BLAST_R, 5F);
+            SurfaceBlast.start(sl, BlockPos.containing(g.x, g.y - 1, g.z), BLAST_R, 6F);
         }
         sl.sendParticles(ParticleTypes.EXPLOSION_EMITTER, g.x, g.y + 2, g.z, 12, 12, 2, 12, 0);
         sl.sendParticles(ParticleTypes.END_ROD, g.x, g.y + 2, g.z, 400, 3, 3, 3, 3.5);

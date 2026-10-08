@@ -112,9 +112,9 @@ de runas, dos cinturones de bloques (Vacío y obsidiana llorosa), un halo de mon
 - **Las Fauces:** la pupila se abre como un agujero negro y traga el piso; te arrastra (cubrite detrás de un obelisco) y termina con una expulsión.
 - **Lágrimas del Cielo:** meteoros negros enormes caen despacio; al tocar el piso no pasa nada... se enciende una luz, colapsa de golpe y estalla.
 **La Palma del Vacío (al 50%):** materializa en el cielo una mano de energía de ~100 bloques con un ojo en la palma;
-un contador púrpura arriba de la pantalla da 30 segundos para alejarse. Al tocar el suelo la pantalla se oscurece y se
-contrae hasta el impacto, y estalla como una supernova: letal hasta ~55 bloques, daño hasta ~110, y la onda arrasa la
-superficie (obeliscos incluidos) sin abrir agujeros al vacío. `/bloodmoon summon palm` para probarla.
+un contador púrpura arriba de la pantalla da 30 segundos para alejarse. Al tocar el suelo una luz intensa cubre la
+pantalla de blanco, se contrae mientras todo se oscurece, queda un punto blanco suspendido un segundo y estalla como una
+supernova: letal hasta ~75 bloques, daño hasta 150, y un muro de luz arrasa la superficie (obeliscos incluidos) sin abrir agujeros al vacío. `/bloodmoon summon palm` para probarla.
 Tras el Ojo Colosal y las Fauces baja exhausto hasta el piso (vulnerable). Al morir, todos vuelven al Santuario con el botín.
 Morir en el Más Allá no hace perder el inventario. Si pierden, el Santuario se reabre en 5 minutos.
 

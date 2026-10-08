@@ -83,6 +83,12 @@ public class UnboundObserver extends VoidEye {
         return EYE_R;
     }
 
+    /** La pelea final abarca la llanura entera: huir de la Palma no hace que el jefe se vaya. */
+    @Override
+    protected double arenaRange() {
+        return 260;
+    }
+
     @Override
     protected double beamHalfWidth() {
         return 3.8;
@@ -107,11 +113,11 @@ public class UnboundObserver extends VoidEye {
         if (!(level() instanceof ServerLevel sl)) return;
         if (home == null) setHome(position());
         bossEvent.setProgress(getHealth() / getMaxHealth());
-        BossBars.update(this, bossEvent, ARENA_RANGE + 80);
+        BossBars.update(this, bossEvent, arenaRange() + 40);
 
         List<ServerPlayer> arena = arenaPlayers(sl);
         if (arena.isEmpty()) {
-            if (++noPlayerTicks > 400) {         // perdieron: la Grieta se cierra
+            if (++noPlayerTicks > 1200 && palmTimer <= 0) {         // perdieron (o huyeron un minuto): la Grieta se cierra
                 madness.clear();
                 discard();
             }
@@ -511,7 +517,9 @@ public class UnboundObserver extends VoidEye {
         if (s == S_EMERGE || s == S_SCREAM || isDeadOrDying()) return false;
         Entity attacker = source.getEntity();
         if (attacker != null && ally(attacker)) return false;
-        if (attacker instanceof ColossalEye || source.getDirectEntity() instanceof ColossalEye) return false;
+        Entity direct = source.getDirectEntity();
+        if (direct instanceof ColossalEye || direct instanceof VoidPalm || direct instanceof TitanTentacle || direct instanceof AbyssTear
+                || direct instanceof VoidFist || attacker instanceof ColossalEye) return false;
         if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypeTags.IS_DROWNING) || source.is(DamageTypeTags.IS_FIRE)) return false;
         float mult = s == S_EXPOSED ? 1.4F : 0.4F;
         return hurtRaw(source, amount * mult);

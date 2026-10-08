@@ -15,8 +15,8 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * La Palma del Vacío: una mano de energía oscura de ~100 bloques, palma abajo, con un ojo abierto en el centro de
- * la palma. Desciende sobre dos sellos en el piso (el borde de la onda y la zona letal) y, al tocar el suelo,
- * se comprime hacia el punto de impacto.
+ * la palma. Desciende sobre dos sellos en el piso (el borde de la onda y la zona letal); al tocar el suelo arde en
+ * blanco con una columna de luz, se contrae hasta un punto y, tras el estallido, un muro de luz barre la superficie.
  */
 public class VoidPalmRenderer extends EntityRenderer<VoidPalm> {
     private static final ResourceLocation ENERGY = VoidEyeRenderer.tex("energy"), ENERGY_GLOW = VoidEyeRenderer.tex("energy_glow"),
@@ -65,8 +65,57 @@ public class VoidPalmRenderer extends EntityRenderer<VoidPalm> {
             ps.popPose();
         }
 
-        // ---- la mano
-        float squash = a < VoidPalm.DESCEND ? 1F : 1F - VoidEyeRenderer.smooth((a - VoidPalm.DESCEND) / VoidPalm.COLLAPSE);
+        // ---- columna de luz al tocar el suelo: crece mientras la pantalla se blanquea y se afina al contraerse
+        float tw = a - VoidPalm.DESCEND;
+        int W = VoidPalm.WHITE, CT = VoidPalm.CONTRACT;
+        if (tw >= 0 && a < VoidPalm.BLAST) {
+            float col = tw < W ? VoidEyeRenderer.smooth(tw / W) : 1F - VoidEyeRenderer.smooth((tw - W) / CT) * 0.85F;
+            float wd = tw < W ? 4F + 34F * VoidEyeRenderer.smooth(tw / W) : Mth.lerp(VoidEyeRenderer.smooth((tw - W) / CT), 38F, 1.2F);
+            float c = Math.min(1F, col);
+            ps.pushPose();
+            ps.translate(g.x, g.y, g.z);
+            for (int i = 0; i < 3; i++) {
+                ps.mulPose(Axis.YP.rotationDegrees(60F));
+                VoidEyeRenderer.quad2(ps.last(), buf.getBuffer(RenderType.eyes(ENERGY_GLOW)), -wd, 0, 0, wd, 0, 0, wd * 0.4F, 260, 0, -wd * 0.4F, 260, 0,
+                        0, 1, c, c * 0.92F, c);
+            }
+            ps.popPose();
+        }
+
+        // ---- onda de choque tras el estallido: un muro de luz que barre la superficie hasta BLAST_R
+        if (a >= VoidPalm.BLAST) {
+            float tb = a - VoidPalm.BLAST;
+            float R = Math.min(VoidPalm.BLAST_R, 4F + 6F * tb);
+            float fade = 1F - VoidEyeRenderer.smooth((tb - 22F) / (VoidPalm.END - VoidPalm.BLAST - 22F));
+            if (fade > 0.01F) {
+                float wallH = 18F * (1F - 0.6F * R / VoidPalm.BLAST_R) + 4F;
+                float band = 10F + 6F * R / VoidPalm.BLAST_R;
+                ps.pushPose();
+                ps.translate(g.x, g.y + 0.2, g.z);
+                int seg = 96;
+                for (int i = 0; i < seg; i++) {
+                    float a0 = Mth.TWO_PI * i / seg, a1 = Mth.TWO_PI * (i + 1) / seg;
+                    float c0 = Mth.cos(a0), s0 = Mth.sin(a0), c1 = Mth.cos(a1), s1 = Mth.sin(a1);
+                    float u0 = i / 8F, u1 = (i + 1) / 8F;
+                    float c = fade;
+                    // muro
+                    VoidEyeRenderer.quad2(ps.last(), buf.getBuffer(RenderType.eyes(ENERGY_GLOW)), c0 * R, 0, s0 * R, c1 * R, 0, s1 * R,
+                            c1 * R * 1.03F, wallH, s1 * R * 1.03F, c0 * R * 1.03F, wallH, s0 * R * 1.03F, u0, u1, c, c * 0.75F, c);
+                    // anillo en el piso detrás del frente
+                    float ri = Math.max(0F, R - band);
+                    VoidEyeRenderer.quad2(ps.last(), buf.getBuffer(RenderType.eyes(ENERGY_GLOW)), c0 * ri, 0.1F, s0 * ri, c1 * ri, 0.1F, s1 * ri,
+                            c1 * R, 0.1F, s1 * R, c0 * R, 0.1F, s0 * R, u0, u1, c * 0.8F, c * 0.25F, c);
+                }
+                ps.popPose();
+            }
+        }
+
+        // ---- la mano: al tocar el suelo se aplasta y arde en blanco, y luego se contrae al punto
+        float squash;
+        if (a < VoidPalm.DESCEND) squash = 1F;
+        else if (tw < W) squash = 1F - 0.35F * VoidEyeRenderer.smooth(tw / W);
+        else squash = 0.65F * (1F - VoidEyeRenderer.smooth((tw - W) / CT));
+        float white = a < VoidPalm.DESCEND ? 0F : VoidEyeRenderer.smooth(tw / W);
         if (squash <= 0.01F) {
             super.render(e, entityYaw, pt, ps, buf, packedLight);
             return;
@@ -80,8 +129,9 @@ public class VoidPalmRenderer extends EntityRenderer<VoidPalm> {
         for (int pass = 0; pass < 2; pass++) {
             RenderType type = pass == 0 ? RenderType.entityCutoutNoCull(ENERGY) : RenderType.eyes(ENERGY_GLOW);
             float gl = 0.8F + 0.2F * Mth.sin(a * 0.15F);
-            float r = pass == 0 ? 1F : 0.75F * gl, gg = pass == 0 ? 1F : 0.2F * gl, b = pass == 0 ? 1F : gl;
-            float grow = pass == 0 ? 1F : 1.06F;
+            float r = pass == 0 ? 1F : Mth.lerp(white, 0.75F * gl, 1F), gg = pass == 0 ? 1F : Mth.lerp(white, 0.2F * gl, 0.95F),
+                    b = pass == 0 ? 1F : Mth.lerp(white, gl, 1F);
+            float grow = pass == 0 ? 1F : 1.06F + 0.12F * white;
             // palma
             VoidFistRenderer.ellipsoid(ps, buf.getBuffer(type), 0F, 0F, 0F, 24F * grow, 6F * grow, 28F * grow, r, gg, b);
             // dedos (hacia +Z), curvados hacia abajo; pulgar al costado

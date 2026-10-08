@@ -346,7 +346,8 @@ public class VoidEye extends Monster {
         for (ServerPlayer p : sl.players()) {
             if (p.isSpectator() || !p.isAlive()) continue;
             double dx = p.getX() - h.x, dz = p.getZ() - h.z;
-            if (dx * dx + dz * dz < ARENA_RANGE * ARENA_RANGE && Math.abs(p.getY() - h.y) < 70) list.add(p);
+            double ar = arenaRange();
+            if (dx * dx + dz * dz < ar * ar && Math.abs(p.getY() - h.y) < 70) list.add(p);
         }
         // los que se fueron: limpiar su locura
         for (UUID id : new ArrayList<>(madness.keySet())) {
@@ -546,6 +547,11 @@ public class VoidEye extends Monster {
             sl.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, end.x, end.y, end.z, 3, 0.4, 0.2, 0.4, 0.05);
         }
         if (stateTick % 25 == 0) playSound(ModSounds.EYE_BEAM.get(), 8F, getState() == S_SWEEP ? 0.8F : 1F);
+    }
+
+    /** Radio (horizontal, desde el centro) en el que un jugador cuenta como parte de la pelea. */
+    protected double arenaRange() {
+        return ARENA_RANGE;
     }
 
     /** Medio ancho del rayo (bloques) para el daño. */

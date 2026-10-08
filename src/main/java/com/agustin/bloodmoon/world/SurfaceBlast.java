@@ -72,8 +72,14 @@ public final class SurfaceBlast {
         BlockState glass = ModBlocks.VOID_STONE.get().defaultBlockState();
         BlockState fire = ModBlocks.ASTRAL_FIRE.get().defaultBlockState();
         if (fire.hasProperty(AstralFireBlock.ETERNAL)) fire = fire.setValue(AstralFireBlock.ETERNAL, false);
-        for (int dx = -R; dx <= R; dx++) {
-            for (int dz = -R; dz <= R; dz++) {
+        for (int dz = -R; dz <= R; dz++) {
+            double outer = r1 * r1 - dz * dz;
+            if (outer < 0) continue;
+            int xo = (int) Math.floor(Math.sqrt(outer));
+            double inner = r0 * r0 - dz * dz;
+            int xi = inner > 0 ? (int) Math.ceil(Math.sqrt(inner)) : 0;
+            for (int dx = -xo; dx <= xo; dx++) {
+                if (Math.abs(dx) < xi - 1) { dx = xi - 2; continue; }
                 double d = Math.sqrt(dx * dx + dz * dz);
                 if (d < r0 || d >= r1) continue;
                 int x = t.cx + dx, z = t.cz + dz;

@@ -148,11 +148,14 @@ public final class EyeFightFx {
             if (palmDim != null && mc.level.dimension() != palmDim) palmActive = false;
             int D = com.agustin.bloodmoon.entity.VoidPalm.DESCEND, B = com.agustin.bloodmoon.entity.VoidPalm.BLAST;
             double dist = palmPos.distanceTo(mc.player.position());
-            if (palmAge >= D && palmAge < B) shake = Math.max(shake, 0.25F + 0.5F * (palmAge - D) / (float) (B - D));
+            int W = com.agustin.bloodmoon.entity.VoidPalm.WHITE, CT = com.agustin.bloodmoon.entity.VoidPalm.CONTRACT;
+            if (palmAge >= D && palmAge < D + W) shake = Math.max(shake, 0.3F + 0.9F * (palmAge - D) / (float) W);
+            else if (palmAge >= D + W && palmAge < D + W + CT) shake = Math.max(shake, 0.5F * (1F - (palmAge - D - W) / (float) CT));
+            else if (palmAge >= D + W + CT && palmAge < B) shake = 0F; // el silencio antes del estallido
             if (palmAge == B) {
-                float k = (float) Math.max(0, 1 - dist / 400);
-                flash = Math.max(flash, 0.6F + 0.9F * k);
-                shake = Math.max(shake, 3.5F * k);
+                float k = (float) Math.max(0, 1 - dist / 600);
+                flash = Math.max(flash, 1.0F + 0.6F * k);
+                shake = Math.max(shake, 1.5F + 2.5F * k);
             }
             if (palmAge > D - 200 && palmAge < D && palmAge % 20 == 0) play(SoundEvents.NOTE_BLOCK_BASEDRUM.value(), 0.6F, 0.5F);
             if (palmAge > B + 120) palmActive = false;
@@ -516,59 +519,76 @@ public final class EyeFightFx {
             g.flush();
             return;
         }
-        if (a < D + C) {
-            float k = smooth((a - D) / C);
-            float dark = smooth((a - D) / 10F) * 0.97F;
-            float[] p = SupernovaFx.project(palmPos.add(0, 1, 0), w, h);
-            float cx = p == null ? w / 2F : p[0], cy = p == null ? h / 2F : p[1];
-            float diag = (float) Math.sqrt(w * w + h * h);
-            float rr = Mth.lerp(k, diag, 2F);
-            hole(g, cx, cy, rr, dark, diag * 2.5F);
-            // el punto de luz que concentra todo
-            float glow = 0.3F + 0.7F * k;
-            float gs = 6F + 30F * (1F - k);
-            Matrix4f m = g.pose().last().pose();
-            RenderSystem.enableBlend();
-            RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-            RenderSystem.setShader(GameRenderer::getPositionColorShader);
-            BufferBuilder bb = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
-            for (int i = 0; i < 40; i++) {
-                float a0 = Mth.TWO_PI * i / 40, a1 = Mth.TWO_PI * (i + 1) / 40;
-                bb.addVertex(m, cx, cy, 0).setColor(1F, 0.95F, 1F, glow);
-                bb.addVertex(m, cx + Mth.cos(a0) * gs, cy + Mth.sin(a0) * gs, 0).setColor(0.7F, 0.3F, 1F, 0F);
-                bb.addVertex(m, cx + Mth.cos(a1) * gs, cy + Mth.sin(a1) * gs, 0).setColor(0.7F, 0.3F, 1F, 0F);
-            }
-            draw(bb);
-            RenderSystem.defaultBlendFunc();
-            g.flush();
+        if (a >= C + D) return; // el estallido lo pinta el destello
+        int W = com.agustin.bloodmoon.entity.VoidPalm.WHITE, CT = com.agustin.bloodmoon.entity.VoidPalm.CONTRACT;
+        float[] p = SupernovaFx.project(palmPos.add(0, 1, 0), w, h);
+        float cx = p == null ? w / 2F : p[0], cy = p == null ? h / 2F : p[1];
+        // distancia hasta la esquina más lejana: con ese radio el disco cubre toda la pantalla
+        float far = (float) Math.sqrt(Math.max(cx, w - cx) * Math.max(cx, w - cx) + Math.max(cy, h - cy) * Math.max(cy, h - cy));
+        float t = a - D;
+        if (t < W) {
+            // 1) una luz intensa nace en el punto de impacto y en pocos segundos cubre la pantalla de blanco
+            float k = t / W;
+            float grow = k * k * (1.6F - 0.6F * k);          // arranca lento y se acelera
+            float r = 6F + (far * 1.35F + 40F) * grow;
+            disc(g, cx, cy, r, 0.55F, Math.min(1F, 0.35F + 0.9F * k), 1F, 0.97F, 1F, false);
+            disc(g, cx, cy, r * 0.5F + 10F, 0.2F, 0.6F * (1F - k), 0.85F, 0.55F, 1F, true);   // corona violeta
+            float veil = smooth((k - 0.7F) / 0.3F);
+            if (veil > 0.004F) g.fill(0, 0, w, h, ((int) (veil * 255) << 24) | 0xFFF8FF);
+        } else if (t < W + CT) {
+            // 2) el blanco se contrae hacia el punto y todo alrededor se oscurece
+            float k = (t - W) / CT;
+            float dark = smooth(k / 0.35F) * 0.97F;
+            if (dark > 0.004F) g.fill(0, 0, w, h, ((int) (dark * 255) << 24) | 0x020004);
+            float sk = k * k * k;                              // se cierra cada vez más rápido
+            float r = Mth.lerp(sk, far * 1.4F + 40F, 7F);
+            disc(g, cx, cy, r, 0.6F, 1F, 1F, 0.97F, 1F, false);
+            disc(g, cx, cy, r * 1.25F + 14F, 0F, 0.35F * (1F - k * 0.5F), 0.7F, 0.3F, 1F, true);
+        } else {
+            // 3) negrura y un único punto blanco, suspendido, durante un segundo
+            float k = (t - W - CT) / Math.max(1F, C - W - CT);
+            g.fill(0, 0, w, h, (int) (0.97F * 255) << 24 | 0x020004);
+            float beat = 1F + 0.18F * Mth.sin(a * 1.7F) + 0.5F * smooth((k - 0.8F) / 0.2F);
+            disc(g, cx, cy, 6.5F * beat, 0.55F, 1F, 1F, 1F, 1F, false);
+            disc(g, cx, cy, 22F * beat, 0F, 0.45F, 0.75F, 0.35F, 1F, true);
         }
+        g.flush();
     }
 
-    /** Oscuridad en toda la pantalla salvo un círculo (centro cx, cy; radio r) que se va cerrando. */
-    private static void hole(GuiGraphics g, float cx, float cy, float r, float alpha, float far) {
+    /** Disco radial: opaco hasta {@code core}·r y con borde suave hasta r. Aditivo o mezclado normal. */
+    private static void disc(GuiGraphics g, float cx, float cy, float r, float core, float alpha, float cr, float cg, float cb, boolean additive) {
+        if (alpha <= 0.004F || r <= 0.5F) return;
+        g.flush();
         Matrix4f m = g.pose().last().pose();
         RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
+        if (additive) RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+        else RenderSystem.defaultBlendFunc();
         RenderSystem.disableDepthTest();
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         BufferBuilder bb = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
-        float soft = Math.max(8F, r * 0.35F);
-        int seg = 64;
+        int seg = 72;
+        float ri = r * core;
         for (int i = 0; i < seg; i++) {
             float a0 = Mth.TWO_PI * i / seg, a1 = Mth.TWO_PI * (i + 1) / seg;
             float c0 = Mth.cos(a0), s0 = Mth.sin(a0), c1 = Mth.cos(a1), s1 = Mth.sin(a1);
-            float[][] rings = {{r, 0F}, {r + soft, alpha}, {far, alpha}};
-            for (int k = 0; k < 2; k++) {
-                float ri = rings[k][0], ai = rings[k][1], ro = rings[k + 1][0], ao = rings[k + 1][1];
-                bb.addVertex(m, cx + c0 * ri, cy + s0 * ri, 0).setColor(0F, 0F, 0.02F, ai);
-                bb.addVertex(m, cx + c0 * ro, cy + s0 * ro, 0).setColor(0F, 0F, 0.02F, ao);
-                bb.addVertex(m, cx + c1 * ro, cy + s1 * ro, 0).setColor(0F, 0F, 0.02F, ao);
-                bb.addVertex(m, cx + c0 * ri, cy + s0 * ri, 0).setColor(0F, 0F, 0.02F, ai);
-                bb.addVertex(m, cx + c1 * ro, cy + s1 * ro, 0).setColor(0F, 0F, 0.02F, ao);
-                bb.addVertex(m, cx + c1 * ri, cy + s1 * ri, 0).setColor(0F, 0F, 0.02F, ai);
+            if (ri > 0.5F) {
+                bb.addVertex(m, cx, cy, 0).setColor(cr, cg, cb, alpha);
+                bb.addVertex(m, cx + c0 * ri, cy + s0 * ri, 0).setColor(cr, cg, cb, alpha);
+                bb.addVertex(m, cx + c1 * ri, cy + s1 * ri, 0).setColor(cr, cg, cb, alpha);
+                bb.addVertex(m, cx + c0 * ri, cy + s0 * ri, 0).setColor(cr, cg, cb, alpha);
+                bb.addVertex(m, cx + c0 * r, cy + s0 * r, 0).setColor(cr, cg, cb, 0F);
+                bb.addVertex(m, cx + c1 * r, cy + s1 * r, 0).setColor(cr, cg, cb, 0F);
+                bb.addVertex(m, cx + c0 * ri, cy + s0 * ri, 0).setColor(cr, cg, cb, alpha);
+                bb.addVertex(m, cx + c1 * r, cy + s1 * r, 0).setColor(cr, cg, cb, 0F);
+                bb.addVertex(m, cx + c1 * ri, cy + s1 * ri, 0).setColor(cr, cg, cb, alpha);
+            } else {
+                bb.addVertex(m, cx, cy, 0).setColor(cr, cg, cb, alpha);
+                bb.addVertex(m, cx + c0 * r, cy + s0 * r, 0).setColor(cr, cg, cb, 0F);
+                bb.addVertex(m, cx + c1 * r, cy + s1 * r, 0).setColor(cr, cg, cb, 0F);
             }
         }
         draw(bb);
+        RenderSystem.defaultBlendFunc();
         RenderSystem.enableDepthTest();
     }
 
