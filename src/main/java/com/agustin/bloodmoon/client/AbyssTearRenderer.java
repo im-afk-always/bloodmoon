@@ -13,7 +13,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Lágrima del Cielo: un meteoro negro grande con halo púrpura que cae despacio sobre un sello en el piso.
+ * Lágrima del Cielo: un orbe de luz (núcleo blanco, halo violeta y estela) que cae despacio sobre un sello en el piso.
  * Al tocarlo se apaga un instante; luego una luz blanca crece, colapsa de golpe en un punto y estalla.
  */
 public class AbyssTearRenderer extends EntityRenderer<AbyssTear> {
@@ -49,16 +49,25 @@ public class AbyssTearRenderer extends EntityRenderer<AbyssTear> {
         Vec3 g = e.target().subtract(e.getPosition(pt));
 
         if (since < 0) {
-            // en vuelo: núcleo negro con halo
-            float s = 5.5F + 0.6F * Mth.sin(a * 0.6F);
-            billboard(ps, buf, RenderType.eyes(VoidEyeRenderer.FLARE), s, a * 3F, 0.75F, 0.15F, 0.95F, 0F);
-            billboard(ps, buf, RenderType.eyes(VoidEyeRenderer.VORTEX), s * 0.8F, -a * 6F, 0.5F, 0.1F, 0.7F, 0.005F);
-            billboard(ps, buf, RenderType.entityCutoutNoCull(VoidEyeRenderer.PUPIL), 2.4F, 0F, 1F, 1F, 1F, 0.01F);
+            // en vuelo: un orbe de luz con estela
+            float pulse = 1F + 0.12F * Mth.sin(a * 0.7F);
+            Vec3 dir = g.lengthSqr() > 1e-4 ? g.normalize() : new Vec3(0, -1, 0);
+            for (int i = 5; i >= 1; i--) {      // estela: orbes cada vez más chicos y tenues hacia atrás
+                float t = i / 5F;
+                float c = 0.55F * (1F - t);
+                ps.pushPose();
+                ps.translate(-dir.x * i * 2.2, -dir.y * i * 2.2, -dir.z * i * 2.2);
+                billboard(ps, buf, RenderType.eyes(VoidEyeRenderer.FLARE), (4.2F - 2.8F * t) * pulse, a * 4F + i * 40, 0.8F * c, 0.35F * c, c, 0F);
+                ps.popPose();
+            }
+            billboard(ps, buf, RenderType.eyes(VoidEyeRenderer.FLARE), 6.5F * pulse, a * 3F, 0.75F, 0.3F, 1F, 0F);      // halo violeta
+            billboard(ps, buf, RenderType.eyes(VoidEyeRenderer.FLARE), 3.6F * pulse, -a * 5F, 1F, 0.75F, 1F, 0.005F);  // cuerpo
+            billboard(ps, buf, RenderType.eyes(VoidEyeRenderer.FLARE), 1.8F, a * 7F, 1F, 1F, 1F, 0.01F);              // núcleo blanco
         } else if (since < AbyssTear.BOOM) {
             ps.pushPose();
             ps.translate(g.x, g.y + 1.2, g.z);
             if (since < 3) {
-                billboard(ps, buf, RenderType.entityCutoutNoCull(VoidEyeRenderer.PUPIL), 2.4F, 0F, 1F, 1F, 1F, 0F);   // reposa, apagado
+                billboard(ps, buf, RenderType.eyes(VoidEyeRenderer.FLARE), 1.6F, 0F, 0.45F, 0.2F, 0.6F, 0F);   // reposa, casi apagado
             } else if (since < AbyssTear.LIGHT) {
                 float k = VoidEyeRenderer.smooth((since - 3) / (AbyssTear.LIGHT - 3F));
                 float s = 1.5F + 15F * k;

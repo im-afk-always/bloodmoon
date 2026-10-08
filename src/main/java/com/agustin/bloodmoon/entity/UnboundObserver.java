@@ -46,13 +46,22 @@ import java.util.List;
  * - Definitivos (se turnan): Ojo Colosal, Tentáculo Titánico, Las Fauces (la pupila traga el piso) y Lágrimas del Cielo
  *   (meteoros que, al tocar el suelo, se encienden, colapsan y estallan como pequeñas supernovas).
  * - Tras el Ojo Colosal y las Fauces baja exhausto (vulnerable). Al 50% grita, invoca la Palma y todo se acelera.
+ * - Salto: si un jugador se aleja más de 100 bloques, se contrae a un punto y reaparece junto a él (1 vez cada 3 min).
+ * - Al 50% se regenera (una vez) hasta el 55% y la Palma vuelve a estar disponible.
  * - Juicio Final (una vez, al 20%): anillos que concentran su poder y un rayo colosal desde su propio ojo que
  *   persigue a un jugador más lento de lo que se corre, abriendo una zanja hasta el vacío.
  * - Al morir implosiona y todos vuelven al Santuario con el botín.
  */
 public class UnboundObserver extends VoidEye {
     public static final String UNBOUND_KEY = "entity.bloodmoon.unbound_observer";
-    public static final int S_EMERGE = 20, S_FIST = 21, S_COLOSSAL = 22, S_TITAN = 23, S_MAW = 24, S_TEARS = 25, S_JUDGMENT = 26;
+    public static final int S_EMERGE = 20, S_FIST = 21, S_COLOSSAL = 22, S_TITAN = 23, S_MAW = 24, S_TEARS = 25, S_JUDGMENT = 26, S_BLINK = 27;
+    /** Salto: se contrae hasta un punto (BLINK_OUT), desaparece (BLINK_GAP) y reaparece junto al jugador (BLINK_IN). */
+    public static final int BLINK_OUT = 30, BLINK_GAP = 6, BLINK_IN = 26, BLINK_TICKS = BLINK_OUT + BLINK_GAP + BLINK_IN;
+    private static final double BLINK_RANGE = 100;
+    private static final int BLINK_COOLDOWN = 3600;   // 3 minutos
+    /** Regeneración (una vez): al caer bajo el 50% recupera hasta el 55%, a 0,6% de vida por segundo, como mucho 30 s. */
+    private static final float REGEN_GOAL = 0.55F, REGEN_PER_TICK = 0.006F / 20F;
+    private static final int REGEN_MAX_TICKS = 600;
     /** Juicio Final (una sola vez, al 20%): carga, dispara un rayo colosal desde su propio ojo que persigue despacio, y se apaga. */
     public static final int J_CHARGE = 90, J_FIRE = 180, J_FADE = 20, J_TICKS = J_CHARGE + J_FIRE + J_FADE;
     public static final float J_R = 11F;
@@ -73,6 +82,9 @@ public class UnboundObserver extends VoidEye {
     private boolean palmDone, judgmentDone;
     private Vec3 jAim = Vec3.ZERO, jLastHole;
     private int jTarget = -1;
+    private int blinkCd = 200, blinkTarget = -1;
+    private boolean regenUsed, regenActive;
+    private int regenTicks;
     private int palmTimer;
     private final java.util.List<net.minecraft.world.entity.item.FallingBlockEntity> torn = new java.util.ArrayList<>();
     private ResourceKey<Level> returnDim;
@@ -146,6 +158,29 @@ public class UnboundObserver extends VoidEye {
             entityData.set(DATA_PHASE, (byte) 5);
             setState(S_SCREAM, arena);
             state = S_SCREAM;
+            if (!regenUsed) startRegen(sl, arena);
+        }
+        if (regenActive) tickRegen(sl);
+        // tras regenerarse, la Palma vuelve a estar disponible: al caer otra vez bajo el 50% grita y la invoca
+        if (getPhase() >= 5 && !palmDone && palmTimer <= 0 && getHealth() < getMaxHealth() * 0.5F && interruptible(state)) {
+            setState(S_SCREAM, arena);
+            state = S_SCREAM;
+        }
+        if (blinkCd > 0) blinkCd--;
+        else if (interruptible(state)) {
+            ServerPlayer far = null;
+            double farD = BLINK_RANGE * BLINK_RANGE;
+            for (ServerPlayer p : arena) {
+                if (p.isCreative()) continue;
+                double dx = p.getX() - getX(), dz = p.getZ() - getZ(), d = dx * dx + dz * dz;
+                if (d > farD) { farD = d; far = p; }
+            }
+            if (far != null) {
+                blinkCd = BLINK_COOLDOWN;
+                blinkTarget = far.getId();
+                setState(S_BLINK, arena);
+                state = S_BLINK;
+            }
         }
         if (!judgmentDone && getPhase() >= 5 && getHealth() <= getMaxHealth() * 0.2F && palmTimer <= 0
                 && (state == S_IDLE || state == S_GAZE_CHARGE || state == S_FIST || state == S_TENTACLES || state == S_WATCHERS
@@ -209,6 +244,7 @@ public class UnboundObserver extends VoidEye {
             case S_MAW -> tickMaw(sl, arena);
             case S_TEARS -> tickTears(sl, arena);
             case S_JUDGMENT -> tickJudgment(sl, arena);
+            case S_BLINK -> tickBlink(sl, arena);
             case S_EXPOSED -> {
                 lookAt(center().add(dirFrom(lookYaw(), 35F).scale(20)), 1.5F);
                 if (tickCount % 20 == 0) playSound(SoundEvents.WARDEN_HEARTBEAT, 10F, 0.35F);
@@ -290,6 +326,9 @@ public class UnboundObserver extends VoidEye {
         } else if (s == S_COLOSSAL) {
             playSound(ModSounds.EYE_SCREAM.get(), 14F, 0.4F);
             playSound(ModSounds.EYE_AWAKEN.get(), 14F, 1.3F);
+        } else if (s == S_BLINK) {
+            playSound(ModSounds.EYE_IMPLODE.get(), 16F, 1.5F);
+            playSound(SoundEvents.ENDERMAN_TELEPORT, 16F, 0.4F);
         } else if (s == S_JUDGMENT) {
             List<ServerPlayer> valid = arena.stream().filter(p -> !p.isCreative()).toList();
             LivingEntity t = valid.isEmpty() ? target : valid.get(random.nextInt(valid.size()));
@@ -319,7 +358,7 @@ public class UnboundObserver extends VoidEye {
         else y = h.y + HOVER;
         y += (s == S_EXPOSED ? 0.3 : 1.2) * Math.sin(tickCount * 0.04);
         double x = getX(), z = getZ();
-        if (target != null && s != S_EXPOSED && s != S_MAW && s != S_EMERGE && s != S_JUDGMENT && !isBeamState()) {
+        if (target != null && s != S_EXPOSED && s != S_MAW && s != S_EMERGE && s != S_JUDGMENT && s != S_BLINK && !isBeamState()) {
             double dx = target.getX() - x, dz = target.getZ() - z, d = Math.sqrt(dx * dx + dz * dz);
             if (d > 26) {
                 double step = SPEED * (getPhase() >= 5 ? 1.3 : 1);
@@ -542,6 +581,96 @@ public class UnboundObserver extends VoidEye {
         if (stateTick >= TEARS_TICKS) setIdle(20);
     }
 
+    /** Estados "de descanso" que un evento (salto, Palma, Juicio) puede interrumpir sin cortar un ataque grande. */
+    private static boolean interruptible(int s) {
+        return s == S_IDLE || s == S_GAZE_CHARGE || s == S_FIST || s == S_TENTACLES || s == S_WATCHERS || s == S_EXPOSED;
+    }
+
+    // ------------------------------------------------------------------ Salto: si alguien se aleja demasiado, aparece junto a él
+
+    private void tickBlink(ServerLevel sl, List<ServerPlayer> arena) {
+        Entity te = sl.getEntity(blinkTarget);
+        ServerPlayer p = te instanceof ServerPlayer sp && sp.isAlive() && arena.contains(sp) ? sp : null;
+        Vec3 c = center();
+        if (stateTick < BLINK_OUT) {
+            if (p != null) lookAt(p.getEyePosition(), 6F);
+            if (stateTick % 2 == 0) sl.sendParticles(ParticleTypes.REVERSE_PORTAL, c.x, c.y, c.z, 30,
+                    EYE_R * (1 - stateTick / (double) BLINK_OUT) + 1, EYE_R * (1 - stateTick / (double) BLINK_OUT) + 1, EYE_R * (1 - stateTick / (double) BLINK_OUT) + 1, 0.4);
+            // aviso: el piso alrededor del jugador empieza a vibrar
+            if (p != null && stateTick % 3 == 0) {
+                sl.sendParticles(ParticleTypes.PORTAL, p.getX(), p.getY() + 0.3, p.getZ(), 20, 6, 0.2, 6, 0.6);
+                if (stateTick % 12 == 0) p.playNotifySound(SoundEvents.WARDEN_HEARTBEAT, net.minecraft.sounds.SoundSource.HOSTILE, 1.5F, 0.4F);
+            }
+        }
+        if (stateTick == BLINK_OUT) {
+            sl.sendParticles(ParticleTypes.FLASH, c.x, c.y, c.z, 1, 0, 0, 0, 0);
+            sl.sendParticles(ParticleTypes.SQUID_INK, c.x, c.y, c.z, 40, 1, 1, 1, 0.3);
+            Vec3 h = getHome();
+            if (p != null) {
+                // aparece a 22 bloques del jugador, del lado desde el que venía
+                double dx = getX() - p.getX(), dz = getZ() - p.getZ(), d = Math.max(1e-3, Math.sqrt(dx * dx + dz * dz));
+                Vec3 nh = new Vec3(p.getX() + dx / d * 22, h.y, p.getZ() + dz / d * 22);
+                setHome(nh);
+                setPos(nh.x, nh.y + HOVER, nh.z);
+            }
+        }
+        if (stateTick == BLINK_OUT + BLINK_GAP) {
+            Vec3 a = center();
+            playSound(ModSounds.SUPERNOVA_BLAST.get(), 18F, 1.7F);
+            playSound(ModSounds.EYE_PULSE.get(), 18F, 0.6F);
+            sl.sendParticles(ParticleTypes.SONIC_BOOM, a.x, a.y, a.z, 6, EYE_R * 0.6, EYE_R * 0.6, EYE_R * 0.6, 0);
+            sl.sendParticles(ParticleTypes.END_ROD, a.x, a.y, a.z, 160, 1, 1, 1, 1.4);
+            sl.sendParticles(ParticleTypes.REVERSE_PORTAL, a.x, a.y, a.z, 200, EYE_R, EYE_R, EYE_R, 1.2);
+            for (ServerPlayer pl : arena) {       // la llegada empuja a los que están cerca
+                if (pl.isCreative()) continue;
+                Vec3 d = pl.position().subtract(a.x, pl.getY(), a.z);
+                double len = Math.max(1, d.length());
+                if (len > 30) continue;
+                pl.setDeltaMovement(d.x / len * 1.4, 0.6, d.z / len * 1.4);
+                pl.hurtMarked = true;
+                addMadness(pl, 10F);
+            }
+        }
+        if (stateTick > BLINK_OUT + BLINK_GAP && p != null) lookAt(p.getEyePosition(), 10F);
+        if (stateTick >= BLINK_TICKS) setIdle(15);
+    }
+
+    // ------------------------------------------------------------------ Regeneración (una vez, al 50%)
+
+    private void startRegen(ServerLevel sl, List<ServerPlayer> arena) {
+        regenUsed = true;
+        regenActive = true;
+        regenTicks = 0;
+        Component msg = Component.translatable("bloodmoon.unbound.regen").withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.ITALIC);
+        for (ServerPlayer p : arena) p.displayClientMessage(msg, true);
+    }
+
+    private void tickRegen(ServerLevel sl) {
+        regenTicks++;
+        float goal = getMaxHealth() * REGEN_GOAL;
+        if (getHealth() < goal) heal(getMaxHealth() * REGEN_PER_TICK);
+        Vec3 c = center();
+        if (regenTicks % 3 == 0) {
+            // el Vacío fluye hacia el ojo desde el piso
+            Vec3 h = getHome();
+            for (int i = 0; i < 6; i++) {
+                double a = random.nextDouble() * Math.PI * 2, r = 14 + random.nextDouble() * 20;
+                double x = getX() + Math.cos(a) * r, z = getZ() + Math.sin(a) * r;
+                sl.sendParticles(ParticleTypes.SOUL, x, h.y + 0.5, z, 0, (c.x - x) * 0.04, (c.y - h.y) * 0.04, (c.z - z) * 0.04, 1);
+            }
+            sl.sendParticles(ParticleTypes.REVERSE_PORTAL, c.x, c.y, c.z, 12, EYE_R * 0.8, EYE_R * 0.8, EYE_R * 0.8, 0.1);
+        }
+        if (regenTicks % 20 == 0) playSound(ModSounds.EYE_PULSE.get(), 12F, 1.3F);
+        if (getHealth() >= goal) {
+            regenActive = false;
+            palmDone = false;                        // la Palma vuelve a estar disponible
+            playSound(SoundEvents.BEACON_POWER_SELECT, 16F, 0.5F);
+            sl.sendParticles(ParticleTypes.END_ROD, c.x, c.y, c.z, 80, EYE_R * 0.5, EYE_R * 0.5, EYE_R * 0.5, 0.6);
+        } else if (regenTicks >= REGEN_MAX_TICKS) {
+            regenActive = false;                     // lo castigaron demasiado: no llegó
+        }
+    }
+
     // ------------------------------------------------------------------ Juicio Final: el rayo colosal desde su propio ojo
 
     public boolean isJudgmentFiring() {
@@ -624,7 +753,7 @@ public class UnboundObserver extends VoidEye {
     public boolean hurt(DamageSource source, float amount) {
         if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) return super.hurt(source, amount);
         int s = getState();
-        if (s == S_EMERGE || s == S_SCREAM || isDeadOrDying()) return false;
+        if (s == S_EMERGE || s == S_SCREAM || s == S_BLINK || isDeadOrDying()) return false;
         Entity attacker = source.getEntity();
         if (attacker != null && ally(attacker)) return false;
         Entity direct = source.getDirectEntity();
@@ -707,6 +836,9 @@ public class UnboundObserver extends VoidEye {
         }
         tag.putBoolean("PalmDone", palmDone);
         tag.putBoolean("JudgmentDone", judgmentDone);
+        tag.putInt("BlinkCd", blinkCd);
+        tag.putBoolean("RegenUsed", regenUsed);
+        tag.putBoolean("RegenActive", regenActive);
     }
 
     @Override
@@ -719,6 +851,9 @@ public class UnboundObserver extends VoidEye {
         entityData.set(DATA_PHASE, (byte) Math.max(4, getPhase()));
         palmDone = tag.getBoolean("PalmDone");
         judgmentDone = tag.getBoolean("JudgmentDone");
+        blinkCd = tag.getInt("BlinkCd");
+        regenUsed = tag.getBoolean("RegenUsed");
+        regenActive = tag.getBoolean("RegenActive");
         bossEvent.setName(Component.translatable(UNBOUND_KEY).withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD));
     }
 }

@@ -30,7 +30,7 @@ import org.joml.Vector3f;
 
 /**
  * La Palma del Vacío: al llegar a la mitad de su vida, el Observador Desatado materializa en el cielo una mano de
- * energía de 100 bloques que desciende durante 30 segundos (contador en pantalla). Mientras baja, la pantalla se
+ * energía de 100 bloques que desciende durante 25 segundos (contador en pantalla). Mientras baja, la pantalla se
  * oscurece; al tocar el suelo brota de golpe una luz cegadora y estalla como una supernova: la onda se esparce por la superficie arrasándolo todo hasta 150 bloques, sin abrir agujeros al vacío.
  */
 public class VoidPalm extends Entity {
@@ -38,7 +38,7 @@ public class VoidPalm extends Entity {
      * La pantalla se oscurece durante los últimos DARKEN ticks del descenso; toca el piso en DESCEND, la luz brota del
      * impacto durante FLARE ticks y estalla en BLAST.
      */
-    public static final int DESCEND = 600, DARKEN = 300, FLARE = 8, BLAST = DESCEND + FLARE, END = BLAST + 60;
+    public static final int DESCEND = 500, DARKEN = 300, FLARE = 8, BLAST = DESCEND + FLARE, END = BLAST + 60;
     public static final float START_H = 210F, BLAST_R = 150F, LETHAL_R = 75F;
 
     private static final EntityDataAccessor<Vector3f> DATA_GROUND = SynchedEntityData.defineId(VoidPalm.class, EntityDataSerializers.VECTOR3);

@@ -118,9 +118,13 @@ de runas, dos cinturones de bloques (Vacío y obsidiana llorosa), un halo de mon
   acelerando con la distancia hasta 0,25 bloques/tick —corriendo mantenés la distancia, caminando te alcanza— durante 9 s, abriendo una zanja hasta el vacío. Después queda expuesto.
 - **Tentáculo Titánico:** revienta el piso, se alza 70 bloques y azota a lo largo de una franja marcada, abriendo una zanja.
 - **Las Fauces:** la pupila se abre como un agujero negro y traga el piso; te arrastra (cubrite detrás de un obelisco) y termina con una expulsión.
-- **Lágrimas del Cielo:** meteoros negros enormes caen despacio; al tocar el piso no pasa nada... se enciende una luz, colapsa de golpe y estalla.
+- **Lágrimas del Cielo:** orbes de luz con estela caen despacio; al tocar el piso no pasa nada... se enciende una luz, colapsa de golpe y estalla.
+**Regeneración (una vez, al 50%):** bebe del Vacío y recupera vida hasta el 55% (0,6%/s, como mucho 30 s); si lo
+logra, la Palma vuelve a estar disponible y la invoca otra vez cuando cae de nuevo bajo el 50%.
+**Salto:** si un jugador se aleja más de 100 bloques, el Ojo se contrae hasta un punto y reaparece a 22 bloques de él
+con una onda que empuja (una vez cada 3 minutos).
 **La Palma del Vacío (al 50%):** materializa en el cielo una mano de energía de ~100 bloques con un ojo en la palma;
-un contador púrpura arriba de la pantalla da 30 segundos para alejarse. En los últimos 15 s la pantalla se va
+una barra púrpura arriba de la pantalla (sin texto) da 25 segundos para alejarse. En los últimos 15 s la pantalla se va
 oscureciendo; al tocar el suelo, en la negrura brota de golpe la luz y estalla como una supernova: letal hasta ~75 bloques, daño hasta 150, y un muro de luz arrasa la superficie (obeliscos incluidos) sin abrir agujeros al vacío. `/bloodmoon summon palm` para probarla.
 Tras el Ojo Colosal y las Fauces baja exhausto hasta el piso (vulnerable). Al morir, todos vuelven al Santuario con el botín.
 Morir en el Más Allá no hace perder el inventario. Si pierden, el Santuario se reabre en 5 minutos.

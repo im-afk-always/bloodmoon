@@ -76,7 +76,7 @@ public class AbyssTear extends Entity {
         if (level().isClientSide) {
             if (tickCount < flight()) {
                 for (int i = 0; i < 6; i++) {
-                    level().addAlwaysVisibleParticle(i < 2 ? ParticleTypes.DRAGON_BREATH : ParticleTypes.SQUID_INK, true,
+                    level().addAlwaysVisibleParticle(i < 2 ? ParticleTypes.END_ROD : ParticleTypes.DRAGON_BREATH, true,
                             getX() + random.nextGaussian() * 1.4, getY() + random.nextGaussian() * 1.4, getZ() + random.nextGaussian() * 1.4, 0, 0, 0);
                 }
             } else if (tickCount < flight() + LIGHT) {
@@ -97,7 +97,7 @@ public class AbyssTear extends Entity {
         Vec3 t = target();
         if (tickCount == f) {                              // toca el piso... y no pasa nada
             sl.playSound(null, t.x, t.y, t.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 2F, 0.3F);
-            sl.sendParticles(ParticleTypes.SQUID_INK, t.x, t.y + 1, t.z, 30, 1.5, 0.5, 1.5, 0.02);
+            sl.sendParticles(ParticleTypes.END_ROD, t.x, t.y + 1, t.z, 24, 1.2, 0.4, 1.2, 0.05);
         }
         if (tickCount == f + 4) sl.playSound(null, t.x, t.y, t.z, com.agustin.bloodmoon.registry.ModSounds.SUPERNOVA_CHARGE.get(), SoundSource.HOSTILE, 5F, 1.4F);
         if (tickCount == f + BOOM) impact(sl);

@@ -150,6 +150,27 @@ public class VoidEyeRenderer<T extends VoidEye> extends EntityRenderer<T> {
         Vec3 origin = e.getPosition(pt);
         Vec3 camRel = this.entityRenderDispatcher.camera.getPosition().subtract(origin);
         int overlay = OverlayTexture.pack(OverlayTexture.u(0F), OverlayTexture.v(e.hurtTime > 0));
+        // Salto del Desatado: todo el conjunto se contrae a un punto y reaparece con un rebote
+        float blinkK = 1F, blinkFlare = 0F;
+        if (unbound && e.getState() == UnboundObserver.S_BLINK) {
+            int out = UnboundObserver.BLINK_OUT, gap = UnboundObserver.BLINK_GAP, in = UnboundObserver.BLINK_IN;
+            if (age < 8) blinkK = 1F + 0.1F * smooth(age / 8F);                         // inspira
+            else if (age < out) blinkK = 1.1F * (1F - smooth((age - 8) / (out - 8F)));   // se contrae
+            else if (age < out + gap) blinkK = 0F;
+            else {
+                float x = Mth.clamp((age - out - gap) / in, 0F, 1F);
+                float c1 = 1.70158F, c3 = c1 + 1F;                                       // aparece con rebote
+                blinkK = 1F + c3 * (float) Math.pow(x - 1, 3) + c1 * (float) Math.pow(x - 1, 2);
+            }
+            blinkFlare = age < out + gap ? smooth((age - out + 10) / 10F) * (1F - smooth((age - out - gap) / 2F))
+                    : 1F - smooth((age - out - gap) / 10F);
+        }
+        if (blinkK <= 0.003F) {
+            if (blinkFlare > 0.01F) billboard(ps, buf.getBuffer(RenderType.eyes(FLARE)), new Vec3(0, e.eyeRadius(), 0),
+                    40F * blinkFlare, t * 6F, blinkFlare, 0.6F * blinkFlare, blinkFlare);
+            super.render(e, entityYaw, pt, ps, buf, packedLight);
+            return;
+        }
 
         float scale = 1F;
         float shake = 0F;
@@ -167,7 +188,7 @@ public class VoidEyeRenderer<T extends VoidEye> extends EntityRenderer<T> {
 
         ps.pushPose();
         ps.translate(0F, e.eyeRadius(), 0F);
-        ps.scale(scaleK, scaleK, scaleK);
+        ps.scale(scaleK * blinkK, scaleK * blinkK, scaleK * blinkK);
         if (shake > 0) {
             ps.translate(Mth.sin(t * 2.3F) * shake, Mth.sin(t * 3.1F + 1) * shake, Mth.cos(t * 2.7F) * shake);
         }
@@ -217,6 +238,9 @@ public class VoidEyeRenderer<T extends VoidEye> extends EntityRenderer<T> {
 
         if (e.isDeadOrDying()) renderDeathRays(e, ps, buf, pt, camRel.subtract(0, e.eyeRadius(), 0).scale(1 / scaleK));
         ps.popPose();
+
+        if (blinkFlare > 0.01F) billboard(ps, buf.getBuffer(RenderType.eyes(FLARE)), new Vec3(0, e.eyeRadius(), 0),
+                40F * blinkFlare, t * 6F, blinkFlare, 0.6F * blinkFlare, blinkFlare);
 
         // ---------------- ataques en coordenadas del mundo (relativas a la entidad)
         if (e.isBeamState() && !e.isDeadOrDying()) renderBeam(e, ps, buf, pt, t, age, origin, camRel);

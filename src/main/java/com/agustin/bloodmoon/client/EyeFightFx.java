@@ -202,6 +202,11 @@ public final class EyeFightFx {
                 case com.agustin.bloodmoon.entity.UnboundObserver.S_EMERGE -> shake = Math.max(shake, 0.5F * (age < 125 ? 1F : 0F));
                 case com.agustin.bloodmoon.entity.UnboundObserver.S_MAW -> { if (age > com.agustin.bloodmoon.entity.UnboundObserver.MAW_OPEN) shake = Math.max(shake, 0.35F); }
                 case com.agustin.bloodmoon.entity.UnboundObserver.S_TEARS, com.agustin.bloodmoon.entity.UnboundObserver.S_TITAN -> shake = Math.max(shake, 0.2F);
+                case com.agustin.bloodmoon.entity.UnboundObserver.S_BLINK -> {
+                    int arrive = com.agustin.bloodmoon.entity.UnboundObserver.BLINK_OUT + com.agustin.bloodmoon.entity.UnboundObserver.BLINK_GAP;
+                    if (age < arrive) shake = Math.max(shake, 0.25F * age / arrive);
+                    else if (age < arrive + 1) { shake = Math.max(shake, 1.8F); flash = Math.max(flash, 0.35F); }
+                }
                 case com.agustin.bloodmoon.entity.UnboundObserver.S_JUDGMENT -> {
                     int C = com.agustin.bloodmoon.entity.UnboundObserver.J_CHARGE, F = com.agustin.bloodmoon.entity.UnboundObserver.J_FIRE;
                     if (age < C) shake = Math.max(shake, 0.1F + 0.6F * age / C);
@@ -525,18 +530,9 @@ public final class EyeFightFx {
         }
         if (a < D) {
             float left = Math.max(0F, (D - a) / 20F);
-            int secs = (int) Math.ceil(left);
             boolean urgent = left < 5F;
             float blink = urgent ? 0.6F + 0.4F * Mth.sin(a * 0.9F) : 1F;
             int bw = Math.min(260, w - 40), bx = (w - bw) / 2, by = 54;
-            Font font = Minecraft.getInstance().font;
-            Component label = Component.translatable("bloodmoon.palm.bar", secs);
-            g.pose().pushPose();
-            g.pose().translate(w / 2F, by - 13, 0);
-            g.pose().scale(1.2F, 1.2F, 1F);
-            int lc = urgent ? 0xFFFF6AD5 : 0xFFD8A8FF;
-            g.drawCenteredString(font, label, 0, 0, (((int) (blink * 255)) << 24) | (lc & 0xFFFFFF));
-            g.pose().popPose();
             float frac = left / (D / 20F);
             g.fill(bx - 2, by - 2, bx + bw + 2, by + 7, 0xE0080010);
             g.fill(bx - 2, by - 2, bx + bw + 2, by - 1, 0xFF9D4EDD);
@@ -545,7 +541,7 @@ public final class EyeFightFx {
             for (int i = 0; i < fw; i++) {
                 float f = i / (float) bw;
                 int r = (int) Mth.lerp(f, 0x3C, urgent ? 0xFF : 0xC7), gg = (int) Mth.lerp(f, 0x09, 0x3D), b = (int) Mth.lerp(f, 0x6C, 0xFF);
-                g.fill(bx + i, by, bx + i + 1, by + 5, 0xFF000000 | r << 16 | gg << 8 | b);
+                g.fill(bx + i, by, bx + i + 1, by + 5, ((int) (blink * 255)) << 24 | r << 16 | gg << 8 | b);   // en los últimos 5 s late
             }
             g.flush();
             return;
