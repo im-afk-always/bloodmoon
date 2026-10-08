@@ -100,11 +100,11 @@ public final class BloodSkyRenderer {
         fan(m, y, R * 3.2F, 1F, 0.18F, 0.1F, 0.45F * k);
         // halo de 22°: un anillo nítido e intenso, con un segundo anillo tenue por fuera
         float h = type.halo * k;
-        ring(m, y, R * 3.55F, R * 3.95F, R * 4.5F, 1F, 0.3F, 0.18F, 0.55F * h);
-        ring(m, y, R * 3.75F, R * 3.95F, R * 4.15F, 1F, 0.55F, 0.4F, 0.35F * h);
-        ring(m, y, R * 5.6F, R * 6.0F, R * 6.7F, 1F, 0.22F, 0.14F, 0.16F * h);
+        ring(m, y, R * 3.5F, R * 3.95F, R * 4.7F, 1F, 0.28F, 0.17F, 0.34F * h);
+        ring(m, y, R * 3.82F, R * 3.95F, R * 4.08F, 1F, 0.5F, 0.36F, 0.2F * h);
+        ring(m, y, R * 5.6F, R * 6.0F, R * 6.8F, 1F, 0.22F, 0.14F, 0.08F * h);
         // corona pegada al disco
-        ring(m, y, R * 0.9F, R * 1.02F, R * 1.9F, 1F, 0.32F, 0.2F, 0.85F * k);
+        ring(m, y, R * 0.9F, R * 1.02F, R * 1.8F, 1F, 0.32F, 0.2F, 0.6F * k);
 
         // el disco: textura realista teñida (mezcla normal: tapa el cielo de atrás)
         RenderSystem.defaultBlendFunc();
@@ -112,7 +112,7 @@ public final class BloodSkyRenderer {
         RenderSystem.setShaderTexture(0, MOON);
         Minecraft.getInstance().getTextureManager().getTexture(MOON).setFilter(true, false);
         BufferBuilder bb = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-        float cr = 1F, cg = 0.3F, cb = 0.23F;
+        float cr = 1F, cg = 0.32F, cb = 0.24F;
         bb.addVertex(m, -R, y, -R).setUv(0F, 0F).setColor(cr, cg, cb, k);
         bb.addVertex(m, R, y, -R).setUv(1F, 0F).setColor(cr, cg, cb, k);
         bb.addVertex(m, R, y, R).setUv(1F, 1F).setColor(cr, cg, cb, k);
@@ -121,7 +121,7 @@ public final class BloodSkyRenderer {
         // brillo propio encima del disco (aditivo): la luna "arde"
         RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
         bb = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-        float g = 0.45F * k;
+        float g = 0.75F * k;
         bb.addVertex(m, -R, y, -R).setUv(0F, 0F).setColor(1F, 0.35F, 0.25F, g);
         bb.addVertex(m, R, y, -R).setUv(1F, 0F).setColor(1F, 0.35F, 0.25F, g);
         bb.addVertex(m, R, y, R).setUv(1F, 1F).setColor(1F, 0.35F, 0.25F, g);
@@ -200,9 +200,9 @@ public final class BloodSkyRenderer {
         float d = Math.max(0F, (x * moonDir.x() + y * moonDir.y() + z * moonDir.z()) / len);
         float lit = d * d * d * d;
         float glow = (float) Math.pow(d, 18);
-        float r = Math.min(1F, 0.42F + 0.5F * lit + 0.35F * glow);
-        float g = Math.min(1F, 0.05F + 0.12F * lit + 0.22F * glow);
-        float b = Math.min(1F, 0.045F + 0.08F * lit + 0.15F * glow);
+        float r = Math.min(1F, 0.5F + 0.45F * lit + 0.35F * glow);
+        float g = Math.min(1F, 0.06F + 0.12F * lit + 0.22F * glow);
+        float b = Math.min(1F, 0.05F + 0.08F * lit + 0.15F * glow);
         float sc = 0.25F;   // misma dirección, más cerca: no lo recorta el plano lejano con poca distancia de render
         bb.addVertex(mv, x * sc, y * sc, z * sc).setUv(fx * CLOUD_TILES + su, fz * CLOUD_TILES + sv).setColor(r, g, b, 0.93F * k * fade);
     }
