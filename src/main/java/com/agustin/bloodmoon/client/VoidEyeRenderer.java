@@ -140,7 +140,7 @@ public class VoidEyeRenderer<T extends VoidEye> extends EntityRenderer<T> {
         float t = e.tickCount + pt;
         float age = e.clientStateAge(pt);
         float R = VoidEye.RADIUS;                      // todo se dibuja a escala base y se agranda con k
-        float k = e.eyeRadius() / VoidEye.RADIUS;
+        float scaleK = e.eyeRadius() / VoidEye.RADIUS;
         boolean unbound = e instanceof UnboundObserver;
         Vec3 origin = e.getPosition(pt);
         Vec3 camRel = this.entityRenderDispatcher.camera.getPosition().subtract(origin);
@@ -160,7 +160,7 @@ public class VoidEyeRenderer<T extends VoidEye> extends EntityRenderer<T> {
 
         ps.pushPose();
         ps.translate(0F, e.eyeRadius(), 0F);
-        ps.scale(k, k, k);
+        ps.scale(scaleK, scaleK, scaleK);
         if (shake > 0) {
             ps.translate(Mth.sin(t * 2.3F) * shake, Mth.sin(t * 3.1F + 1) * shake, Mth.cos(t * 2.7F) * shake);
         }
@@ -205,7 +205,7 @@ public class VoidEyeRenderer<T extends VoidEye> extends EntityRenderer<T> {
         if (unbound) UnboundExtras.renderPupilVortex((UnboundObserver) e, ps, buf, t, age, R);
         ps.popPose();
 
-        if (e.isDeadOrDying()) renderDeathRays(e, ps, buf, pt, camRel.subtract(0, e.eyeRadius(), 0).scale(1 / k));
+        if (e.isDeadOrDying()) renderDeathRays(e, ps, buf, pt, camRel.subtract(0, e.eyeRadius(), 0).scale(1 / scaleK));
         ps.popPose();
 
         // ---------------- ataques en coordenadas del mundo (relativas a la entidad)
