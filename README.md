@@ -102,14 +102,16 @@ chatarra de netherite. El Santuario duerme 3 días (`eyeRespawnDays`). Si todos 
 
 **Fase final — El Más Allá:** al vencerlo en el Santuario no muere: todo cae hacia el Ojo, la pupila se abre como una
 grieta y arrastra a todos al Más Allá (llanura negra sobre el vacío, cielo púrpura con ojos que vagan, pocos obeliscos).
-Ahí renace como **El Observador Desatado**: falda de carne con dientes sobre diez patas-tentáculo, torso demacrado,
-costillar partido que se abre como fauces, cuatro brazos, el Ojo en una cuenca coronada de cuernos, ojos menores,
-barba de tentáculos y un halo roto de esquirlas. Golpe con cráter, Mirada, Tentáculos y Vigías, y cuatro definitivos:
-- **Ojo Colosal:** un ojo de 48 bloques se abre en el cielo; un círculo te persigue, se fija y cae un rayo de 20 de radio que perfora la llanura hasta el vacío.
+Ahí renace como **El Observador Desatado**: el Ojo liberado, de 32 bloques, flotando sobre la llanura con siete anillos
+de runas, dos cinturones de bloques (Vacío y obsidiana llorosa), un halo de monolitos, un aura y una cortina de tentáculos.
+- **Mirada titánica:** rayo tres veces más ancho que funde el piso a su paso; en la segunda mitad, Barrido de 360°.
+- **Puño del Vacío:** de una grieta junto al Ojo brota un brazo de energía oscura que se suspende sobre vos (sello en el piso) y cae como un puño: onda y cráter. Dos en la segunda mitad.
+- Tentáculos del Abismo y Ojos Vigías. Definitivos cada ~15 s (~11 s bajo el 50%), sin repetirse:
+- **Ojo Colosal:** un ojo de 48 bloques en el cielo; un círculo te persigue, se fija y cae un rayo de 20 de radio que perfora la llanura hasta el vacío.
 - **Tentáculo Titánico:** revienta el piso, se alza 70 bloques y azota a lo largo de una franja marcada, abriendo una zanja.
-- **Las Fauces:** el costillar se abre y traga: arranca el piso y te arrastra (cubrite detrás de un obelisco); termina con una expulsión.
-- **Lágrimas del Cielo:** lluvia de meteoros negros con círculos de aviso que siembran cráteres.
-Tras el Ojo Colosal y las Fauces queda de rodillas (vulnerable). Al morir, todos vuelven al Santuario con el botín.
+- **Las Fauces:** la pupila se abre como un agujero negro y traga el piso; te arrastra (cubrite detrás de un obelisco) y termina con una expulsión.
+- **Lágrimas del Cielo:** meteoros negros enormes caen despacio; al tocar el piso no pasa nada... se enciende una luz, colapsa de golpe y estalla.
+Tras el Ojo Colosal y las Fauces baja exhausto hasta el piso (vulnerable). Al morir, todos vuelven al Santuario con el botín.
 Morir en el Más Allá no hace perder el inventario. Si pierden, el Santuario se reabre en 5 minutos.
 
 ## Comandos (OP)
