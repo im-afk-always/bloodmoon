@@ -36,7 +36,21 @@ public final class BloodSkyRenderer {
     private static final float CLOUD_H = 70F, CLOUD_E = 380F, CLOUD_TILES = 1.4F;
     private static final int CLOUD_GRID = 44;
 
+    /** Nubes procedurales (shader propio); si no cargó, se usa la textura en mosaico como respaldo. */
+    private static net.minecraft.client.renderer.ShaderInstance cloudShader;
+
     private BloodSkyRenderer() {}
+
+    public static void onRegisterShaders(net.neoforged.neoforge.client.event.RegisterShadersEvent event) {
+        try {
+            event.registerShader(new net.minecraft.client.renderer.ShaderInstance(event.getResourceProvider(),
+                    ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "harvest_clouds"), DefaultVertexFormat.POSITION_TEX_COLOR),
+                    s -> cloudShader = s);
+        } catch (Exception e) {
+            BloodMoonMod.LOGGER.error("Harvest Moon cloud shader could not load; using the texture clouds", e);
+            cloudShader = null;
+        }
+    }
 
     private static float smooth(float x) {
         x = Mth.clamp(x, 0F, 1F);
@@ -166,25 +180,42 @@ public final class BloodSkyRenderer {
     private static void drawClouds(Matrix4f mv, Vector3f moonDir, float k, float time, Vec3 cam) {
         if (k <= 0.004F) return;
         RenderSystem.defaultBlendFunc();
-        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
-        RenderSystem.setShaderTexture(0, CLOUDS);
-        Minecraft.getInstance().getTextureManager().getTexture(CLOUDS).setFilter(true, false);
-        // viento + un leve desplazamiento con el jugador (paralaje)
-        float su = (float) (time * 0.000075 + cam.x / 9000.0), sv = (float) (time * 0.00003 + cam.z / 9000.0);
+        net.minecraft.client.renderer.ShaderInstance proc = cloudShader;
+        float su, sv, tiles;
+        if (proc != null) {
+            // nubes generadas por píxel: no se repiten, cambian de forma y el viento las arrastra
+            RenderSystem.setShader(() -> proc);
+            float ct = (float) (Minecraft.getInstance().level.getGameTime() % 2_000_000L) + (time - (float) Math.floor(time));
+            proc.safeGetUniform("CloudTime").set(ct);
+            proc.safeGetUniform("CloudOffset").set((float) (cam.x / 3000.0), (float) (cam.z / 3000.0));
+            float ml = Mth.sqrt(moonDir.x() * moonDir.x() + moonDir.z() * moonDir.z()) + 1e-4F;
+            proc.safeGetUniform("MoonUV").set(moonDir.x() / ml, moonDir.z() / ml);
+            su = 0F;
+            sv = 0F;
+            tiles = 1F;
+        } else {
+            RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+            RenderSystem.setShaderTexture(0, CLOUDS);
+            Minecraft.getInstance().getTextureManager().getTexture(CLOUDS).setFilter(true, false);
+            // viento + un leve desplazamiento con el jugador (paralaje)
+            su = (float) (time * 0.000075 + cam.x / 9000.0);
+            sv = (float) (time * 0.00003 + cam.z / 9000.0);
+            tiles = CLOUD_TILES;
+        }
         BufferBuilder bb = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
         int n = CLOUD_GRID;
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
-                cloudVertex(bb, mv, moonDir, i, j, n, su, sv, k);
-                cloudVertex(bb, mv, moonDir, i + 1, j, n, su, sv, k);
-                cloudVertex(bb, mv, moonDir, i + 1, j + 1, n, su, sv, k);
-                cloudVertex(bb, mv, moonDir, i, j + 1, n, su, sv, k);
+                cloudVertex(bb, mv, moonDir, i, j, n, su, sv, tiles, k);
+                cloudVertex(bb, mv, moonDir, i + 1, j, n, su, sv, tiles, k);
+                cloudVertex(bb, mv, moonDir, i + 1, j + 1, n, su, sv, tiles, k);
+                cloudVertex(bb, mv, moonDir, i, j + 1, n, su, sv, tiles, k);
             }
         }
         draw(bb);
     }
 
-    private static void cloudVertex(BufferBuilder bb, Matrix4f mv, Vector3f moonDir, int i, int j, int n, float su, float sv, float k) {
+    private static void cloudVertex(BufferBuilder bb, Matrix4f mv, Vector3f moonDir, int i, int j, int n, float su, float sv, float tiles, float k) {
         float fx = 2F * i / n - 1F, fz = 2F * j / n - 1F;
         float x = fx * CLOUD_E, z = fz * CLOUD_E;
         float rr = Math.min(1.2F, Mth.sqrt(fx * fx + fz * fz));
@@ -199,7 +230,7 @@ public final class BloodSkyRenderer {
         float g = Math.min(1F, 0.06F + 0.12F * lit + 0.22F * glow);
         float b = Math.min(1F, 0.05F + 0.08F * lit + 0.15F * glow);
         float sc = 0.25F;   // misma dirección, más cerca: no lo recorta el plano lejano con poca distancia de render
-        bb.addVertex(mv, x * sc, y * sc, z * sc).setUv(fx * CLOUD_TILES + su, fz * CLOUD_TILES + sv).setColor(r, g, b, 0.93F * k * fade);
+        bb.addVertex(mv, x * sc, y * sc, z * sc).setUv(fx * tiles + su, fz * tiles + sv).setColor(r, g, b, 0.93F * k * fade);
     }
 
     private static void draw(BufferBuilder bb) {

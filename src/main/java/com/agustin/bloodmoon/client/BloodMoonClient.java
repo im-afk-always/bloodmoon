@@ -49,6 +49,7 @@ public class BloodMoonClient {
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "void_labyrinth"), new LabyrinthSky()));
         modBus.addListener((net.neoforged.neoforge.client.event.RegisterDimensionSpecialEffectsEvent e) -> e.register(
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "beyond"), new BeyondSky()));
+        modBus.addListener(BloodSkyRenderer::onRegisterShaders);
         modBus.addListener(NukeClouds::onRegisterProviders);
         NukeClouds.init();
         modBus.addListener(SupernovaFx::onRegisterProviders);

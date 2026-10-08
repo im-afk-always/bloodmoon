@@ -21,7 +21,7 @@ Mob cap de hostiles x2, rastreo x2, arañas Velocidad I, zombis Fuerza I, esquel
 ## Luna de la Cosecha (incluye todo lo de la Luna de Sangre)
 **Ambiente:** el mundo entero queda bañado en luz carmesí (la luz del cielo se tiñe, la luna ilumina a cielo abierto y
 las antorchas arden en rojo brasa), más oscuro y con más contraste; cielo y horizonte rojo sangre, bruma más cercana,
-una luna realista con un halo tenue y nubes suaves que se encienden cerca de ella (reemplazan a las cúbicas).
+una luna realista con un halo tenue y nubes generadas en tiempo real (nunca se repiten, cambian de forma y el viento las arrastra) que se encienden cerca de ella (reemplazan a las cúbicas).
 Encima, un posprocesado propio (tono carmesí, contraste, resplandor de la luna y las luces, viñeta) que entra y sale
 solo con la luna; la mano y la interfaz no se tiñen. Se puede apagar en `config/bloodmoon-client.toml`
 (`harvestMoonPostEffect`) y se desactiva solo si está Iris. Con paquetes de shaders el tinte de la luz puede perderse en parte.
