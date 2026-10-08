@@ -1,4 +1,4 @@
-# Blood Moon — NeoForge 1.21.1 (v9.3)
+# Blood Moon — NeoForge 1.21.1 (v10)
 
 ## Al entrar por primera vez
 La pantalla se oscurece y un ojo púrpura se abre frente al jugador. Encima, un texto en el alfabeto de la mesa de
@@ -76,6 +76,30 @@ Como supera el límite de 128 bloques de las estructuras de Minecraft, se genera
 - Cielo casi negro con horizonte púrpura tenue, nebulosa y estrellas mortecinas; niebla espesa; esqueletos wither, esqueletos y endermans.
 - Si no hay portal cerca del destino, se construye uno en una cámara segura.
 
+## El Observador — jefe pináculo (Santuario del Ojo, Laberinto del Vacío)
+El Ojo de la Grieta. Un globo de 18 bloques con pupila felina, párpados de carne, tentáculos en la nuca, anillos de runas
+y Bloques del Vacío que orbitan a su alrededor. Despierta cuando pisás la plataforma de su Santuario
+(una de cada ~1700×1700 bloques del Laberinto; el Compás apunta al más cercano dentro del Laberinto).
+
+**Santuario:** plataforma circular flotante sobre un abismo sin fondo, 8 pilares (3 caídos) como única cobertura,
+4 puentes con tramos rotos, muralla colosal con galerías y 10 costillas-tentáculo que se cierran sobre el Ojo.
+
+**Locura:** mirarlo llena un medidor (viñeta, ojos en los bordes, susurros, cámara que se inclina). A 100 la mente
+se quiebra: daño mágico, ceguera y oscuridad. Desviar la mirada la baja.
+
+**Expuesto:** tras cada Mirada o Barrido baja exhausto al estrado con la pupila dilatada: recibe daño completo
+(x1,25) y no da locura. El resto del tiempo desvía el 85% del daño.
+
+| Fase | Habilidades |
+|---|---|
+| 1 (100-66%) | Mirada (rayo que te sigue; los pilares lo bloquean), Tentáculos del Abismo (brotan bajo tus pies tras un aviso y azotan), Llamado (esqueletos del Vacío) |
+| 2 (66-33%) | + Ojos Vigías (persiguen, se revientan de un golpe, siembran locura), Singularidad (te atrae y suelta una onda a ras del piso: saltala) |
+| 3 (33-0%) | + Barrido (el rayo gira 360° a ras del piso: cubrite tras un pilar o metete bajo el Ojo); el cielo se llena de ojos |
+
+Entre fases grita (invulnerable, empuja y oscurece). Al morir se agrieta, la luz escapa, se encoge hasta un punto
+e implosiona; la pantalla queda en negro con su despedida. Suelta el Iris del Observador, Bloques del Vacío, ecos y
+chatarra de netherite. El Santuario duerme 3 días (`eyeRespawnDays`). Si todos se van, el Ojo vuelve a dormir.
+
 ## Comandos (OP)
 - `/bloodmoon force [blood|super|golden|moonless]`
 - `/bloodmoon cancel`
@@ -84,6 +108,8 @@ Como supera el límite de 128 bloques de las estructuras de Minecraft, se genera
 - `/bloodmoon summon emissary`
 - `/bloodmoon summon executioner`
 - `/bloodmoon summon dragon`
+- `/bloodmoon summon eye` (el estrado es donde estás parado)
+- `/bloodmoon locate sanctum`
 - `/bloodmoon locate coliseum`
 - `/bloodmoon intro`
 - `/summon bloodmoon:cursed_creeper`
