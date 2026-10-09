@@ -21,7 +21,8 @@ public final class ClientEclipse {
     public static Eclipse.State state(long dayTime, float partialTick) {
         long d = day;
         if (d < 0 || dayTime / 24000L != d) return null;
-        Eclipse.State st = Eclipse.at((dayTime % 24000L) + partialTick);
+        // sin fracción de tick: si el ciclo día/noche está detenido (eclipse permanente) la escena queda quieta
+        Eclipse.State st = Eclipse.at(dayTime % 24000L);
         return st;
     }
 

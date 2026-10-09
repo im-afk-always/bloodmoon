@@ -23,7 +23,8 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /bloodmoon summon eye                  -> el Observador despierta sobre vos (su estrado = donde estás parado)
  * /bloodmoon summon unbound              -> el Observador Desatado emerge donde estás (prueba de la fase final)
  * /bloodmoon locate sanctum              -> Santuario del Ojo más cercano (en el Laberinto del Vacío)
- * /bloodmoon eclipse [cancel]            -> Eclipse Solar ahora (lleva la hora a la mañana) / cancelarlo
+ * /bloodmoon eclipse [cancel]            -> Eclipse Solar ahora (lleva la hora al amanecer) / cancelarlo
+ * /bloodmoon eclipse permanent           -> congela el eclipse en el instante actual (otra vez: sigue su curso)
  * Requiere permiso 2 (OP / trucos activados).
  */
 public final class BloodMoonCommand {
@@ -48,6 +49,16 @@ public final class BloodMoonCommand {
                             ctx.getSource().sendSuccess(() -> Component.translatable("bloodmoon.command.eclipse.start"), true);
                             return 1;
                         })
+                        .then(Commands.literal("permanent").executes(ctx -> {
+                            EclipseManager.PermanentResult r = EclipseManager.togglePermanent(ctx.getSource().getServer().overworld());
+                            String key = switch (r) {
+                                case STARTED -> "bloodmoon.command.eclipse.permanent.started";
+                                case FROZEN -> "bloodmoon.command.eclipse.permanent.on";
+                                case RELEASED -> "bloodmoon.command.eclipse.permanent.off";
+                            };
+                            ctx.getSource().sendSuccess(() -> Component.translatable(key), true);
+                            return 1;
+                        }))
                         .then(Commands.literal("cancel").executes(ctx -> {
                             boolean had = EclipseManager.cancel(ctx.getSource().getServer().overworld());
                             ctx.getSource().sendSuccess(() -> Component.translatable(had ? "bloodmoon.command.eclipse.cancel" : "bloodmoon.command.eclipse.none"), true);

@@ -15,6 +15,8 @@ public class BloodMoonData extends SavedData {
     private long forcedNightDay = -1L;
     /** Día del Eclipse Solar en curso o programado (-1 = ninguno). */
     private long eclipseDay = -1L;
+    /** Eclipse congelado por /bloodmoon eclipse permanent, y el valor de doDaylightCycle a restaurar. */
+    private boolean eclipsePermanent, savedDaylight = true;
 
     public static BloodMoonData get(ServerLevel overworld) {
         return overworld.getDataStorage().computeIfAbsent(
@@ -31,6 +33,8 @@ public class BloodMoonData extends SavedData {
         data.forcedType = tag.contains("forcedType") ? MoonType.byId(tag.getInt("forcedType")) : MoonType.BLOOD;
         data.forcedNightDay = tag.contains("forcedNightDay") ? tag.getLong("forcedNightDay") : -1L;
         data.eclipseDay = tag.contains("eclipseDay") ? tag.getLong("eclipseDay") : -1L;
+        data.eclipsePermanent = tag.getBoolean("eclipsePermanent");
+        data.savedDaylight = !tag.contains("savedDaylight") || tag.getBoolean("savedDaylight");
         return data;
     }
 
@@ -40,6 +44,8 @@ public class BloodMoonData extends SavedData {
         tag.putInt("forcedType", forcedType.ordinal());
         tag.putLong("forcedNightDay", forcedNightDay);
         tag.putLong("eclipseDay", eclipseDay);
+        tag.putBoolean("eclipsePermanent", eclipsePermanent);
+        tag.putBoolean("savedDaylight", savedDaylight);
         return tag;
     }
 
@@ -57,6 +63,9 @@ public class BloodMoonData extends SavedData {
 
     public long getEclipseDay() { return eclipseDay; }
     public void setEclipseDay(long day) { this.eclipseDay = day; setDirty(); }
+    public boolean isEclipsePermanent() { return eclipsePermanent; }
+    public boolean getSavedDaylight() { return savedDaylight; }
+    public void setEclipsePermanent(boolean on, boolean daylight) { this.eclipsePermanent = on; this.savedDaylight = daylight; setDirty(); }
 
     public void clearForced() {
         this.forcedNightDay = -1L;

@@ -37,7 +37,8 @@ solo con la luna; la mano y la interfaz no se tiñen. Se puede apagar en `config
 
 ## Eclipse Solar
 `/bloodmoon eclipse` lleva la hora al amanecer y arranca uno (o cada N días con `solarEclipseEveryDays`; 0 = solo por
-comando). `/bloodmoon eclipse cancel` lo cancela. Todo ocurre en ~3 min 40 s de juego:
+comando). `/bloodmoon eclipse cancel` lo cancela. `/bloodmoon eclipse permanent` lo congela en el instante actual
+(detiene el ciclo día/noche; si no hay uno en marcha, arranca uno ya en la totalidad); repetirlo lo libera y sigue su curso. Todo ocurre en ~3 min 40 s de juego:
 - Ese día el sol es realista (granulación, borde más oscuro y anaranjado, resplandor). Un rato después del amanecer la
   luna asoma pálida por el horizonte, lo persigue más rápido y lo alcanza; al acercarse se vuelve una silueta oscura.
 - La luz se ahoga poco a poco (casi no cambia hasta ~75% tapado y después cae en picada): el mundo vira a un gris pardo

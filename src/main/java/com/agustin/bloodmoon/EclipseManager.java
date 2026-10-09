@@ -51,8 +51,41 @@ public final class EclipseManager {
         broadcast(overworld);
     }
 
+    public enum PermanentResult { STARTED, FROZEN, RELEASED }
+
+    /**
+     * Congela el eclipse (detiene el ciclo día/noche en el instante actual) o lo libera para que siga su curso.
+     * Si no hay un eclipse en marcha, arranca uno ya en la totalidad.
+     */
+    public static PermanentResult togglePermanent(ServerLevel overworld) {
+        BloodMoonData data = BloodMoonData.get(overworld);
+        var rule = overworld.getGameRules().getRule(GameRules.RULE_DAYLIGHT);
+        if (data.isEclipsePermanent()) {
+            rule.set(data.getSavedDaylight(), overworld.getServer());
+            data.setEclipsePermanent(false, true);
+            return PermanentResult.RELEASED;
+        }
+        long dayTime = overworld.getDayTime();
+        long day = dayTime / 24000L, tod = dayTime % 24000L;
+        PermanentResult result = PermanentResult.FROZEN;
+        if (data.getEclipseDay() != day || tod < Eclipse.START || tod > Eclipse.END) {
+            data.setEclipseDay(day);
+            for (ServerLevel l : overworld.getServer().getAllLevels()) l.setDayTime(day * 24000L + Eclipse.MID);
+            resetAnnouncements();
+            broadcast(overworld);
+            result = PermanentResult.STARTED;
+        }
+        data.setEclipsePermanent(true, rule.get());
+        rule.set(false, overworld.getServer());
+        return result;
+    }
+
     public static boolean cancel(ServerLevel overworld) {
         BloodMoonData data = BloodMoonData.get(overworld);
+        if (data.isEclipsePermanent()) {
+            overworld.getGameRules().getRule(GameRules.RULE_DAYLIGHT).set(data.getSavedDaylight(), overworld.getServer());
+            data.setEclipsePermanent(false, true);
+        }
         boolean had = data.getEclipseDay() >= 0;
         data.setEclipseDay(-1);
         dark = false;
