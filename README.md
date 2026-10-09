@@ -215,7 +215,9 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
 - **Fases:** Despertar, Arraigo, Conquista y Dominio (con los valores por defecto: ~día 7, ~18 y ~33).
 - **Rangos con cuerpo:** cuando te acercás a su puesto aparecen el **Capitán del Vacío** (esqueleto de élite con el
   estandarte del Dominio, barra de jefe; potencia a las tropas cercanas; custodia un obelisco) y los **Generales**
-  (el Emisario o el Ejecutor, en tierra muerta a media distancia). Lejos de todos vuelven a ser datos y guardan su vida.
+  (**General del Vacío**: señor de guerra de ~4 bloques con yelmo astado, peto con el ojo del Dominio, capa raída,
+  guja y una aureola de runas; barre con la guja, lanza un Grito de guerra que llama Centinelas y enardece a los suyos,
+  y salta sobre vos clavando la guja con una onda de choque; sede: una fortaleza). Lejos de todos vuelven a ser datos y guardan su vida.
   Matarlos deja el puesto vacío un día; un General caído además le quita esencia al Dominio y lo frena a la mitad un día.
 - **Guarniciones:** cada obelisco cercano a un jugador tiene de 2 a 5 Centinelas y Arqueros.
 - **Forjadores del Vacío:** con un jugador cerca, los obeliscos se levantan bloque a bloque; matarlos detiene la obra
@@ -225,9 +227,13 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
   (muralla de 15×15 con torres y torreón; un General frente a la puerta). Nidos y atalayas desde Arraigo; fortalezas
   desde Conquista.
 - **Caminos de roca negra** de 3 de ancho, con faroles, unen cada estructura con la siguiente hacia el coliseo.
-- **Asaltos** (desde Conquista, cada uno o dos días si estás dentro del radio): se abre una **Puerta de Guerra** a ~26
-  bloques y salen oleadas que te buscan y rompen bloques para llegar (si mobGriefing está activo). Si las rechazás, el
-  Dominio pierde esencia; si pasan 5 minutos o morís, clava una **cabeza de playa**: 3×3 chunks muertos y un obelisco.
+- **Asaltos por niveles** (desde Conquista, cada uno o dos días si estás dentro del radio): se abre una **Puerta de
+  Guerra** a ~26 bloques y salen oleadas que te buscan y rompen bloques para llegar (si mobGriefing está activo). El
+  nivel sube con cada asalto que enfrentás (1 a 10): nivel N = 10×N tropas (máx. 40 vivas a la vez), cada vez mejor
+  equipadas (nivel 10: Set del Vacío completo con Protección IV, Irrompibilidad y Espinas, armas al máximo), con
+  Capitanes de Asalto desde el nivel 4; duran 5+N minutos. Rechazado: el Dominio pierde 150×N de esencia. Fallido (se
+  acaba el tiempo o morís): **cabeza de playa** de 3×3 chunks muertos con un obelisco.
+- El bando del Vacío no se hiere entre sí ni se quema con el fuego astral.
 - El mapa muestra caminos, nidos, atalayas, fortalezas y los asaltos en curso.
 - **Final:** entrar por el portal de ese coliseo y vencer al **Observador Desatado**. El Dominio se quiebra, el Relicario
   aparece en cofres junto al portal y la tierra sana de afuera hacia adentro.
@@ -239,7 +245,7 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
 ## Comandos (OP)
 - `/bloodmoon force [super|golden|moonless]`
 - `/bloodmoon cancel`
-- `/bloodmoon invasion start|grow <ciclos>|end|status|raid` (Invasión del Vacío: despertar el coliseo más cercano, adelantar ciclos, vencerla, estado, forzar un asalto contra vos)
+- `/bloodmoon invasion start|grow <ciclos>|end|status|raid|build` (Invasión del Vacío: despertar el coliseo más cercano, adelantar ciclos, vencerla, estado, forzar un asalto contra vos, obelisco en obra donde estás)
 - `/bloodmoon devotion offer [harvest|providence]|add <n>|reset|status|complete` (pruebas del culto; `status` muestra tu devoción y el pedido en curso; `complete` completa el pedido de esta noche)
 - `/bloodmoon status`
 - `/bloodmoon summon rider`
