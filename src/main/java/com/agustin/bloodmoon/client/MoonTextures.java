@@ -9,6 +9,8 @@ import net.minecraft.resources.ResourceLocation;
 public final class MoonTextures {
     public static final ResourceLocation VANILLA_MOON =
             ResourceLocation.withDefaultNamespace("textures/environment/moon_phases.png");
+    public static final ResourceLocation VANILLA_SUN =
+            ResourceLocation.withDefaultNamespace("textures/environment/sun.png");
     public static final ResourceLocation VANILLA_CREEPER_SWIRL =
             ResourceLocation.withDefaultNamespace("textures/entity/creeper/creeper_armor.png");
     private static final ResourceLocation RED_SWIRL =
@@ -25,6 +27,11 @@ public final class MoonTextures {
         }
         ResourceLocation target = ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "dynamic/moon_" + type.key());
         return TintedTextures.get(VANILLA_MOON, target, type.tintR, type.tintG, type.tintB, 1.15F);
+    }
+
+    /** Sol vanilla en negro: se dibuja con mezcla aditiva, así que desaparece. */
+    public static ResourceLocation hiddenSun() {
+        return TintedTextures.get(VANILLA_SUN, ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "dynamic/sun_hidden"), 0, 0, 0, 1F);
     }
 
     public static ResourceLocation cursedSwirl() {

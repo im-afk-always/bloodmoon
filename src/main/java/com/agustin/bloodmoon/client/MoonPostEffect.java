@@ -42,9 +42,11 @@ public final class MoonPostEffect {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.level.dimension() != Level.OVERWORLD) return;
         MoonType type = ClientMoonState.visual();
-        if (type != MoonType.SUPER && type != MoonType.MOONLESS) return;
         float pt = event.getPartialTick().getGameTimeDeltaPartialTick(false);
-        float k = ClientMoonState.intensity(pt);
+        com.agustin.bloodmoon.Eclipse.State ec = EclipseSkyRenderer.state(pt);
+        boolean eclipse = ec != null && ec.dark() > 0.01F;
+        if (!eclipse && type != MoonType.SUPER && type != MoonType.MOONLESS) return;
+        float k = eclipse ? Math.min(1F, ec.dark() * 1.05F) : ClientMoonState.intensity(pt);
         if (k <= 0.01F) return;
 
         RenderTarget main = mc.getMainRenderTarget();
@@ -63,14 +65,16 @@ public final class MoonPostEffect {
             chain.resize(width, height);
         }
         chain.setUniform("Intensity", k);
-        boolean violet = type == MoonType.MOONLESS;
+        boolean violet = !eclipse && type == MoonType.MOONLESS;
         //                        mul R/G/B                 tint R/G/B, mix              bloom R/G/B, gain           viñeta R/G/B
-        float[] p = violet
+        float[] p = eclipse
+                ? new float[]{0.98F, 0.93F, 0.84F, 0.98F, 0.88F, 0.72F, 0.35F, 1F, 0.95F, 0.85F, 1.15F, 0.8F, 0.7F, 0.6F}
+                : violet
                 ? new float[]{0.86F, 0.72F, 1.08F, 0.75F, 0.45F, 1.25F, 0.3F, 0.75F, 0.45F, 1F, 1.05F, 0.7F, 0.5F, 1F}
                 : new float[]{1.05F, 0.72F, 0.74F, 1.2F, 0.32F, 0.28F, 0.25F, 1F, 0.42F, 0.36F, 0.85F, 1F, 0.55F, 0.55F};
         String[] names = {"MulR", "MulG", "MulB", "TintR", "TintG", "TintB", "TintMix", "BloomR", "BloomG", "BloomB", "BloomGain", "VigR", "VigG", "VigB"};
         for (int i = 0; i < names.length; i++) chain.setUniform(names[i], p[i]);
-        chain.setUniform("Threshold", violet ? 0.42F : 0.5F);
+        chain.setUniform("Threshold", eclipse ? 0.62F : violet ? 0.42F : 0.5F);
         RenderSystem.disableBlend();
         RenderSystem.disableDepthTest();
         RenderSystem.resetTextureMatrix();

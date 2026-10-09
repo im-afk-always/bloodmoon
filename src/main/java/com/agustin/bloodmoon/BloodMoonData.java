@@ -13,6 +13,8 @@ public class BloodMoonData extends SavedData {
     private MoonType forcedType = MoonType.NONE;
     /** Índice de día cuya noche fue forzada por comando (-1 = ninguno). */
     private long forcedNightDay = -1L;
+    /** Día del Eclipse Solar en curso o programado (-1 = ninguno). */
+    private long eclipseDay = -1L;
 
     public static BloodMoonData get(ServerLevel overworld) {
         return overworld.getDataStorage().computeIfAbsent(
@@ -28,6 +30,7 @@ public class BloodMoonData extends SavedData {
         }
         data.forcedType = tag.contains("forcedType") ? MoonType.byId(tag.getInt("forcedType")) : MoonType.BLOOD;
         data.forcedNightDay = tag.contains("forcedNightDay") ? tag.getLong("forcedNightDay") : -1L;
+        data.eclipseDay = tag.contains("eclipseDay") ? tag.getLong("eclipseDay") : -1L;
         return data;
     }
 
@@ -36,6 +39,7 @@ public class BloodMoonData extends SavedData {
         tag.putInt("type", active.ordinal());
         tag.putInt("forcedType", forcedType.ordinal());
         tag.putLong("forcedNightDay", forcedNightDay);
+        tag.putLong("eclipseDay", eclipseDay);
         return tag;
     }
 
@@ -50,6 +54,9 @@ public class BloodMoonData extends SavedData {
         this.forcedNightDay = day;
         setDirty();
     }
+
+    public long getEclipseDay() { return eclipseDay; }
+    public void setEclipseDay(long day) { this.eclipseDay = day; setDirty(); }
 
     public void clearForced() {
         this.forcedNightDay = -1L;

@@ -7,7 +7,8 @@
     "AbstractSkeletonMixin",
     "CreeperAccessor",
     "CreeperMixin",
-    "MobCategoryMixin"
+    "MobCategoryMixin",
+    "MobSunBurnMixin"
   ],
   "client": [
     "ClientLevelMixin",

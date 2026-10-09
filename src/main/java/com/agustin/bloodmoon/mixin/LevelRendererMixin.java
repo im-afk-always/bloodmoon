@@ -21,6 +21,9 @@ public abstract class LevelRendererMixin {
                     target = "Lcom/mojang/blaze3d/systems/RenderSystem;setShaderTexture(ILnet/minecraft/resources/ResourceLocation;)V"),
             index = 1)
     private ResourceLocation bloodmoon$tintedMoon(ResourceLocation texture) {
+        if (MoonTextures.VANILLA_SUN.equals(texture) && com.agustin.bloodmoon.client.EclipseSkyRenderer.hidesVanillaSun()) {
+            return MoonTextures.hiddenSun();   // el día del eclipse se dibuja el sol realista
+        }
         if (MoonTextures.VANILLA_MOON.equals(texture)) {
             ResourceLocation tinted = MoonTextures.currentMoon();
             if (tinted != null) return tinted;

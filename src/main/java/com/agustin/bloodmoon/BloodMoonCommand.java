@@ -23,6 +23,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /bloodmoon summon eye                  -> el Observador despierta sobre vos (su estrado = donde estás parado)
  * /bloodmoon summon unbound              -> el Observador Desatado emerge donde estás (prueba de la fase final)
  * /bloodmoon locate sanctum              -> Santuario del Ojo más cercano (en el Laberinto del Vacío)
+ * /bloodmoon eclipse [cancel]            -> Eclipse Solar ahora (lleva la hora a la mañana) / cancelarlo
  * Requiere permiso 2 (OP / trucos activados).
  */
 public final class BloodMoonCommand {
@@ -41,6 +42,17 @@ public final class BloodMoonCommand {
                 .requires(src -> src.hasPermission(2))
                 .then(force)
                 .then(Commands.literal("cancel").executes(BloodMoonCommand::cancel))
+                .then(Commands.literal("eclipse")
+                        .executes(ctx -> {
+                            EclipseManager.startNow(ctx.getSource().getServer().overworld());
+                            ctx.getSource().sendSuccess(() -> Component.translatable("bloodmoon.command.eclipse.start"), true);
+                            return 1;
+                        })
+                        .then(Commands.literal("cancel").executes(ctx -> {
+                            boolean had = EclipseManager.cancel(ctx.getSource().getServer().overworld());
+                            ctx.getSource().sendSuccess(() -> Component.translatable(had ? "bloodmoon.command.eclipse.cancel" : "bloodmoon.command.eclipse.none"), true);
+                            return had ? 1 : 0;
+                        })))
                 .then(Commands.literal("status").executes(BloodMoonCommand::status))
                 .then(Commands.literal("summon")
                         .then(Commands.literal("rider").executes(BloodMoonCommand::summonRider))

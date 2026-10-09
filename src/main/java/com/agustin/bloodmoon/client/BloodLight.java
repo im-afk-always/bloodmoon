@@ -3,6 +3,7 @@ package com.agustin.bloodmoon.client;
 import com.agustin.bloodmoon.ClientMoonState;
 import com.agustin.bloodmoon.MoonType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 
 /**
@@ -20,11 +21,41 @@ public final class BloodLight {
     private BloodLight() {}
 
     /**
+     * Eclipse Solar: la luz del cielo se ahoga con la luna (hasta ~7% en la totalidad) y vira a un gris pardo apagado.
+     * Las antorchas no cambian: en la totalidad son lo único que brilla de verdad.
+     */
+    private static int eclipse(int block, int sky, int abgr) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.level.dimension() != Level.OVERWORLD) return abgr;
+        com.agustin.bloodmoon.Eclipse.State st = com.agustin.bloodmoon.ClientEclipse.state(mc.level.getDayTime(),
+                mc.getTimer().getGameTimeDeltaPartialTick(false));
+        if (st == null) return abgr;
+        float dark = st.dark();
+        if (dark <= 0.001F) return abgr;
+        float r = (abgr & 0xFF) / 255F, g = (abgr >>> 8 & 0xFF) / 255F, b = (abgr >>> 16 & 0xFF) / 255F;
+        float s = sky / 15F, bl = block / 15F;
+        float dom = s * s / (s * s + 1.4F * bl * bl + 0.001F);
+        float lum = 0.2126F * r + 0.7152F * g + 0.0722F * b;
+        // gris pardo: desaturado hacia un sepia frío
+        float k = Math.min(1F, dark * 1.1F) * dom;
+        r += (lum * 0.96F - r) * k * 0.8F;
+        g += (lum * 0.88F - g) * k * 0.8F;
+        b += (lum * 0.74F - b) * k * 0.8F;
+        // y se apaga
+        float f = 1F - dom * dark * 0.95F;
+        r *= f; g *= f; b *= f;
+        int ir = Math.round(Mth.clamp(r, 0F, 1F) * 255F), ig = Math.round(Mth.clamp(g, 0F, 1F) * 255F), ib = Math.round(Mth.clamp(b, 0F, 1F) * 255F);
+        return (abgr & 0xFF000000) | ib << 16 | ig << 8 | ir;
+    }
+
+    /**
      * @param block índice de luz de bloque (columna x del lightmap, 0..15)
      * @param sky   índice de luz del cielo (fila y, 0..15)
      * @param abgr  color calculado por vanilla (formato NativeImage: ABGR)
      */
     public static int tint(int block, int sky, int abgr) {
+        int e = eclipse(block, sky, abgr);
+        if (e != abgr) return e;
         MoonType type = ClientMoonState.visual();
         if (!type.tintsLight()) return abgr;
         Minecraft mc = Minecraft.getInstance();

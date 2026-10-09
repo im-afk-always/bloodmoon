@@ -10,6 +10,8 @@ public final class BloodMoonConfig {
     public static final ModConfigSpec.IntValue SUPER_INTERVAL;
     public static final ModConfigSpec.IntValue GOLDEN_INTERVAL;
     public static final ModConfigSpec.IntValue MOONLESS_INTERVAL;
+    public static final ModConfigSpec.IntValue ECLIPSE_INTERVAL;
+    public static final ModConfigSpec.BooleanValue ECLIPSE_MOBS;
 
     public static final ModConfigSpec.IntValue CREEPER_EXPLOSION_MULT;
     public static final ModConfigSpec.IntValue CURSED_EXPLOSION_MULT;
@@ -39,6 +41,10 @@ public final class BloodMoonConfig {
         SUPER_INTERVAL = b.defineInRange("superBloodMoonEveryNights", 13, 0, 1000);
         GOLDEN_INTERVAL = b.defineInRange("goldenMoonEveryNights", 7, 0, 1000);
         MOONLESS_INTERVAL = b.defineInRange("moonlessNightEveryNights", 50, 0, 1000);
+        ECLIPSE_INTERVAL = b.comment("Cada cuántos días ocurre un Eclipse Solar (0 = solo con /bloodmoon eclipse).")
+                .defineInRange("solarEclipseEveryDays", 0, 0, 1000);
+        ECLIPSE_MOBS = b.comment("Durante la totalidad despiertan criaturas de la noche alrededor de cada jugador a cielo abierto,",
+                "y los no-muertos no se queman mientras dura la oscuridad.").define("solarEclipseCreatures", true);
         b.pop();
 
         b.push("superBloodMoon");

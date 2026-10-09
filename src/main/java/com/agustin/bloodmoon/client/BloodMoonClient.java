@@ -62,6 +62,7 @@ public class BloodMoonClient {
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onLogout);
         NeoForge.EVENT_BUS.addListener(MoonlessSkyRenderer::onRenderStage);
         NeoForge.EVENT_BUS.addListener(BloodSkyRenderer::onRenderStage);
+        NeoForge.EVENT_BUS.addListener(EclipseSkyRenderer::onRenderStage);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onRenderFog);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onSelectMusic);
         NeoForge.EVENT_BUS.addListener(MoonPostEffect::onRenderStage);
@@ -116,6 +117,8 @@ public class BloodMoonClient {
         event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "astral_burn"), AstralFlameRenderer::renderOverlay);
         event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
+                ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "eclipse_flash"), EclipseSkyRenderer::renderFlash);
+        event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "nuke_flash"), NukeClouds::renderFlash);
         event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "eye_madness"), EyeFightFx::renderMadness);
@@ -150,12 +153,23 @@ public class BloodMoonClient {
         SupernovaFx.tick();
         IntroEye.tick();
         EyeFightFx.tick();
+        EclipseSkyRenderer.tick();
     }
 
     /** El color de niebla es también el del horizonte: oscuro con el tinte de cada luna. */
     private static void onFogColor(ViewportEvent.ComputeFogColor event) {
         if (event.getCamera().getFluidInCamera() != FogType.NONE) return;
         if (Minecraft.getInstance().level == null || Minecraft.getInstance().level.dimension() != net.minecraft.world.level.Level.OVERWORLD) return;
+        com.agustin.bloodmoon.Eclipse.State ec = EclipseSkyRenderer.state((float) event.getPartialTick());
+        if (ec != null && ec.dark() > 0.001F) {
+            // en el eclipse el horizonte queda iluminado todo alrededor: un atardecer de 360°, pardo y apagado
+            float k = ec.dark();
+            float glow = 0.55F + 0.45F * k;
+            event.setRed(lerp(event.getRed(), 0.30F * glow, k));
+            event.setGreen(lerp(event.getGreen(), 0.19F * glow, k));
+            event.setBlue(lerp(event.getBlue(), 0.12F * glow, k));
+            return;
+        }
         MoonType type = ClientMoonState.visual();
         float k = ClientMoonState.intensity((float) event.getPartialTick());
         if (type == MoonType.NONE || k <= 0F) return;
@@ -221,6 +235,7 @@ public class BloodMoonClient {
 
     private static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientMoonState.reset();
+        com.agustin.bloodmoon.ClientEclipse.reset();
         ClientAstralState.reset();
         NukeClouds.reset();
         SupernovaFx.reset();
