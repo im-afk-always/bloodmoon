@@ -227,11 +227,22 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
 - **Guarniciones:** cada obelisco cercano a un jugador tiene de 2 a 5 Centinelas y Arqueros.
 - **Forjadores del Vacío:** con un jugador cerca, los obeliscos se levantan bloque a bloque; matarlos detiene la obra
   (vuelven en 30 s si el Dominio tiene). Con un jugador a menos de 64 bloques, la corrupción avanza columna a columna.
-- **Estructuras mayores** (cada una con su Núcleo; romperlo la deja en ruinas): **Nido de Ceniza** (fosa con fuego de
-  almas, muchas tropas), **Atalaya** (torre de 20 bloques con arqueros y un Capitán en la plataforma) y **Fortaleza**
-  (muralla de 15×15 con torres y torreón; un General frente a la puerta). Nidos y atalayas desde Arraigo; fortalezas
-  desde Conquista.
-- **Caminos de roca negra** de 3 de ancho, con faroles, unen cada estructura con la siguiente hacia el coliseo.
+- **Estructuras mayores** (cada una con su Núcleo; romperlo la deja en ruinas). Ocupan 3×3 chunks de tierra muerta,
+  miran con la puerta hacia el coliseo y, con un jugador a 200 bloques, los Forjadores las levantan a la vista:
+  - **Nido de Ceniza:** fosa de 8 en terrazas con rampas, seis costillas de roca que se cierran encima con jaulas
+    colgantes y un altar con fuego de almas; muchas tropas en el borde.
+  - **Atalaya:** torre de ~46 de alto con contrafuertes, escalera de caracol por dentro, ventanas de vidrio del Vacío y
+    una corona con parapeto, runas y cuernos; arqueros y un Capitán arriba.
+  - **Fortaleza:** muralla de 37×37 con camino de ronda y matacanes, cuatro torres cónicas, barbacana con rastrillo
+    de cadenas y el ojo del Dominio, patio con braseros y un torreón de 15×15 con salón de columnas y aguja; un General
+    en el patio.
+  Nidos y atalayas desde Arraigo; fortalezas desde Conquista. Los **obeliscos** ahora son de 13×13 y ~29 de alto,
+  con el núcleo enjaulado en vidrio, columnas con faroles y farolas colgantes.
+- **Bloques de arquitectura:** escaleras, losa y muro de ladrillo de roca negra, roca negra pulida, pilar, runa
+  cincelada (brilla), cadena y panel de vidrio del Vacío.
+- **Faros:** un faro encendido protege su radio de efecto; el Dominio no reclama esa tierra y la que ya tenía retrocede.
+- **El Trono:** mientras el Rey vive, el portal del coliseo está sellado; primero hay que derribarlo.
+- **Caminos de roca negra** de 3 de ancho, con farolas de runa, unen cada estructura con la siguiente hacia el coliseo.
 - **Asaltos por niveles** (desde Conquista, cada uno o dos días si estás dentro del radio): se abre una **Puerta de
   Guerra** a ~26 bloques y salen oleadas que te buscan y rompen bloques para llegar (si mobGriefing está activo). El
   nivel sube con cada asalto que enfrentás (1 a 10): nivel N = 10×N tropas (máx. 40 vivas a la vez), cada vez mejor
