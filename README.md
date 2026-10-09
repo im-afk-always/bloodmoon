@@ -205,7 +205,7 @@ Morir en el Más Allá no hace perder el inventario. Si pierden, el Santuario se
 ## Comandos (OP)
 - `/bloodmoon force [super|golden|moonless]`
 - `/bloodmoon cancel`
-- `/bloodmoon devotion offer [harvest|providence]|add <n>|reset` (pruebas del culto)
+- `/bloodmoon devotion offer [harvest|providence]|add <n>|reset|status` (pruebas del culto; `status` muestra tu devoción y el pedido en curso)
 - `/bloodmoon status`
 - `/bloodmoon summon rider`
 - `/bloodmoon summon emissary`

@@ -178,5 +178,12 @@
   "bloodmoon.providence.hud": "Tributos restantes %s/%s",
   "bloodmoon.providence.hud.complete": "Tributo completo",
   "bloodmoon.devotion.decline.providence.1": "Rechazas a %s. Lo que no se siembra, no se cosecha.",
-  "bloodmoon.devotion.decline.providence.2": "La Providencia retira su mano... y el hambre aprenderá tu nombre."
+  "bloodmoon.devotion.decline.providence.2": "La Providencia retira su mano... y el hambre aprenderá tu nombre.",
+  "bloodmoon.providence.counted": "+1 tributo · faltan %s",
+  "bloodmoon.providence.breed.none": "%s ve tu cuidado... pero aún no eres su devoto.",
+  "bloodmoon.providence.breed.other": "%s ve tu cuidado... pero tu fe pertenece a otra deidad.",
+  "bloodmoon.devotion.status.devotion": "Devoción: %s · %s (nivel %s) · reputación %s",
+  "bloodmoon.devotion.status.pending": "Propuesta pendiente de: %s",
+  "bloodmoon.devotion.status.request": "Pedido en curso: %s · %s/%s (tu aporte: %s)",
+  "bloodmoon.devotion.status.norequest": "No hay ningún pedido en curso (solo durante la Luna de la Cosecha o la de la Providencia)."
 }

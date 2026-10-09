@@ -25,7 +25,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /bloodmoon summon unbound              -> el Observador Desatado emerge donde estás (prueba de la fase final)
  * /bloodmoon locate sanctum              -> Santuario del Ojo más cercano (en el Laberinto del Vacío)
  * /bloodmoon eclipse [cancel]            -> Eclipse Solar ahora (lleva la hora al amanecer) / cancelarlo
- * /bloodmoon devotion offer [harvest|providence]|add <n>|reset -> pruebas del culto: propuesta, sumar reputación, borrar devoción
+ * /bloodmoon devotion offer [harvest|providence]|add <n>|reset|status -> pruebas del culto: propuesta, sumar reputación, borrar devoción
  * /bloodmoon eclipse permanent           -> congela el eclipse en el instante actual (otra vez: sigue su curso)
  * Requiere permiso 2 (OP / trucos activados).
  */
@@ -48,6 +48,7 @@ public final class BloodMoonCommand {
                 .then(Commands.literal("cancel").executes(BloodMoonCommand::cancel))
                 .then(Commands.literal("devotion")
                         .then(devotionOffer())
+                        .then(Commands.literal("status").executes(ctx -> DevotionManager.debugStatus(ctx.getSource().getPlayerOrException())))
                         .then(Commands.literal("add").then(Commands.argument("amount", IntegerArgumentType.integer(-100000, 100000))
                                 .executes(ctx -> DevotionManager.debugAdd(ctx.getSource().getPlayerOrException(), IntegerArgumentType.getInteger(ctx, "amount")))))
                         .then(Commands.literal("reset").executes(ctx -> DevotionManager.debugReset(ctx.getSource().getPlayerOrException()))))

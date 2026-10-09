@@ -178,5 +178,12 @@
   "bloodmoon.providence.hud": "Tributes left %s/%s",
   "bloodmoon.providence.hud.complete": "Tribute complete",
   "bloodmoon.devotion.decline.providence.1": "You reject %s. What is not sown is not reaped.",
-  "bloodmoon.devotion.decline.providence.2": "Providence withdraws its hand... and hunger will learn your name."
+  "bloodmoon.devotion.decline.providence.2": "Providence withdraws its hand... and hunger will learn your name.",
+  "bloodmoon.providence.counted": "+1 tribute · %s left",
+  "bloodmoon.providence.breed.none": "%s sees your care... but you are not yet its devotee.",
+  "bloodmoon.providence.breed.other": "%s sees your care... but your faith belongs to another deity.",
+  "bloodmoon.devotion.status.devotion": "Devotion: %s · %s (level %s) · reputation %s",
+  "bloodmoon.devotion.status.pending": "Pending offer from: %s",
+  "bloodmoon.devotion.status.request": "Current request: %s · %s/%s (your share: %s)",
+  "bloodmoon.devotion.status.norequest": "No request in progress (only during the Harvest Moon or the Providence Moon)."
 }

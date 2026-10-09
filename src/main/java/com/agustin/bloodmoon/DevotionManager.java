@@ -73,8 +73,13 @@ public final class DevotionManager {
 
     /** Criar animales: reputación para los devotos de la Providencia. */
     public static void onBreed(ServerLevel overworld, ServerPlayer player, int amount) {
-        if (DevotionData.get(overworld).entry(player.getUUID()).deity == Deity.PROVIDENCE) {
+        Deity d = DevotionData.get(overworld).entry(player.getUUID()).deity;
+        if (d == Deity.PROVIDENCE) {
             addReputation(overworld, player.getUUID(), player, amount, true);
+        } else {
+            // sin esto, criar sin ser devoto no da ninguna señal y parece que no funciona
+            player.displayClientMessage(Component.translatable(d == null ? "bloodmoon.providence.breed.none" : "bloodmoon.providence.breed.other",
+                    Deity.PROVIDENCE.inSentence()).withStyle(ChatFormatting.GOLD, ChatFormatting.ITALIC), true);
         }
     }
 
@@ -103,7 +108,10 @@ public final class DevotionManager {
         Style color = deityStyle(e.deity);
         Component gain = Component.translatable(amount > 0 ? "bloodmoon.devotion.gain" : "bloodmoon.devotion.loss",
                 Math.abs(amount), e.deity.inSentence(), e.reputation);
-        if (quiet) player.displayClientMessage(gain.copy().withStyle(color), true);
+        if (quiet) {
+            player.displayClientMessage(gain.copy().withStyle(color), true);
+            player.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.35F, 1.3F + player.getRandom().nextFloat() * 0.3F);
+        }
         else player.sendSystemMessage(gain.copy().withStyle(ChatFormatting.GRAY));
         if (after.ordinal() > before.ordinal()) {
             player.sendSystemMessage(Component.translatable("bloodmoon.devotion.rankup", after.displayName(), e.deity.inSentence())
@@ -216,6 +224,31 @@ public final class DevotionManager {
     /** Para pruebas (OP): /bloodmoon devotion offer [deidad] | add <n> | reset. */
     public static int debugOffer(ServerPlayer player, Deity deity) {
         offer(player.server.overworld(), player, deity);
+        return 1;
+    }
+
+    /** /bloodmoon devotion status: tu devoción y el pedido en curso (para verificar que todo cuenta). */
+    public static int debugStatus(ServerPlayer player) {
+        ServerLevel overworld = player.server.overworld();
+        DevotionData.Entry e = DevotionData.get(overworld).entry(player.getUUID());
+        if (e.deity == null) {
+            player.sendSystemMessage(Component.translatable("bloodmoon.devotion.none").withStyle(ChatFormatting.GRAY));
+        } else {
+            DevotionRank rank = DevotionRank.of(e.reputation);
+            player.sendSystemMessage(Component.translatable("bloodmoon.devotion.status.devotion", e.deity.displayName(), rank.displayName(),
+                    rank.roman(), e.reputation).withStyle(deityStyle(e.deity)));
+        }
+        if (e.pendingOffer != null) {
+            player.sendSystemMessage(Component.translatable("bloodmoon.devotion.status.pending", e.pendingOffer.displayName()).withStyle(ChatFormatting.GRAY));
+        }
+        BloodMoonData data = BloodMoonData.get(overworld);
+        if (data.isOfferingActive()) {
+            Integer mine = DevotionData.get(overworld).contributions().get(player.getUUID());
+            player.sendSystemMessage(Component.translatable("bloodmoon.devotion.status.request", data.getOfferingDeity().displayName(),
+                    data.getOfferingDone(), data.getOfferingRequired(), mine == null ? 0 : mine).withStyle(ChatFormatting.GRAY));
+        } else {
+            player.sendSystemMessage(Component.translatable("bloodmoon.devotion.status.norequest").withStyle(ChatFormatting.GRAY));
+        }
         return 1;
     }
 

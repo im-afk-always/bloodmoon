@@ -198,15 +198,19 @@ public final class OfferingManager {
 
     public static void onBlockBreak(net.neoforged.neoforge.event.level.BlockEvent.BreakEvent event) {
         if (!(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
-        if (!(event.getPlayer() instanceof ServerPlayer player) || player.isCreative() || player.isSpectator()) return;
+        if (!(event.getPlayer() instanceof ServerPlayer player) || player.isSpectator()) return;
         if (!providenceActive(level) || !isTribute(event.getState())) return;
         if (PLACED.remove(event.getPos())) return;
         BloodMoonData data = BloodMoonData.get(level);
         if (data.isOfferingComplete()) return;
         data.addOfferingDone(1);
         DevotionManager.onOfferingKill(level, player);
+        int left = Math.max(0, data.getOfferingRequired() - data.getOfferingDone());
+        player.displayClientMessage(Component.translatable("bloodmoon.providence.counted", left).withStyle(ChatFormatting.GOLD), true);
+        player.playNotifySound(SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.5F, 1.4F + player.getRandom().nextFloat() * 0.3F);
         if (data.isOfferingComplete()) {
             data.setOfferingSettled();
+            BloodMoonMod.LOGGER.info("Providence request complete ({} tributes)", data.getOfferingRequired());
             tell(level, Component.translatable("bloodmoon.providence.complete").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
             for (ServerPlayer p : level.players()) p.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.MASTER, 0.8F, 1.2F);
             DevotionManager.onRequestComplete(level, Deity.PROVIDENCE, requiredFor(level, Deity.PROVIDENCE));
