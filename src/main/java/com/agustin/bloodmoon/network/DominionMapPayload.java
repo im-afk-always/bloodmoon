@@ -14,7 +14,7 @@ import java.util.List;
  * Servidor -> cliente: los Dominios cercanos para el mapa. La grilla tiene un byte por chunk alrededor del eje
  * (0 = libre, 1-100 = influencia, 101 = muerto con obelisco).
  */
-public record DominionMapPayload(List<FactionView> factions) implements CustomPacketPayload {
+public record DominionMapPayload(List<FactionView> factions, long[] gates) implements CustomPacketPayload {
     public static final Type<DominionMapPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "dominion_map"));
 
     /** Rango con su puesto en el mundo (Integer.MIN_VALUE si no tiene). */
@@ -22,13 +22,19 @@ public record DominionMapPayload(List<FactionView> factions) implements CustomPa
 
     public record FactionView(int id, String name, int centerX, int centerZ, int radius, int phase, int essence, boolean active,
                               boolean healing, int forgers, int troops, int deadChunks, int obelisks, List<RankView> ranks,
-                              int half, byte[] grid) {
+                              int half, byte[] grid, byte[] structs, byte[] roads) {
         /** Valor de la grilla para un chunk (0 si cae afuera). */
         public int at(int chunkX, int chunkZ) {
             int gx = chunkX - (centerX >> 4) + half, gz = chunkZ - (centerZ >> 4) + half;
             int side = half * 2 + 1;
             if (gx < 0 || gz < 0 || gx >= side || gz >= side) return 0;
             return grid[gz * side + gx] & 0xFF;
+        }
+
+        public int index(int chunkX, int chunkZ) {
+            int gx = chunkX - (centerX >> 4) + half, gz = chunkZ - (centerZ >> 4) + half;
+            int side = half * 2 + 1;
+            return gx < 0 || gz < 0 || gx >= side || gz >= side ? -1 : gz * side + gx;
         }
     }
 
@@ -59,7 +65,11 @@ public record DominionMapPayload(List<FactionView> factions) implements CustomPa
                     }
                     ByteBufCodecs.VAR_INT.encode(buf, f.half());
                     ByteBufCodecs.BYTE_ARRAY.encode(buf, f.grid());
+                    ByteBufCodecs.BYTE_ARRAY.encode(buf, f.structs());
+                    ByteBufCodecs.BYTE_ARRAY.encode(buf, f.roads());
                 }
+                ByteBufCodecs.VAR_INT.encode(buf, p.gates().length);
+                for (long g : p.gates()) buf.writeLong(g);
             },
             buf -> {
                 int n = ByteBufCodecs.VAR_INT.decode(buf);
@@ -84,10 +94,15 @@ public record DominionMapPayload(List<FactionView> factions) implements CustomPa
                     }
                     int half = ByteBufCodecs.VAR_INT.decode(buf);
                     byte[] grid = ByteBufCodecs.BYTE_ARRAY.decode(buf);
+                    byte[] structs = ByteBufCodecs.BYTE_ARRAY.decode(buf);
+                    byte[] roads = ByteBufCodecs.BYTE_ARRAY.decode(buf);
                     list.add(new FactionView(id, name, cx, cz, radius, phase, essence, active, healing, forgers, troops, dead, obelisks,
-                            ranks, half, grid));
+                            ranks, half, grid, structs, roads));
                 }
-                return new DominionMapPayload(list);
+                int ng = ByteBufCodecs.VAR_INT.decode(buf);
+                long[] gates = new long[ng];
+                for (int i = 0; i < ng; i++) gates[i] = buf.readLong();
+                return new DominionMapPayload(list, gates);
             });
 
     @Override

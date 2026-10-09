@@ -62,8 +62,10 @@ public final class DominionTerraform {
     static boolean needsWork(InvasionData data, InvasionData.Cell c) {
         if (c.stage() != c.applied) return true;
         if (c.obelisk && c.stage() == 3 && !c.obeliskBuilt) return true;
+        if (c.structure != DominionStructures.NONE && c.stage() == 3 && !c.structureBuilt) return true;
+        if (c.roadMask != 0 && c.stage() == 3 && !c.roadBuilt) return true;
         Faction f = data.faction(c.faction);
-        return !c.obelisk && c.obeliskBuilt && c.coreY != InvasionData.NO_CORE && f != null && !f.active;
+        return !c.hasCore() && (c.obeliskBuilt || c.structureBuilt) && c.coreY != InvasionData.NO_CORE && f != null && !f.active;
     }
 
     public static void tick(ServerLevel level) {
@@ -114,16 +116,32 @@ public final class DominionTerraform {
         Faction f = data.faction(c.faction);
         long key = chunk.getPos().toLong();
         c.applied = target;
-        if (c.obelisk && target == 3 && !c.obeliskBuilt && f != null && f.active && !ConstructionSites.building(key)) {
+        boolean live = f != null && f.active && !ConstructionSites.building(key);
+        if (c.obelisk && target == 3 && !c.obeliskBuilt && live) {
             if (playerNear(level, chunk.getPos(), 80)) {
-                ConstructionSites.start(level, key, f);   // los Forjadores lo levantan a la vista
+                ConstructionSites.start(level, key, f, obeliskPlan(level, chunk.getPos()), false);   // los Forjadores lo levantan a la vista
             } else {
                 c.coreY = buildObelisk(level, chunk.getPos());
                 c.obeliskBuilt = true;
             }
         }
-        // un obelisco de un Dominio vencido pierde su núcleo
-        if (!c.obelisk && c.obeliskBuilt && c.coreY != InvasionData.NO_CORE && f != null && !f.active) {
+        if (c.structure != DominionStructures.NONE && target == 3 && !c.structureBuilt && live) {
+            Plan plan = DominionStructures.plan(level, chunk.getPos(), c.structure);
+            if (playerNear(level, chunk.getPos(), 96)) {
+                ConstructionSites.start(level, key, f, plan, true);
+            } else {
+                for (Placement p : plan.placements()) level.setBlock(p.pos(), p.state(), FLAGS);
+                c.coreY = plan.coreY();
+                c.structureBuilt = true;
+            }
+        }
+        if (c.roadMask != 0 && target == 3 && !c.roadBuilt && !isProtected(level, chunk.getPos())
+                && (c.structure == DominionStructures.NONE || c.structureBuilt) && (!c.obelisk || c.obeliskBuilt)) {
+            DominionStructures.drawRoads(level, chunk, c);
+            c.roadBuilt = true;
+        }
+        // un obelisco o una estructura de un Dominio vencido pierden su núcleo
+        if (!c.hasCore() && (c.obeliskBuilt || c.structureBuilt) && c.coreY != InvasionData.NO_CORE && f != null && !f.active) {
             BlockPos core = new BlockPos(chunk.getPos().getMinBlockX() + 8, c.coreY, chunk.getPos().getMinBlockZ() + 8);
             if (level.getBlockState(core).is(ModBlocks.OBELISK_CORE.get())) {
                 level.setBlock(core, ModBlocks.CRACKED_BLACK_ROCK_BRICKS.get().defaultBlockState(), FLAGS);

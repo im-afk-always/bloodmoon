@@ -233,9 +233,52 @@ public class DominionMapScreen extends Screen {
         if (showHierarchy) drawHierarchy(g, f);
     }
 
+    private void line(GuiGraphics g, int x0, int y0, int x1, int y1, int w, int color) {
+        int n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+        for (int i = 0; i <= n; i++) {
+            int x = n == 0 ? x0 : x0 + (x1 - x0) * i / n, y = n == 0 ? y0 : y0 + (y1 - y0) * i / n;
+            g.fill(x, y, x + w, y + w, color);
+        }
+    }
+
     private void drawIcons(GuiGraphics g) {
         int bpp = bpp();
         for (DominionMapPayload.FactionView f : ClientDominion.factions) {
+            // caminos y estructuras
+            int sideR = f.half() * 2 + 1;
+            int ccx0 = f.centerX() >> 4, ccz0 = f.centerZ() >> 4;
+            int lw = bpp <= 2 ? 2 : 1;
+            for (int gz = 0; gz < sideR; gz++) for (int gx = 0; gx < sideR; gx++) {
+                int mask = f.roads()[gz * sideR + gx] & 0xFF;
+                if (mask == 0) continue;
+                int bx = (ccx0 + gx - f.half()) * 16 + 8, bz = (ccz0 + gz - f.half()) * 16 + 8;
+                int x0 = sx(bx), y0 = sz(bz);
+                for (int i = 0; i < 8; i++) {
+                    if ((mask & 1 << i) == 0) continue;
+                    int[] d = com.agustin.bloodmoon.invasion.DominionStructures.DIRS[i];
+                    line(g, x0, y0, sx(bx + d[0] * 8), sz(bz + d[1] * 8), lw, 0xFF7A5A90);
+                }
+            }
+            for (int gz = 0; gz < sideR; gz++) for (int gx = 0; gx < sideR; gx++) {
+                int st = f.structs()[gz * sideR + gx];
+                if (st == 0) continue;
+                int x = sx((ccx0 + gx - f.half()) * 16 + 8), y = sz((ccz0 + gz - f.half()) * 16 + 8);
+                switch (st) {
+                    case com.agustin.bloodmoon.invasion.DominionStructures.NEST -> {
+                        g.fill(x - 3, y - 3, x + 3, y + 3, 0xFF000000);
+                        g.fill(x - 2, y - 2, x + 2, y + 2, 0xFFA02020);
+                    }
+                    case com.agustin.bloodmoon.invasion.DominionStructures.TOWER -> {
+                        g.fill(x - 2, y - 5, x + 2, y + 3, 0xFF000000);
+                        g.fill(x - 1, y - 4, x + 1, y + 2, 0xFFD8D0E0);
+                    }
+                    default -> {
+                        g.fill(x - 5, y - 5, x + 5, y + 5, 0xFF000000);
+                        g.fill(x - 4, y - 4, x + 4, y + 4, 0xFF5A4A6A);
+                        g.fill(x - 2, y - 2, x + 2, y + 2, 0xFF2A1A36);
+                    }
+                }
+            }
             // obeliscos
             int side = f.half() * 2 + 1;
             int ccx = f.centerX() >> 4, ccz = f.centerZ() >> 4;
@@ -264,6 +307,17 @@ public class DominionMapScreen extends Screen {
             diamond(g, x, y, 5, f.active() ? 0xFFD070FF : 0xFF70D090);
             diamond(g, x, y, 2, 0xFF1A0C22);
             if (bpp <= 8) g.drawCenteredString(font, f.name(), x, y - 16, f.active() ? 0xFFE0B0FF : 0xFFA0E0B0);
+        }
+        // Puertas de Guerra abiertas (asaltos en curso)
+        boolean blink = (minecraft.level != null ? minecraft.level.getGameTime() : 0) / 10 % 2 == 0;
+        for (long gp : ClientDominion.gates) {
+            net.minecraft.core.BlockPos p = net.minecraft.core.BlockPos.of(gp);
+            int x = sx(p.getX()), y = sz(p.getZ());
+            int c = blink ? 0xFFFF3030 : 0xFFA01010;
+            for (int k = -4; k <= 4; k++) {
+                g.fill(x + k, y + k, x + k + 2, y + k + 2, c);
+                g.fill(x + k, y - k, x + k + 2, y - k + 2, c);
+            }
         }
         // jugador
         if (minecraft.player != null) {

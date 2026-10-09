@@ -91,7 +91,12 @@ public final class DominionPresence {
             if (body == null) {
                 if (r.seat == Faction.RankRecord.NO_SEAT) continue;
                 ChunkPos cp = new ChunkPos(r.seat);
-                int x = cp.getMiddleBlockX() + (r.rank == InvasionRank.CAPTAIN ? 4 : 0), z = cp.getMiddleBlockZ();
+                InvasionData.Cell seatCell = data.cells.get(r.seat);
+                int st = seatCell == null ? DominionStructures.NONE : seatCell.structure;
+                int x = cp.getMiddleBlockX(), z = cp.getMiddleBlockZ();
+                if (st == DominionStructures.TOWER) { x += 2; z += 2; }          // arriba de la atalaya
+                else if (st == DominionStructures.FORTRESS) z += 11;            // frente a la puerta de la fortaleza
+                else if (r.rank == InvasionRank.CAPTAIN) x += 4;                // al pie del obelisco
                 if (!loaded(level, x, z) || nearestPlayer(level, x, z) > RANK_SPAWN) continue;
                 Entity e = spawnRank(level, f, r, x, z);
                 if (e != null) BODIES.put(key, e);
@@ -140,7 +145,9 @@ public final class DominionPresence {
     private static void tickGarrisons(ServerLevel level, InvasionData data, Faction f, long now) {
         for (Map.Entry<Long, InvasionData.Cell> e : data.cells.entrySet()) {
             InvasionData.Cell c = e.getValue();
-            if (c.faction != f.id || !c.obelisk || !c.obeliskBuilt) continue;
+            boolean ob = c.obelisk && c.obeliskBuilt;
+            boolean struct = c.structure != DominionStructures.NONE && c.structureBuilt;
+            if (c.faction != f.id || !ob && !struct) continue;
             long key = e.getKey();
             ChunkPos cp = new ChunkPos(key);
             int x = cp.getMiddleBlockX(), z = cp.getMiddleBlockZ();
@@ -159,14 +166,31 @@ public final class DominionPresence {
                 continue;
             }
             if (near > GARRISON_SPAWN || !loaded(level, x, z)) continue;
-            int target = Math.min(5, 2 + f.phase);
+            int target = switch (struct ? c.structure : 0) {
+                case DominionStructures.NEST -> Math.min(7, 4 + f.phase);
+                case DominionStructures.TOWER -> 3;
+                case DominionStructures.FORTRESS -> Math.min(8, 5 + f.phase);
+                default -> Math.min(5, 2 + f.phase);
+            };
             if (troops.size() >= target || now < NEXT_TROOP.getOrDefault(key, 0L)) continue;
             NEXT_TROOP.put(key, now + 60);
-            boolean archer = level.random.nextFloat() < 0.4F;
+            int type = struct ? c.structure : 0;
+            boolean archer = type == DominionStructures.TOWER || level.random.nextFloat() < 0.4F;
             VoidSkeleton s = (archer ? ModEntities.VOID_ARCHER.get() : ModEntities.VOID_SENTINEL.get()).create(level);
             if (s == null) continue;
-            double a = level.random.nextDouble() * Math.PI * 2;
-            int sx = x + (int) Math.round(Math.cos(a) * 4), sz = z + (int) Math.round(Math.sin(a) * 4);
+            int sx, sz;
+            if (type == DominionStructures.TOWER) {          // en la plataforma
+                sx = x + (level.random.nextBoolean() ? 2 : -2);
+                sz = z + (level.random.nextBoolean() ? 2 : -2);
+            } else if (type == DominionStructures.FORTRESS) { // en el patio
+                sx = x + (level.random.nextBoolean() ? 5 : -5);
+                sz = z + (level.random.nextBoolean() ? 5 : -5);
+            } else {
+                double a = level.random.nextDouble() * Math.PI * 2;
+                double rr = type == DominionStructures.NEST ? 6 : 4;
+                sx = x + (int) Math.round(Math.cos(a) * rr);
+                sz = z + (int) Math.round(Math.sin(a) * rr);
+            }
             int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, sx, sz);
             s.moveTo(sx + 0.5, y, sz + 0.5, level.random.nextFloat() * 360F, 0F);
             s.finalizeSpawn(level, level.getCurrentDifficultyAt(new BlockPos(sx, y, sz)), MobSpawnType.EVENT, null);

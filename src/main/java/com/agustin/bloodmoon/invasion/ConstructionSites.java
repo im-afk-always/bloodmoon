@@ -37,13 +37,15 @@ public final class ConstructionSites {
         final int faction;
         final List<DominionTerraform.Placement> plan;
         final int coreY;
+        final boolean structure;
         final BlockPos center;
         final List<UUID> forgers = new ArrayList<>();
         int index;
         long lastForgers = Long.MIN_VALUE;
 
-        Site(long key, int faction, DominionTerraform.Plan plan, BlockPos center) {
+        Site(long key, int faction, DominionTerraform.Plan plan, BlockPos center, boolean structure) {
             this.key = key;
+            this.structure = structure;
             this.faction = faction;
             this.plan = plan.placements();
             this.coreY = plan.coreY();
@@ -59,12 +61,13 @@ public final class ConstructionSites {
         SITES.clear();
     }
 
-    static void start(ServerLevel level, long key, Faction f) {
+    /** Obra de un obelisco ({@code structure} = false) o de una estructura mayor. */
+    static void start(ServerLevel level, long key, Faction f, DominionTerraform.Plan plan, boolean structure) {
         if (SITES.containsKey(key)) return;
         ChunkPos cp = new ChunkPos(key);
-        DominionTerraform.Plan plan = DominionTerraform.obeliskPlan(level, cp);
-        BlockPos center = new BlockPos(cp.getMiddleBlockX(), plan.coreY() - 3, cp.getMiddleBlockZ());
-        Site s = new Site(key, f.id, plan, center);
+        int baseY = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cp.getMiddleBlockX(), cp.getMiddleBlockZ());
+        BlockPos center = new BlockPos(cp.getMiddleBlockX(), baseY, cp.getMiddleBlockZ());
+        Site s = new Site(key, f.id, plan, center, structure);
         SITES.put(key, s);
         spawnForgers(level, s, f);
     }
@@ -96,7 +99,8 @@ public final class ConstructionSites {
             InvasionData.Cell c = data.cells.get(s.key);
             Faction f = data.faction(s.faction);
             ChunkPos cp = new ChunkPos(s.key);
-            if (c == null || !c.obelisk || f == null || !f.active || level.getChunkSource().getChunkNow(cp.x, cp.z) == null) {
+            boolean wanted = s.structure ? c != null && c.structure != DominionStructures.NONE : c != null && c.obelisk;
+            if (!wanted || f == null || !f.active || level.getChunkSource().getChunkNow(cp.x, cp.z) == null) {
                 dismiss(level, s);
                 it.remove();
                 continue;
@@ -115,22 +119,25 @@ public final class ConstructionSites {
                     if (f.forgers > 0 && level.getGameTime() - s.lastForgers > 600) spawnForgers(level, s, f);
                     continue;   // obra detenida
                 }
-                // el aire (despejar) va rápido; cada Forjador coloca un bloque por paso
-                int solid = workers.size();
+                // el aire (despejar) va rápido; cada Forjador coloca uno o más bloques por paso según el tamaño de la obra
+                int perWorker = Math.max(1, Math.min(6, s.plan.size() / 300));
+                int solid = workers.size() * perWorker;
                 while (s.index < s.plan.size() && solid > 0) {
                     DominionTerraform.Placement p = s.plan.get(s.index++);
                     boolean isAir = p.state().isAir();
                     place(level, p, !isAir);
                     if (!isAir) {
-                        workers.get(solid - 1).hammer(p.pos());
+                        workers.get((solid - 1) % workers.size()).hammer(p.pos());
                         solid--;
                     }
                 }
             }
             if (s.index >= s.plan.size()) {
-                c.obeliskBuilt = true;
+                if (s.structure) c.structureBuilt = true;
+                else c.obeliskBuilt = true;
                 c.coreY = s.coreY;
                 data.setDirty();
+                DominionTerraform.enqueue(s.key);   // ahora sí, los caminos de este chunk
                 for (UUID u : s.forgers) {
                     Entity e = level.getEntity(u);
                     if (e instanceof VoidForger fo) fo.setWorkSite(null);

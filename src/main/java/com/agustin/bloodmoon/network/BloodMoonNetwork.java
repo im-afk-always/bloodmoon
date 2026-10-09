@@ -10,7 +10,7 @@ public final class BloodMoonNetwork {
     private BloodMoonNetwork() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("15");
+        PayloadRegistrar registrar = event.registrar("16");
         registrar.playToClient(BloodMoonPayload.TYPE, BloodMoonPayload.STREAM_CODEC,
                 (payload, context) -> ClientMoonState.setTarget(MoonType.byId(payload.moonType())));
         registrar.playToClient(AstralBurnPayload.TYPE, AstralBurnPayload.STREAM_CODEC,
@@ -31,7 +31,7 @@ public final class BloodMoonNetwork {
         registrar.playToClient(DevotionAuraPayload.TYPE, DevotionAuraPayload.STREAM_CODEC,
                 (payload, context) -> com.agustin.bloodmoon.ClientDevotion.setAuras(payload));
         registrar.playToClient(DominionMapPayload.TYPE, DominionMapPayload.STREAM_CODEC,
-                (payload, context) -> com.agustin.bloodmoon.ClientDominion.set(payload.factions()));
+                (payload, context) -> com.agustin.bloodmoon.ClientDominion.set(payload.factions(), payload.gates()));
         registrar.playToServer(DominionMapRequestPayload.TYPE, DominionMapRequestPayload.STREAM_CODEC, (payload, context) -> {
             if (context.player() instanceof net.minecraft.server.level.ServerPlayer sp) com.agustin.bloodmoon.invasion.InvasionManager.sendMap(sp);
         });

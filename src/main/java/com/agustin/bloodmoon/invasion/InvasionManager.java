@@ -60,7 +60,7 @@ public final class InvasionManager {
 
     private InvasionManager() {}
 
-    static int radius() {
+    public static int radius() {
         return BloodMoonConfig.INVASION_RADIUS.get();
     }
 
@@ -75,6 +75,7 @@ public final class InvasionManager {
         DominionTerraform.tick(level);
         ConstructionSites.tick(level);
         DominionPresence.tick(level);
+        InvasionRaids.tick(level);
         if (++cycleTimer < BloodMoonConfig.INVASION_CYCLE_SECONDS.get() * 20) return;
         cycleTimer = 0;
         runCycle(level);
@@ -94,6 +95,7 @@ public final class InvasionManager {
         DominionTerraform.clear();
         ConstructionSites.clear();
         DominionPresence.clear();
+        InvasionRaids.clear();
         cycleTimer = 0;
     }
 
@@ -160,7 +162,7 @@ public final class InvasionManager {
     }
 
     /** Toma un chunk para el Dominio si está libre, es suyo o de un Dominio ya vencido. */
-    static InvasionData.Cell claim(InvasionData data, long key, Faction f) {
+    public static InvasionData.Cell claim(InvasionData data, long key, Faction f) {
         InvasionData.Cell c = data.cells.get(key);
         if (c == null) {
             c = new InvasionData.Cell();
@@ -226,11 +228,18 @@ public final class InvasionManager {
         double speed = BloodMoonConfig.INVASION_SPEED.get();
         List<Long> dead = new ArrayList<>();
         List<Long> obelisks = new ArrayList<>();
+        List<Long> nests = new ArrayList<>(), towers = new ArrayList<>(), fortresses = new ArrayList<>();
         for (Map.Entry<Long, InvasionData.Cell> e : data.cells.entrySet()) {
             InvasionData.Cell c = e.getValue();
             if (c.faction != f.id) continue;
             if (c.influence >= 100) dead.add(e.getKey());
             if (c.obelisk) obelisks.add(e.getKey());
+            switch (c.structure) {
+                case DominionStructures.NEST -> nests.add(e.getKey());
+                case DominionStructures.TOWER -> towers.add(e.getKey());
+                case DominionStructures.FORTRESS -> fortresses.add(e.getKey());
+                default -> { }
+            }
         }
 
         // 1) esencia
@@ -275,15 +284,19 @@ public final class InvasionManager {
                 double d = distance(f, k) + r.nextDouble() * 48;
                 if (d > bestD) { bestD = d; best = k; }
             }
-            if (best != null) {
+            if (best != null && data.cells.get(best).structure == DominionStructures.NONE) {
                 InvasionData.Cell c = data.cells.get(best);
                 c.obelisk = true;
                 c.obeliskBuilt = false;
                 f.essence -= OBELISK_COST;
                 obelisks.add(best);
                 changed.add(best);
+                buildRoad(data, f, best, anchors(f, obelisks, nests, towers, fortresses), changed);
             }
         }
+
+        // 3b) estructuras mayores: nidos y atalayas (Arraigo), fortalezas (Conquista); una por ciclo
+        placeStructure(level, data, f, r, dead, obelisks, nests, towers, fortresses, changed);
 
         // 4) frontera
         Map<Long, Integer> cand = new HashMap<>();
@@ -321,13 +334,100 @@ public final class InvasionManager {
         }
 
         // 5) jerarquía
-        updateRanks(level, data, f, r, dead, obelisks);
+        List<Long> captainSeats = new ArrayList<>(towers);
+        captainSeats.addAll(obelisks);
+        updateRanks(level, data, f, r, dead, captainSeats, fortresses);
+    }
+
+    private static List<Long> anchors(Faction f, List<Long> obelisks, List<Long> nests, List<Long> towers, List<Long> fortresses) {
+        List<Long> a = new ArrayList<>(obelisks);
+        a.addAll(nests);
+        a.addAll(towers);
+        a.addAll(fortresses);
+        return a;
+    }
+
+    private static void placeStructure(ServerLevel level, InvasionData data, Faction f, RandomSource r, List<Long> dead, List<Long> obelisks,
+                                       List<Long> nests, List<Long> towers, List<Long> fortresses, Set<Long> changed) {
+        if (f.phase < 1 || dead.isEmpty()) return;
+        int type;
+        double cost, minD, maxD;
+        int spacing;
+        boolean far;
+        int fortTarget = f.phase >= 2 ? Math.min(InvasionRank.GENERAL.max, 1 + dead.size() / 1500) : 0;
+        if (fortresses.size() < fortTarget && f.essence >= 150) {
+            type = DominionStructures.FORTRESS; cost = 150; minD = radius() * 0.35; maxD = radius() * 0.8; spacing = 20; far = false;
+        } else if (dead.size() / 300 > towers.size() && f.essence >= 50) {
+            type = DominionStructures.TOWER; cost = 50; minD = 0; maxD = radius(); spacing = 8; far = true;
+        } else if (dead.size() / 250 > nests.size() && f.essence >= 40) {
+            type = DominionStructures.NEST; cost = 40; minD = radius() * 0.15; maxD = radius(); spacing = 8; far = false;
+        } else return;
+        List<Long> occupied = anchors(f, obelisks, nests, towers, fortresses);
+        int col = coliseumChunks() + 2;
+        ChunkPos cc = new ChunkPos(f.center);
+        Long best = null;
+        double bestScore = -1;
+        for (int i = 0; i < 300; i++) {
+            long k = dead.get(r.nextInt(dead.size()));
+            ChunkPos cp = new ChunkPos(k);
+            if (d2(cp, cc) <= (long) col * col) continue;
+            double d = distance(f, k);
+            if (d < minD || d > maxD || water(level, f, k)) continue;
+            boolean crowded = false;
+            for (long o : occupied) if (d2(new ChunkPos(o), cp) < (long) spacing * spacing) { crowded = true; break; }
+            if (crowded) continue;
+            double score = far ? d + r.nextDouble() * 64 : r.nextDouble();
+            if (score > bestScore) { bestScore = score; best = k; }
+        }
+        if (best == null) return;
+        InvasionData.Cell c = data.cells.get(best);
+        c.structure = type;
+        c.structureBuilt = false;
+        f.essence -= cost;
+        switch (type) {
+            case DominionStructures.NEST -> nests.add(best);
+            case DominionStructures.TOWER -> towers.add(best);
+            default -> fortresses.add(best);
+        }
+        changed.add(best);
+        buildRoad(data, f, best, anchors(f, obelisks, nests, towers, fortresses), changed);
+    }
+
+    /** Camino de roca negra desde una estructura hasta la más cercana que esté más cerca del eje (o el eje). */
+    private static void buildRoad(InvasionData data, Faction f, long from, List<Long> anchors, Set<Long> changed) {
+        ChunkPos a = new ChunkPos(from);
+        double da = distance(f, from);
+        ChunkPos target = new ChunkPos(f.center);
+        long best = d2(a, target);
+        for (long k : anchors) {
+            if (k == from || distance(f, k) >= da - 16) continue;
+            long d = d2(new ChunkPos(k), a);
+            if (d < best) { best = d; target = new ChunkPos(k); }
+        }
+        int x = a.x, z = a.z;
+        for (int steps = 0; (x != target.x || z != target.z) && steps < 200; steps++) {
+            int adx = Math.abs(target.x - x), adz = Math.abs(target.z - z);
+            int mx = adx * 2 >= adz ? Integer.signum(target.x - x) : 0;
+            int mz = adz * 2 >= adx ? Integer.signum(target.z - z) : 0;
+            long k1 = ChunkPos.asLong(x, z), k2 = ChunkPos.asLong(x + mx, z + mz);
+            InvasionData.Cell c1 = claim(data, k1, f), c2 = claim(data, k2, f);
+            if (c1 == null || c2 == null) break;
+            c1.roadMask |= DominionStructures.dirBit(mx, mz);
+            c1.roadBuilt = false;
+            c2.roadMask |= DominionStructures.dirBit(-mx, -mz);
+            c2.roadBuilt = false;
+            changed.add(k1);
+            changed.add(k2);
+            x += mx;
+            z += mz;
+        }
     }
 
     /** Un día de juego: lo que tarda en ascender un reemplazo cuando cae un rango. */
     private static final long PROMOTION_DELAY = 24000L;
 
-    private static void updateRanks(ServerLevel level, InvasionData data, Faction f, RandomSource r, List<Long> dead, List<Long> obelisks) {
+    private static void updateRanks(ServerLevel level, InvasionData data, Faction f, RandomSource r, List<Long> dead, List<Long> obelisks,
+                                    List<Long> fortresses) {
         f.forgers = 3 + f.phase * 3;
         f.troops = dead.size() / 15;
         int captains = Math.min(InvasionRank.CAPTAIN.max, 1 + obelisks.size() / 3);
@@ -346,7 +446,8 @@ public final class InvasionManager {
             else if (rr.rank == InvasionRank.CAPTAIN) {
                 for (long ob : obelisks) if (!taken.contains(ob)) { rr.seat = ob; break; }
             } else if (rr.rank == InvasionRank.GENERAL && !dead.isEmpty()) {
-                for (int tries = 0; tries < 40; tries++) {
+                for (long fo : fortresses) if (!taken.contains(fo)) { rr.seat = fo; break; }
+                for (int tries = 0; tries < 40 && rr.seat == Faction.RankRecord.NO_SEAT; tries++) {
                     long k = dead.get(r.nextInt(dead.size()));
                     double d = distance(f, k);
                     if (d > radius() * 0.35 && d < radius() * 0.8 && !taken.contains(k)) { rr.seat = k; break; }
@@ -409,11 +510,13 @@ public final class InvasionManager {
         InvasionData data = InvasionData.get(level);
         long key = ChunkPos.asLong(pos);
         InvasionData.Cell c = data.cells.get(key);
-        if (c == null || !c.obelisk) return;
+        if (c == null || !c.hasCore()) return;
         Faction f = data.faction(c.faction);
         if (f == null || !f.active) return;
+        boolean wasStructure = !c.obelisk;
         c.obelisk = false;
-        f.essence = Math.max(0, f.essence - 50);
+        c.structure = DominionStructures.NONE;   // queda en ruinas
+        f.essence = Math.max(0, f.essence - (wasStructure ? 120 : 50));
         ChunkPos o = new ChunkPos(key);
         for (int dx = -OBELISK_AURA; dx <= OBELISK_AURA; dx++) for (int dz = -OBELISK_AURA; dz <= OBELISK_AURA; dz++) {
             InvasionData.Cell n = data.cells.get(ChunkPos.asLong(o.x + dx, o.z + dz));
@@ -456,7 +559,7 @@ public final class InvasionManager {
     public static void defeat(ServerLevel level, InvasionData data, Faction f) {
         f.active = false;
         f.healing = true;
-        for (InvasionData.Cell c : data.cells.values()) if (c.faction == f.id) c.obelisk = false;
+        for (InvasionData.Cell c : data.cells.values()) if (c.faction == f.id) { c.obelisk = false; c.structure = DominionStructures.NONE; }
         for (Faction.RankRecord r : f.ranks) r.alive = false;
         dropRelic(level, f);
         data.setDirty();
@@ -531,7 +634,7 @@ public final class InvasionManager {
         for (Faction f : data.factions) {
             if (!f.active && !f.healing) continue;
             if (player.blockPosition().distSqr(new BlockPos(f.center.getX(), player.getBlockY(), f.center.getZ())) > Math.pow(maxR + 4000, 2)) continue;
-            byte[] grid = new byte[side * side];
+            byte[] grid = new byte[side * side], structs = new byte[side * side], roads = new byte[side * side];
             ChunkPos cc = new ChunkPos(f.center);
             int dead = 0, obelisks = 0;
             for (Map.Entry<Long, InvasionData.Cell> e : data.cells.entrySet()) {
@@ -542,6 +645,10 @@ public final class InvasionManager {
                 if (gx < 0 || gz < 0 || gx >= side || gz >= side) continue;
                 int v = c.influence >= 100 && c.obelisk ? 101 : c.influence;
                 grid[gz * side + gx] = (byte) v;
+                if (c.influence >= 100) {
+                    structs[gz * side + gx] = (byte) c.structure;
+                    roads[gz * side + gx] = (byte) c.roadMask;
+                }
                 if (c.influence >= 100) dead++;
                 if (c.obelisk) obelisks++;
             }
@@ -553,9 +660,10 @@ public final class InvasionManager {
                         seated ? sp.getMiddleBlockX() : Integer.MIN_VALUE, seated ? sp.getMiddleBlockZ() : Integer.MIN_VALUE));
             }
             views.add(new DominionMapPayload.FactionView(f.id, f.name, f.center.getX(), f.center.getZ(), maxR, f.phase,
-                    (int) f.essence, f.active, f.healing, f.forgers, f.troops, dead, obelisks, ranks, half, grid));
+                    (int) f.essence, f.active, f.healing, f.forgers, f.troops, dead, obelisks, ranks, half, grid, structs, roads));
         }
-        PacketDistributor.sendToPlayer(player, new DominionMapPayload(views));
+        long[] gates = InvasionRaids.gates().stream().mapToLong(BlockPos::asLong).toArray();
+        PacketDistributor.sendToPlayer(player, new DominionMapPayload(views, gates));
     }
 
     // ------------------------------------------------------------------ comandos

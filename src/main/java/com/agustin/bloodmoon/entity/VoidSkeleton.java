@@ -74,6 +74,30 @@ public class VoidSkeleton extends AbstractSkeleton {
         return !dominionBound && super.shouldBeSaved();
     }
 
+    /** Tropa de asalto: rompe los bloques que la separan de su objetivo (si mobGriefing lo permite). */
+    private boolean raider;
+
+    public void setRaider(boolean raider) {
+        this.raider = raider;
+    }
+
+    private void breakThrough() {
+        net.minecraft.world.entity.LivingEntity t = getTarget();
+        if (t == null || distanceToSqr(t) < 6.25 || !net.neoforged.neoforge.event.EventHooks.canEntityGrief(level(), this)) return;
+        if (!getNavigation().isDone() && !getNavigation().isStuck()) return;
+        net.minecraft.core.Direction dir = net.minecraft.core.Direction.getNearest(t.getX() - getX(), 0, t.getZ() - getZ());
+        for (int dy = 0; dy <= 1; dy++) {
+            net.minecraft.core.BlockPos p = blockPosition().relative(dir).above(dy);
+            net.minecraft.world.level.block.state.BlockState st = level().getBlockState(p);
+            float hard = st.getDestroySpeed(level(), p);
+            if (st.isAir() || hard < 0 || hard > 20) continue;
+            if (com.agustin.bloodmoon.BloodMoonMod.MODID.equals(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(st.getBlock()).getNamespace())) continue;
+            level().destroyBlock(p, true, this);
+            swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+            return;
+        }
+    }
+
     public void bindToNight() {
         this.boundToNight = true;
     }
@@ -126,6 +150,7 @@ public class VoidSkeleton extends AbstractSkeleton {
     @Override
     public void aiStep() {
         super.aiStep();
+        if (raider && !level().isClientSide && tickCount % 20 == 0) breakThrough();
         if (level().isClientSide) {
             if (random.nextInt(4) == 0) {
                 level().addParticle(ParticleTypes.WITCH, getRandomX(0.5), getY() + getBbHeight() * 0.85, getRandomZ(0.5), 0, 0.01, 0);

@@ -230,5 +230,9 @@
   "entity.bloodmoon.void_forger": "Forjador del Vacío",
   "item.bloodmoon.dominion_banner": "Estandarte del Dominio",
   "bloodmoon.invasion.rank_fell": "Cayó el %s %s del Dominio de %s. Su puesto quedará vacío un día.",
-  "bloodmoon.map.legend": "◆ eje · ■ obelisco · ▲ Capitán · ♦ General"
+  "bloodmoon.map.legend": "◆ eje · ■ obelisco · ▲ Capitán · ♦ General · ● nido · ▮ atalaya · ▣ fortaleza · ✕ asalto",
+  "bloodmoon.invasion.raid.title": "¡Asalto del Dominio!",
+  "bloodmoon.invasion.raid.sub": "Una Puerta de Guerra del Dominio de %s se abre cerca de ti",
+  "bloodmoon.invasion.raid.repelled": "Rechazaste el asalto del Dominio de %s. La Puerta de Guerra se derrumba.",
+  "bloodmoon.invasion.raid.lost": "El asalto triunfó: el Dominio de %s clava una cabeza de playa en estas tierras."
 }

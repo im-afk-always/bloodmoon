@@ -230,5 +230,9 @@
   "entity.bloodmoon.void_forger": "Void Forger",
   "item.bloodmoon.dominion_banner": "Dominion Banner",
   "bloodmoon.invasion.rank_fell": "The %s %s of the Dominion of %s has fallen. Their post will stay empty for a day.",
-  "bloodmoon.map.legend": "◆ axis · ■ obelisk · ▲ Captain · ♦ General"
+  "bloodmoon.map.legend": "◆ axis · ■ obelisk · ▲ Captain · ♦ General · ● nest · ▮ tower · ▣ fortress · ✕ raid",
+  "bloodmoon.invasion.raid.title": "Dominion Raid!",
+  "bloodmoon.invasion.raid.sub": "A War Gate of the Dominion of %s opens near you",
+  "bloodmoon.invasion.raid.repelled": "You repelled the raid of the Dominion of %s. The War Gate collapses.",
+  "bloodmoon.invasion.raid.lost": "The raid succeeded: the Dominion of %s plants a beachhead on these lands."
 }

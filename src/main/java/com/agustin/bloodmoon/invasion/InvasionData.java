@@ -36,8 +36,18 @@ public class InvasionData extends SavedData {
         public int applied;
         /** Tiene obelisco con núcleo vivo / la estructura ya se levantó. */
         public boolean obelisk, obeliskBuilt;
-        /** Altura del núcleo del obelisco construido. */
+        /** Altura del núcleo del obelisco o estructura construidos. */
         public int coreY = NO_CORE;
+        /** Estructura mayor del chunk (ver {@link DominionStructures}) y si ya se levantó. */
+        public int structure;
+        public boolean structureBuilt;
+        /** Caminos: un bit por cada uno de los 8 vecinos con los que se une; y si ya se trazó. */
+        public int roadMask;
+        public boolean roadBuilt;
+
+        public boolean hasCore() {
+            return obelisk || structure != 0;
+        }
 
         public int stage() {
             return stageOf(influence);
@@ -65,6 +75,7 @@ public class InvasionData extends SavedData {
         long[] keys = tag.getLongArray("cellKeys");
         int[] vals = tag.getIntArray("cellVals");
         int[] cores = tag.getIntArray("cellCores");
+        int[] extra = tag.getIntArray("cellExtra");
         for (int i = 0; i < keys.length && i < vals.length; i++) {
             Cell c = new Cell();
             int v = vals[i];
@@ -74,6 +85,13 @@ public class InvasionData extends SavedData {
             c.obelisk = (v & 1) != 0;
             c.obeliskBuilt = (v & 2) != 0;
             c.coreY = i < cores.length ? cores[i] : NO_CORE;
+            if (i < extra.length) {
+                int x = extra[i];
+                c.structure = x & 0x7;
+                c.structureBuilt = (x & 0x8) != 0;
+                c.roadMask = (x >>> 4) & 0xFF;
+                c.roadBuilt = (x & 0x1000) != 0;
+            }
             d.cells.put(keys[i], c);
         }
         return d;
@@ -86,7 +104,7 @@ public class InvasionData extends SavedData {
         for (Faction f : factions) fl.add(f.save(reg));
         tag.put("factions", fl);
         long[] keys = new long[cells.size()];
-        int[] vals = new int[cells.size()], cores = new int[cells.size()];
+        int[] vals = new int[cells.size()], cores = new int[cells.size()], extra = new int[cells.size()];
         int i = 0;
         for (Map.Entry<Long, Cell> e : cells.entrySet()) {
             Cell c = e.getValue();
@@ -94,11 +112,13 @@ public class InvasionData extends SavedData {
             vals[i] = (c.faction & 0xFFFF) << 16 | (c.influence & 0xFF) << 8 | (c.applied & 0x7) << 2
                     | (c.obeliskBuilt ? 2 : 0) | (c.obelisk ? 1 : 0);
             cores[i] = c.coreY;
+            extra[i] = (c.structure & 0x7) | (c.structureBuilt ? 0x8 : 0) | (c.roadMask & 0xFF) << 4 | (c.roadBuilt ? 0x1000 : 0);
             i++;
         }
         tag.put("cellKeys", new LongArrayTag(keys));
         tag.put("cellVals", new IntArrayTag(vals));
         tag.put("cellCores", new IntArrayTag(cores));
+        tag.put("cellExtra", new IntArrayTag(extra));
         return tag;
     }
 }
