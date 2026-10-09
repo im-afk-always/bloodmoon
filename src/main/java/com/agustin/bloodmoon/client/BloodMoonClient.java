@@ -118,6 +118,8 @@ public class BloodMoonClient {
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "astral_burn"), AstralFlameRenderer::renderOverlay);
         event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "eclipse_flash"), EclipseSkyRenderer::renderFlash);
+        event.registerAbove(VanillaGuiLayers.BOSS_OVERLAY,
+                ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "offering"), OfferingHud::render);
         event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
                 ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "nuke_flash"), NukeClouds::renderFlash);
         event.registerAbove(VanillaGuiLayers.CAMERA_OVERLAYS,
@@ -236,6 +238,7 @@ public class BloodMoonClient {
     private static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientMoonState.reset();
         com.agustin.bloodmoon.ClientEclipse.reset();
+        com.agustin.bloodmoon.ClientOffering.reset();
         ClientAstralState.reset();
         NukeClouds.reset();
         SupernovaFx.reset();

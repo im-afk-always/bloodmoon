@@ -29,7 +29,8 @@ import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.living.FinalizeSpawnEvent;
 
 /**
- * Buffs para hostiles que aparecen durante una Luna de Sangre (normal o Súper).
+ * DESACTIVADO: las lunas ya no cambian la dificultad (los listeners no se registran). Se conserva por compatibilidad.
+ * Buffs para hostiles que aparecían durante una Luna de Sangre (normal o Súper).
  * Todo queda en el NBT del mob, así que lo conserva hasta morir o despawnear.
  */
 public final class MobBuffs {
@@ -45,8 +46,9 @@ public final class MobBuffs {
         return ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, path);
     }
 
+    /** Las lunas ya no refuerzan mobs: esto siempre es false (también para mobs de partidas viejas). */
     public static boolean isBuffed(Entity entity) {
-        return entity.getPersistentData().getBoolean(BUFFED_TAG);
+        return false;
     }
 
     /** Súper Luna: un % de los creepers naturales se reemplaza por Cursed Creepers. */

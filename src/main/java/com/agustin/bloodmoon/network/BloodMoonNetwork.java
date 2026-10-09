@@ -10,7 +10,7 @@ public final class BloodMoonNetwork {
     private BloodMoonNetwork() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("9");
+        PayloadRegistrar registrar = event.registrar("10");
         registrar.playToClient(BloodMoonPayload.TYPE, BloodMoonPayload.STREAM_CODEC,
                 (payload, context) -> ClientMoonState.setTarget(MoonType.byId(payload.moonType())));
         registrar.playToClient(AstralBurnPayload.TYPE, AstralBurnPayload.STREAM_CODEC,
@@ -24,6 +24,8 @@ public final class BloodMoonNetwork {
         registrar.playToClient(PalmPayload.TYPE, PalmPayload.STREAM_CODEC, (payload, context) -> PalmPayload.handler.accept(payload));
         registrar.playToClient(EclipsePayload.TYPE, EclipsePayload.STREAM_CODEC,
                 (payload, context) -> com.agustin.bloodmoon.ClientEclipse.set(payload.day()));
+        registrar.playToClient(OfferingPayload.TYPE, OfferingPayload.STREAM_CODEC,
+                (payload, context) -> com.agustin.bloodmoon.ClientOffering.set(payload.active(), payload.done(), payload.required(), payload.unskippable()));
         registrar.playToClient(IntroPayload.TYPE, IntroPayload.STREAM_CODEC, (payload, context) -> IntroPayload.handler.run());
     }
 }

@@ -34,8 +34,8 @@ public final class BloodMoonCommand {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
 
         LiteralArgumentBuilder<CommandSourceStack> force = Commands.literal("force")
-                .executes(ctx -> force(ctx, MoonType.BLOOD));
-        for (MoonType type : new MoonType[]{MoonType.BLOOD, MoonType.SUPER, MoonType.GOLDEN, MoonType.MOONLESS}) {
+                .executes(ctx -> force(ctx, MoonType.SUPER));
+        for (MoonType type : new MoonType[]{MoonType.SUPER, MoonType.GOLDEN, MoonType.MOONLESS}) {
             force.then(Commands.literal(type.key()).executes(ctx -> force(ctx, type)));
         }
 
@@ -117,7 +117,7 @@ public final class BloodMoonCommand {
             src.sendSuccess(() -> Component.translatable("bloodmoon.command.status.forced", moonName(data.getForcedType())), false);
         }
         src.sendSuccess(() -> Component.translatable("bloodmoon.command.status.next",
-                days(overworld, MoonType.BLOOD), days(overworld, MoonType.SUPER), days(overworld, MoonType.GOLDEN),
+                days(overworld, MoonType.SUPER), days(overworld, MoonType.GOLDEN),
                 days(overworld, MoonType.MOONLESS)), false);
         return 1;
     }

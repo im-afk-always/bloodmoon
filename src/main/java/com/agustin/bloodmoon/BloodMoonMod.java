@@ -56,8 +56,11 @@ public class BloodMoonMod {
         NeoForge.EVENT_BUS.addListener(EclipseManager::onPlayerLogin);
         NeoForge.EVENT_BUS.addListener(EclipseManager::onPlayerChangeDimension);
         NeoForge.EVENT_BUS.addListener(EclipseManager::onServerStopped);
-        NeoForge.EVENT_BUS.addListener(MobBuffs::onEntityJoin);
-        NeoForge.EVENT_BUS.addListener(MobBuffs::onFinalizeSpawn);
+        NeoForge.EVENT_BUS.addListener(OfferingManager::onLivingDeath);
+        NeoForge.EVENT_BUS.addListener(OfferingManager::onCanSleep);
+        NeoForge.EVENT_BUS.addListener(OfferingManager::onSleepFinished);
+        NeoForge.EVENT_BUS.addListener(OfferingManager::onPlayerLogin);
+        NeoForge.EVENT_BUS.addListener(OfferingManager::onPlayerChangeDimension);
         NeoForge.EVENT_BUS.addListener(BloodMoonCommand::register);
         NeoForge.EVENT_BUS.addListener(SupernovaCrater::onLevelTick);
         NeoForge.EVENT_BUS.addListener(SupernovaCrater::onServerStopped);

@@ -73,8 +73,7 @@ public final class BloodMoonManager {
     public static MoonType scheduledFor(long day) {
         long night = day + 1;
         if (every(night, BloodMoonConfig.MOONLESS_INTERVAL.get())) return MoonType.MOONLESS;
-        if (every(night, BloodMoonConfig.SUPER_INTERVAL.get())) return MoonType.SUPER;
-        if (every(night, BloodMoonConfig.BLOOD_INTERVAL.get())) return MoonType.BLOOD;
+        if (every(night, BloodMoonConfig.SUPER_INTERVAL.get())) return MoonType.SUPER;   // la Luna de Sangre normal ya no existe
         if (every(night, BloodMoonConfig.GOLDEN_INTERVAL.get())) return MoonType.GOLDEN;
         return MoonType.NONE;
     }
@@ -120,7 +119,7 @@ public final class BloodMoonManager {
 
     public static void onLevelTickPre(LevelTickEvent.Pre event) {
         if (event.getLevel() instanceof ServerLevel level) {
-            spawnBoost = current.isBlood() && level.dimension() == Level.OVERWORLD;
+            spawnBoost = false;   // las lunas ya no duplican el mob cap
         }
     }
 
@@ -153,9 +152,7 @@ public final class BloodMoonManager {
             setActive(level, data, MoonType.NONE);
         }
 
-        if (current == MoonType.SUPER) {
-            tickSuper(level, dayTime % 24000L);
-        } else if (current == MoonType.MOONLESS) {
+        if (current == MoonType.MOONLESS) {
             tickMoonless(level, dayTime % 24000L);
         }
     }
@@ -184,6 +181,8 @@ public final class BloodMoonManager {
             player.sendSystemMessage(msg);
         }
         PacketDistributor.sendToPlayersInDimension(overworld, new BloodMoonPayload(type.ordinal()));
+        if (type == MoonType.SUPER) OfferingManager.begin(overworld);
+        else if (previous == MoonType.SUPER) OfferingManager.end(overworld);
     }
 
     // ---------------------------------------------------------------- Súper Luna de Sangre

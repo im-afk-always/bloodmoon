@@ -8,18 +8,15 @@ Una vez por jugador y por mundo; `/bloodmoon intro` lo repite.
 ## Lunas
 | Luna | Frecuencia (default) | Visual |
 |---|---|---|
-| Luna de Sangre | cada 3 noches | Luna vanilla teñida de rojo, cielo negro sin estrellas |
 | Luna de la Cosecha | cada 13 noches | Cielo carmesí, luna realista con halo, todo teñido de rojo |
 | Luna Dorada | cada 7 noches | Luna vanilla dorada, cielo oscuro con brillo dorado (sin efectos de juego) |
 | Eclipse Solar | por comando (o cada N días) | Ver "Eclipse Solar" |
 | Noche sin Luna | cada 50 noches | La noche cae lento hasta negro total; una ruptura nace en el cenit, se propaga a los horizontes y se abre en una grieta; dentro, un ojo púrpura de pupila felina que frunce la mirada. La grieta y el ojo irradian una luz violeta difusa: el mundo se ilumina tenuemente de púrpura a medida que se abre (las antorchas viran a lavanda), con resplandor, contraste y viñeta violeta. Toda la noche surgen hordas de **Centinelas** (espada) y **Arqueros del Vacío** (arco): esqueletos de hueso negro con armadura del Vacío encantada; se desvanecen al amanecer. A medianoche cae del cielo como un bólido negro el **Emisario Desconocido** o **El Ejecutor**, dejando un cráter |
 
-Prioridad si coinciden: Sin Luna > Súper > Sangre > Dorada.
+Prioridad si coinciden: Sin Luna > Cosecha > Dorada. Las lunas ya no cambian la dificultad: no hay más mobs, buffs ni
+criaturas especiales (los Cursed Creepers y el Jinete del Apocalipsis siguen existiendo solo por comando).
 
-## Luna de Sangre
-Mob cap de hostiles x2, rastreo x2, arañas Velocidad I, zombis Fuerza I, esqueletos 2 flechas.
-
-## Luna de la Cosecha (incluye todo lo de la Luna de Sangre)
+## Luna de la Cosecha
 **Ambiente:** el mundo entero queda bañado en luz carmesí (la luz del cielo se tiñe, la luna ilumina a cielo abierto y
 las antorchas arden en rojo brasa), más oscuro y con más contraste; cielo y horizonte rojo sangre, bruma más cercana,
 una luna realista con un halo tenue y nubes generadas en tiempo real (nunca se repiten, cambian de forma y el viento las arrastra) que se encienden cerca de ella (reemplazan a las cúbicas).
@@ -29,11 +26,15 @@ Encima, un posprocesado propio (tono carmesí, contraste, resplandor de la luna 
 solo con la luna; la mano y la interfaz no se tiñen. Se puede apagar en `config/bloodmoon-client.toml`
 (`harvestMoonPostEffect`, también apaga el de la Noche sin Luna) y se desactiva solo si está Iris. Con paquetes de shaders el tinte de la luz puede perderse en parte.
 
-- Creepers: Velocidad I, explosión x10.
-- **Cursed Creeper** (10% de los creepers naturales): cargado con aura roja, explosión x20, deja fuego, barra de jefe roja.
-- Zombis: diamante completo + espada de diamante, Velocidad I + Fuerza I.
-- Phantoms gigantes (x3, daño x2) que aparecen sin necesidad de insomnio.
-- **Jinete del Apocalipsis** (1 por jugador a medianoche): wither skeleton x2 con netherite y arco Flame + Punch I que dispara 5 flechas en abanico, sobre un caballo esqueleto x2. Barra de jefe.
+### Ofrendas a la deidad de la cosecha
+Cada Luna de la Cosecha hay que ofrendar mobs **hostiles**: días transcurridos x 1,5 (redondeo hacia arriba). Arriba a
+la derecha aparece **«Ofrendas restantes X/Y»**. La cuenta es compartida por todos los jugadores del Overworld.
+- Cada ofrenda tiene un 30 % de dar una bendición de 20 s: Fuerza, Resistencia, Velocidad o Regeneración (I a III).
+- Matar un mob no hostil (un pollo, un aldeano...) suma 2 a la cuenta: *«Has ofendido a la deidad con una ofrenda deshonrosa»*.
+- Dormir para saltear la luna sin completar la ofrenda (o llegar al amanecer sin completarla) es una ofensa: *«Has
+  ofendido a la deidad de la cosecha al no ofrendarle nada»*.
+- A las 3 ofensas, la siguiente Luna de la Cosecha **no deja dormir**. Al terminar esa luna, las ofensas vuelven a cero.
+- Config: `offeringPerDay` (1,5), `offeringCap` (tope; 0 = sin tope), `offeringBlessingChance` (0,3).
 
 ## Eclipse Solar
 `/bloodmoon eclipse` lleva la hora al amanecer y arranca uno (o cada N días con `solarEclipseEveryDays`; 0 = solo por
@@ -151,7 +152,7 @@ Tras el Ojo Colosal y las Fauces baja exhausto hasta el piso (vulnerable). Al mo
 Morir en el Más Allá no hace perder el inventario. Si pierden, el Santuario se reabre en 5 minutos.
 
 ## Comandos (OP)
-- `/bloodmoon force [blood|super|golden|moonless]`
+- `/bloodmoon force [super|golden|moonless]`
 - `/bloodmoon cancel`
 - `/bloodmoon status`
 - `/bloodmoon summon rider`
@@ -166,5 +167,4 @@ Morir en el Más Allá no hace perder el inventario. Si pierden, el Santuario se
 - `/summon bloodmoon:cursed_creeper`
 
 ## Configuración
-`config/bloodmoon-common.toml` (se crea al primer arranque): frecuencias, multiplicadores de explosión,
-probabilidad de Cursed Creeper, tamaño/daño de phantoms, vida del jinete, drop del equipo, potencia del Juicio Final (`executionerJudgmentPower`) y del especial del mazo (`maulSpecialPower`).
+`config/bloodmoon-common.toml` (se crea al primer arranque): frecuencias, ofrendas, multiplicadores de explosión, potencia del Juicio Final (`executionerJudgmentPower`) y del especial del mazo (`maulSpecialPower`).
