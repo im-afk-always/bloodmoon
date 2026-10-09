@@ -128,6 +128,41 @@ public class VoidSkeleton extends AbstractSkeleton {
         setDropChance(EquipmentSlot.MAINHAND, 0.04F);
     }
 
+    /** Equipo de asalto: nivel 1 = poco; nivel 10 = Set del Vacío completo con Protección IV y arma al máximo. */
+    public void equipForTier(int tier) {
+        Registry<Enchantment> ench = registryAccess().registryOrThrow(Registries.ENCHANTMENT);
+        float chance = tier >= 10 ? 1F : 0.25F + tier * 0.075F;
+        int prot = Math.min(4, 1 + tier / 3);
+        ItemStack[] armor = {
+                new ItemStack(ModItems.VOID_HELMET.get()), new ItemStack(ModItems.VOID_CHESTPLATE.get()),
+                new ItemStack(ModItems.VOID_LEGGINGS.get()), new ItemStack(ModItems.VOID_BOOTS.get())};
+        EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
+        for (int i = 0; i < 4; i++) {
+            if (random.nextFloat() >= chance) {
+                setItemSlot(slots[i], ItemStack.EMPTY);
+                continue;
+            }
+            armor[i].enchant(ench.getHolderOrThrow(Enchantments.PROTECTION), prot);
+            if (tier >= 6) armor[i].enchant(ench.getHolderOrThrow(Enchantments.UNBREAKING), 3);
+            if (tier >= 9 && i == 0) armor[i].enchant(ench.getHolderOrThrow(Enchantments.THORNS), 2);
+            setItemSlot(slots[i], armor[i]);
+            setDropChance(slots[i], 0F);
+        }
+        ItemStack weapon;
+        int lvl = Math.min(5, 1 + tier / 2);
+        if (isArcher()) {
+            weapon = new ItemStack(Items.BOW);
+            weapon.enchant(ench.getHolderOrThrow(Enchantments.POWER), lvl);
+            if (tier >= 8) weapon.enchant(ench.getHolderOrThrow(Enchantments.FLAME), 1);
+        } else {
+            weapon = new ItemStack(tier >= 7 ? Items.NETHERITE_SWORD : tier >= 4 ? Items.DIAMOND_SWORD : Items.IRON_SWORD);
+            weapon.enchant(ench.getHolderOrThrow(Enchantments.SHARPNESS), lvl);
+            if (tier >= 8) weapon.enchant(ench.getHolderOrThrow(Enchantments.FIRE_ASPECT), 2);
+        }
+        setItemSlot(EquipmentSlot.MAINHAND, weapon);
+        setDropChance(EquipmentSlot.MAINHAND, 0.02F);
+    }
+
     @Override
     public boolean doHurtTarget(Entity target) {
         boolean hit = super.doHurtTarget(target);
@@ -151,6 +186,7 @@ public class VoidSkeleton extends AbstractSkeleton {
     public void aiStep() {
         super.aiStep();
         if (raider && !level().isClientSide && tickCount % 20 == 0) breakThrough();
+        if (!level().isClientSide && hasEffect(ModEffects.ASTRAL_BURN)) removeEffect(ModEffects.ASTRAL_BURN);
         if (level().isClientSide) {
             if (random.nextInt(4) == 0) {
                 level().addParticle(ParticleTypes.WITCH, getRandomX(0.5), getY() + getBbHeight() * 0.85, getRandomZ(0.5), 0, 0.01, 0);

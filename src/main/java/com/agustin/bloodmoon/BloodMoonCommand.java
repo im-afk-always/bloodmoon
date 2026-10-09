@@ -52,6 +52,8 @@ public final class BloodMoonCommand {
                         .then(Commands.literal("grow").then(Commands.argument("cycles", IntegerArgumentType.integer(1, 5000))
                                 .executes(ctx -> invasionGrow(ctx, IntegerArgumentType.getInteger(ctx, "cycles")))))
                         .then(Commands.literal("end").executes(BloodMoonCommand::invasionEnd))
+                        .then(Commands.literal("build").executes(ctx -> com.agustin.bloodmoon.invasion.ConstructionSites.forceHere(
+                                ctx.getSource().getServer().overworld(), ctx.getSource().getPlayerOrException()) ? 1 : 0))
                         .then(Commands.literal("raid").executes(ctx -> com.agustin.bloodmoon.invasion.InvasionRaids.force(
                                 ctx.getSource().getServer().overworld(), ctx.getSource().getPlayerOrException()) ? 1 : 0))
                         .then(Commands.literal("status").executes(ctx -> {

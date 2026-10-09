@@ -118,7 +118,7 @@ public final class DominionTerraform {
         c.applied = target;
         boolean live = f != null && f.active && !ConstructionSites.building(key);
         if (c.obelisk && target == 3 && !c.obeliskBuilt && live) {
-            if (playerNear(level, chunk.getPos(), 80)) {
+            if (playerNear(level, chunk.getPos(), ConstructionSites.WATCH)) {
                 ConstructionSites.start(level, key, f, obeliskPlan(level, chunk.getPos()), false);   // los Forjadores lo levantan a la vista
             } else {
                 c.coreY = buildObelisk(level, chunk.getPos());
@@ -127,7 +127,7 @@ public final class DominionTerraform {
         }
         if (c.structure != DominionStructures.NONE && target == 3 && !c.structureBuilt && live) {
             Plan plan = DominionStructures.plan(level, chunk.getPos(), c.structure);
-            if (playerNear(level, chunk.getPos(), 96)) {
+            if (playerNear(level, chunk.getPos(), ConstructionSites.WATCH)) {
                 ConstructionSites.start(level, key, f, plan, true);
             } else {
                 for (Placement p : plan.placements()) level.setBlock(p.pos(), p.state(), FLAGS);

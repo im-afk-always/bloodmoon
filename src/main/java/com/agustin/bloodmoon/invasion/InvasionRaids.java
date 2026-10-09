@@ -32,6 +32,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
+ * Asaltos del Dominio por niveles (1 a 10, por jugador: sube con cada asalto que enfrenta). Nivel N: 10×N tropas
+ * (como máximo 40 vivas a la vez), equipo cada vez mejor (nivel 10: Set del Vacío completo encantado) y, desde el
+ * nivel 4, Capitanes de Asalto. Dura 5 + N minutos.
+ * <p>
  * Asaltos del Dominio (desde la fase Conquista). Cada uno o dos días, a un jugador que esté dentro del radio se le abre
  * una Puerta de Guerra a ~26 bloques, del lado del coliseo, y salen oleadas de tropas que lo buscan y rompen lo que se
  * interponga.
@@ -42,7 +46,8 @@ import java.util.UUID;
  * </ul>
  */
 public final class InvasionRaids {
-    private static final long DURATION = 6000L;
+    public static final String TIER_KEY = "bloodmoon_raid_tier";
+    private static final int MAX_ALIVE = 40;
     private static final Map<UUID, Raid> RAIDS = new HashMap<>();
     private static final Map<UUID, Long> NEXT = new HashMap<>();
 
@@ -54,8 +59,8 @@ public final class InvasionRaids {
         BlockPos gate;
         List<BlockPos> gateBlocks = new ArrayList<>();
         final List<UUID> troops = new ArrayList<>();
-        int toSpawn;
-        long start, lastSpawn;
+        int toSpawn, tier, captainsLeft, total;
+        long start, lastSpawn, duration;
     }
 
     public static void clear() {
@@ -131,9 +136,10 @@ public final class InvasionRaids {
         raid.faction = f.id;
         raid.gate = gate;
         raid.start = level.getGameTime();
-        int others = 0;
-        for (ServerPlayer q : level.players()) if (q != p && q.distanceToSqr(p) < 64 * 64) others++;
-        raid.toSpawn = 6 + 3 * f.phase + 2 * others;
+        raid.tier = Math.max(1, Math.min(10, p.getPersistentData().contains(TIER_KEY) ? p.getPersistentData().getInt(TIER_KEY) : 1));
+        raid.toSpawn = raid.total = 10 * raid.tier;
+        raid.captainsLeft = raid.tier >= 4 ? raid.tier / 3 : 0;
+        raid.duration = 6000L + 1200L * raid.tier;
         for (DominionTerraform.Placement pl : DominionStructures.gate(level, gate.getX(), gate.getZ(), alongX)) {
             level.setBlock(pl.pos(), pl.state(), 3);
             raid.gateBlocks.add(pl.pos());
@@ -150,7 +156,7 @@ public final class InvasionRaids {
             if (q.distanceToSqr(gate.getX(), gate.getY(), gate.getZ()) > 96 * 96) continue;
             q.connection.send(new ClientboundSetTitlesAnimationPacket(10, 60, 20));
             q.connection.send(new ClientboundSetSubtitleTextPacket(Component.translatable("bloodmoon.invasion.raid.sub", f.name).withStyle(ChatFormatting.LIGHT_PURPLE)));
-            q.connection.send(new ClientboundSetTitleTextPacket(Component.translatable("bloodmoon.invasion.raid.title").withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD)));
+            q.connection.send(new ClientboundSetTitleTextPacket(Component.translatable("bloodmoon.invasion.raid.title", raid.tier).withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD)));
             q.playNotifySound(SoundEvents.RAID_HORN.value(), SoundSource.HOSTILE, 2F, 0.6F);
         }
     }
@@ -171,18 +177,27 @@ public final class InvasionRaids {
             NEXT.put(raid.player, now + 12000);
             return true;
         }
-        if (p.isDeadOrDying() || now - raid.start > DURATION) {
+        if (p.isDeadOrDying() || now - raid.start > raid.duration) {
             conquer(level, data, f, raid);
+            advanceTier(p, raid);
             return true;
         }
-        if (raid.toSpawn > 0 && now - raid.lastSpawn >= 40) {
-            int n = Math.min(raid.toSpawn, 1 + level.random.nextInt(2));
-            for (int i = 0; i < n; i++) spawnRaider(level, raid, p);
+        if (raid.toSpawn > 0 && now - raid.lastSpawn >= 20 && raid.troops.size() < MAX_ALIVE) {
+            int n = Math.min(Math.min(raid.toSpawn, MAX_ALIVE - raid.troops.size()), 1 + raid.tier / 3 + level.random.nextInt(2));
+            for (int i = 0; i < n; i++) {
+                // los Capitanes de Asalto llegan repartidos entre las oleadas
+                boolean captain = raid.captainsLeft > 0 && raid.toSpawn - i <= raid.total * raid.captainsLeft / (raid.tier / 3 + 1);
+                spawnRaider(level, raid, p, captain);
+                if (captain) raid.captainsLeft--;
+            }
             raid.toSpawn -= n;
             raid.lastSpawn = now;
+            if (p.connection != null) p.displayClientMessage(Component.translatable("bloodmoon.invasion.raid.progress", raid.tier,
+                    raid.total - raid.toSpawn - raid.troops.size(), raid.total).withStyle(ChatFormatting.LIGHT_PURPLE), true);
         }
         if (raid.toSpawn == 0 && raid.troops.isEmpty()) {   // rechazado
-            f.essence = Math.max(0, f.essence - 150);
+            advanceTier(p, raid);
+            f.essence = Math.max(0, f.essence - 150 * raid.tier);
             data.setDirty();
             crumble(level, raid);
             NEXT.put(raid.player, now + (long) (delay(f, level.random) * 1.3));
@@ -198,14 +213,20 @@ public final class InvasionRaids {
         return false;
     }
 
-    private static void spawnRaider(ServerLevel level, Raid raid, ServerPlayer target) {
-        boolean archer = level.random.nextFloat() < 0.35F;
-        VoidSkeleton s = (archer ? ModEntities.VOID_ARCHER.get() : ModEntities.VOID_SENTINEL.get()).create(level);
+    private static void advanceTier(ServerPlayer p, Raid raid) {
+        p.getPersistentData().putInt(TIER_KEY, Math.min(10, raid.tier + 1));
+    }
+
+    private static void spawnRaider(ServerLevel level, Raid raid, ServerPlayer target, boolean captain) {
+        boolean archer = !captain && level.random.nextFloat() < 0.35F;
+        VoidSkeleton s = (captain ? ModEntities.VOID_CAPTAIN.get() : archer ? ModEntities.VOID_ARCHER.get() : ModEntities.VOID_SENTINEL.get()).create(level);
         if (s == null) return;
         BlockPos g = raid.gate;
         s.moveTo(g.getX() + 0.5 + level.random.nextGaussian() * 0.6, g.getY() + 1, g.getZ() + 0.5 + level.random.nextGaussian() * 0.6,
                 level.random.nextFloat() * 360F, 0F);
         s.finalizeSpawn(level, level.getCurrentDifficultyAt(g), MobSpawnType.EVENT, null);
+        if (!captain) s.equipForTier(raid.tier);
+        else s.setCustomName(Component.translatable("bloodmoon.invasion.named.raid_captain"));
         s.bindToDominion();
         s.setRaider(true);
         s.setTarget(target);

@@ -23,14 +23,19 @@ import java.util.UUID;
 public final class ModBossBars {
     private record Style(boolean major, int left, int right, int frame, int edge) {}
 
-    private static final Map<String, Style> STYLES = Map.of(
-            UnknownEmissary.NAME_KEY, new Style(true, 0x3C096C, 0xC77DFF, 0x5A189A, 0x9D4EDD),
-            Executioner.NAME_KEY, new Style(true, 0x5C0A3C, 0xFF5CC8, 0x7A1450, 0xD94C9A),
-            FirstSoulDragon.NAME_KEY, new Style(true, 0x14002E, 0xB98CFF, 0x2A0A4A, 0xE0AAFF),
-            com.agustin.bloodmoon.entity.VoidEye.NAME_KEY, new Style(true, 0x1A0008, 0xFF4FD8, 0x3A0A30, 0xFF9CF0),
-            com.agustin.bloodmoon.entity.UnboundObserver.UNBOUND_KEY, new Style(true, 0x2A0010, 0xFF2E7E, 0x4A0A20, 0xFF8AB0),
-            "entity.bloodmoon.cursed_creeper", new Style(false, 0x6A040F, 0xE5383B, 0x5A0A0A, 0xA4161A),
-            "entity.bloodmoon.apocalypse_rider", new Style(false, 0x2B2B2B, 0xB0B0B0, 0x3A3A3A, 0x6E6E6E));
+    private static final Map<String, Style> STYLES = Map.ofEntries(
+            Map.entry(UnknownEmissary.NAME_KEY, new Style(true, 0x3C096C, 0xC77DFF, 0x5A189A, 0x9D4EDD)),
+            Map.entry(Executioner.NAME_KEY, new Style(true, 0x5C0A3C, 0xFF5CC8, 0x7A1450, 0xD94C9A)),
+            Map.entry(FirstSoulDragon.NAME_KEY, new Style(true, 0x14002E, 0xB98CFF, 0x2A0A4A, 0xE0AAFF)),
+            Map.entry(com.agustin.bloodmoon.entity.VoidEye.NAME_KEY, new Style(true, 0x1A0008, 0xFF4FD8, 0x3A0A30, 0xFF9CF0)),
+            Map.entry(com.agustin.bloodmoon.entity.UnboundObserver.UNBOUND_KEY, new Style(true, 0x2A0010, 0xFF2E7E, 0x4A0A20, 0xFF8AB0)),
+            Map.entry("entity.bloodmoon.cursed_creeper", new Style(false, 0x6A040F, 0xE5383B, 0x5A0A0A, 0xA4161A)),
+            Map.entry("bloodmoon.invasion.named.captain", new Style(true, 0x2A0A3E, 0xE0B040, 0x4A1A6A, 0xF0C860)),
+            Map.entry("bloodmoon.invasion.named.raid_captain", new Style(true, 0x3A0A2A, 0xFF7040, 0x5A1A30, 0xFF9A60)),
+            Map.entry("bloodmoon.invasion.named.general", new Style(true, 0x1A0420, 0xD040FF, 0x3A0A50, 0xFF70FF)),
+            Map.entry("entity.bloodmoon.void_general", new Style(true, 0x1A0420, 0xD040FF, 0x3A0A50, 0xFF70FF)),
+            Map.entry("entity.bloodmoon.void_captain", new Style(true, 0x2A0A3E, 0xE0B040, 0x4A1A6A, 0xF0C860)),
+            Map.entry("entity.bloodmoon.apocalypse_rider", new Style(false, 0x2B2B2B, 0xB0B0B0, 0x3A3A3A, 0x6E6E6E)));
 
     private static final Map<UUID, Float> GHOST = new HashMap<>();
 

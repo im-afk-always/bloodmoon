@@ -231,8 +231,17 @@
   "item.bloodmoon.dominion_banner": "Dominion Banner",
   "bloodmoon.invasion.rank_fell": "The %s %s of the Dominion of %s has fallen. Their post will stay empty for a day.",
   "bloodmoon.map.legend": "◆ axis · ■ obelisk · ▲ Captain · ♦ General · ● nest · ▮ tower · ▣ fortress · ✕ raid",
-  "bloodmoon.invasion.raid.title": "Dominion Raid!",
+  "bloodmoon.invasion.raid.title": "Dominion Raid! · Tier %s",
   "bloodmoon.invasion.raid.sub": "A War Gate of the Dominion of %s opens near you",
   "bloodmoon.invasion.raid.repelled": "You repelled the raid of the Dominion of %s. The War Gate collapses.",
-  "bloodmoon.invasion.raid.lost": "The raid succeeded: the Dominion of %s plants a beachhead on these lands."
+  "bloodmoon.invasion.raid.lost": "The raid succeeded: the Dominion of %s plants a beachhead on these lands.",
+  "entity.bloodmoon.void_general": "Void General",
+  "item.bloodmoon.void_captain_spawn_egg": "Void Captain Spawn Egg",
+  "item.bloodmoon.void_forger_spawn_egg": "Void Forger Spawn Egg",
+  "item.bloodmoon.void_general_spawn_egg": "Void General Spawn Egg",
+  "bloodmoon.invasion.named.captain": "Captain %s",
+  "bloodmoon.invasion.named.general": "General %s",
+  "bloodmoon.invasion.named.king": "King %s",
+  "bloodmoon.invasion.named.raid_captain": "Raid Captain",
+  "bloodmoon.invasion.raid.progress": "Raid tier %s · fallen %s/%s"
 }

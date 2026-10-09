@@ -112,7 +112,7 @@ public final class DominionPresence {
     private static Entity spawnRank(ServerLevel level, Faction f, Faction.RankRecord r, int x, int z) {
         EntityType<? extends Mob> type = switch (r.rank) {
             case CAPTAIN -> ModEntities.VOID_CAPTAIN.get();
-            case GENERAL -> (r.uid & 1) == 0 ? ModEntities.UNKNOWN_EMISSARY.get() : ModEntities.EXECUTIONER.get();
+            case GENERAL -> ModEntities.VOID_GENERAL.get();
             default -> null;
         };
         if (type == null) return null;
@@ -123,7 +123,8 @@ public final class DominionPresence {
         mob.finalizeSpawn(level, level.getCurrentDifficultyAt(new BlockPos(x, y, z)), MobSpawnType.EVENT, null);
         if (mob instanceof VoidSkeleton s) s.bindToDominion();
         if (mob instanceof VoidKnight k) k.bindToDominion();
-        mob.setCustomName(Component.translatable("bloodmoon.invasion.rank.named", r.rank.displayName(), r.name));
+        if (mob instanceof com.agustin.bloodmoon.entity.VoidGeneral g) g.bindToDominion();
+        mob.setCustomName(Component.translatable("bloodmoon.invasion.named." + r.rank.name().toLowerCase(java.util.Locale.ROOT), r.name));
         mob.setCustomNameVisible(true);
         mob.setHealth(mob.getMaxHealth() * Math.max(0.05F, r.hp));
         mob.getPersistentData().putIntArray(RANK_TAG, new int[]{f.id, r.uid});

@@ -57,6 +57,12 @@ public final class ModItems {
             () -> new DeferredSpawnEggItem(ModEntities.FIRST_SOUL_DRAGON, 0x0E0A12, 0x9D4EDD, new Item.Properties()));
     public static final DeferredItem<DeferredSpawnEggItem> VOID_SENTINEL_SPAWN_EGG = ITEMS.register("void_sentinel_spawn_egg",
             () -> new DeferredSpawnEggItem(ModEntities.VOID_SENTINEL, 0x1A1620, 0x8A2BE2, new Item.Properties()));
+    public static final DeferredItem<DeferredSpawnEggItem> VOID_CAPTAIN_SPAWN_EGG = ITEMS.register("void_captain_spawn_egg",
+            () -> new DeferredSpawnEggItem(ModEntities.VOID_CAPTAIN, 0x140E1C, 0xE0B040, new Item.Properties()));
+    public static final DeferredItem<DeferredSpawnEggItem> VOID_FORGER_SPAWN_EGG = ITEMS.register("void_forger_spawn_egg",
+            () -> new DeferredSpawnEggItem(ModEntities.VOID_FORGER, 0x6A6460, 0x8A2BE2, new Item.Properties()));
+    public static final DeferredItem<DeferredSpawnEggItem> VOID_GENERAL_SPAWN_EGG = ITEMS.register("void_general_spawn_egg",
+            () -> new DeferredSpawnEggItem(ModEntities.VOID_GENERAL, 0x221E28, 0xD040FF, new Item.Properties()));
     public static final DeferredItem<DeferredSpawnEggItem> VOID_ARCHER_SPAWN_EGG = ITEMS.register("void_archer_spawn_egg",
             () -> new DeferredSpawnEggItem(ModEntities.VOID_ARCHER, 0x1A1620, 0xD08CFF, new Item.Properties()));
     public static final DeferredItem<DeferredSpawnEggItem> VOID_EYE_SPAWN_EGG = ITEMS.register("void_eye_spawn_egg",
@@ -106,6 +112,9 @@ public final class ModItems {
             event.accept(FIRST_SOUL_DRAGON_SPAWN_EGG);
             event.accept(VOID_SENTINEL_SPAWN_EGG);
             event.accept(VOID_ARCHER_SPAWN_EGG);
+            event.accept(VOID_CAPTAIN_SPAWN_EGG);
+            event.accept(VOID_FORGER_SPAWN_EGG);
+            event.accept(VOID_GENERAL_SPAWN_EGG);
             event.accept(VOID_EYE_SPAWN_EGG);
             event.accept(CURSED_CREEPER_SPAWN_EGG);
         }

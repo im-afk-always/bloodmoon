@@ -231,8 +231,17 @@
   "item.bloodmoon.dominion_banner": "Estandarte del Dominio",
   "bloodmoon.invasion.rank_fell": "Cayó el %s %s del Dominio de %s. Su puesto quedará vacío un día.",
   "bloodmoon.map.legend": "◆ eje · ■ obelisco · ▲ Capitán · ♦ General · ● nido · ▮ atalaya · ▣ fortaleza · ✕ asalto",
-  "bloodmoon.invasion.raid.title": "¡Asalto del Dominio!",
+  "bloodmoon.invasion.raid.title": "¡Asalto del Dominio! · Nivel %s",
   "bloodmoon.invasion.raid.sub": "Una Puerta de Guerra del Dominio de %s se abre cerca de ti",
   "bloodmoon.invasion.raid.repelled": "Rechazaste el asalto del Dominio de %s. La Puerta de Guerra se derrumba.",
-  "bloodmoon.invasion.raid.lost": "El asalto triunfó: el Dominio de %s clava una cabeza de playa en estas tierras."
+  "bloodmoon.invasion.raid.lost": "El asalto triunfó: el Dominio de %s clava una cabeza de playa en estas tierras.",
+  "entity.bloodmoon.void_general": "General del Vacío",
+  "item.bloodmoon.void_captain_spawn_egg": "Huevo de Capitán del Vacío",
+  "item.bloodmoon.void_forger_spawn_egg": "Huevo de Forjador del Vacío",
+  "item.bloodmoon.void_general_spawn_egg": "Huevo de General del Vacío",
+  "bloodmoon.invasion.named.captain": "Capitán %s",
+  "bloodmoon.invasion.named.general": "General %s",
+  "bloodmoon.invasion.named.king": "Rey %s",
+  "bloodmoon.invasion.named.raid_captain": "Capitán de Asalto",
+  "bloodmoon.invasion.raid.progress": "Asalto nivel %s · caídos %s/%s"
 }

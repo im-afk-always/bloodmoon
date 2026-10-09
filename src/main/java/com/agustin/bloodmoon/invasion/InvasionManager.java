@@ -53,8 +53,8 @@ import java.util.Set;
  */
 public final class InvasionManager {
     public static final String LINK_KEY = "bloodmoon_invasion_link";
-    private static final double[] PHASE_AT = {0, 4000, 25000, 90000};
-    private static final int[] MAX_GRANTS = {4, 8, 14, 20};
+    private static final double[] PHASE_AT = {0, 2500, 15000, 60000};
+    private static final int[] MAX_GRANTS = {12, 14, 18, 24};
     private static final int OBELISK_COST = 25, OBELISK_AURA = 3;
     private static int cycleTimer;
 
@@ -244,7 +244,7 @@ public final class InvasionManager {
 
         // 1) esencia
         double moon = BloodMoonManager.current() == MoonType.MOONLESS ? 3 : 1;
-        double income = (4 + 0.012 * dead.size()) * speed * moon;
+        double income = (14 + 0.012 * dead.size()) * speed * moon;
         f.essence = Math.min(2000 + 500 * f.phase, f.essence + income);
         f.earned += income;
         int phase = 0;

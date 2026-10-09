@@ -340,6 +340,9 @@ public abstract class VoidKnight extends Monster {
     public void aiStep() {
         if (isMeteor()) tickMeteor();
         super.aiStep();
+        if (!level().isClientSide && hasEffect(com.agustin.bloodmoon.registry.ModEffects.ASTRAL_BURN)) {
+            removeEffect(com.agustin.bloodmoon.registry.ModEffects.ASTRAL_BURN);
+        }
         if (level().isClientSide && isMeteor()) {
             // estela del bólido: tinta negra, humo y fuego púrpura, visible desde lejos
             for (int i = 0; i < 26; i++) {

@@ -29,6 +29,8 @@ import java.util.UUID;
  */
 public final class ConstructionSites {
     private static final Map<Long, Site> SITES = new HashMap<>();
+    /** Con un jugador a esta distancia la obra se hace a la vista; sin nadie a {@link #ABANDON} se termina de golpe. */
+    public static final int WATCH = 200, ABANDON = 256;
 
     private ConstructionSites() {}
 
@@ -62,6 +64,23 @@ public final class ConstructionSites {
     }
 
     /** Obra de un obelisco ({@code structure} = false) o de una estructura mayor. */
+    /** Para pruebas: obelisco en obra en el chunk del jugador (si está dentro de un Dominio). */
+    public static boolean forceHere(ServerLevel level, net.minecraft.server.level.ServerPlayer p) {
+        InvasionData data = InvasionData.get(level);
+        Faction f = InvasionManager.nearest(level, p.blockPosition());
+        if (f == null || !f.active) return false;
+        long key = ChunkPos.asLong(p.blockPosition());
+        InvasionData.Cell c = InvasionManager.claim(data, key, f);
+        if (c == null || c.structure != DominionStructures.NONE) return false;
+        c.influence = 100;
+        c.applied = 3;
+        c.obelisk = true;
+        c.obeliskBuilt = false;
+        data.setDirty();
+        start(level, key, f, DominionTerraform.obeliskPlan(level, new ChunkPos(key)), false);
+        return true;
+    }
+
     static void start(ServerLevel level, long key, Faction f, DominionTerraform.Plan plan, boolean structure) {
         if (SITES.containsKey(key)) return;
         ChunkPos cp = new ChunkPos(key);
@@ -107,7 +126,7 @@ public final class ConstructionSites {
             }
             double near = Double.MAX_VALUE;
             for (ServerPlayer p : level.players()) near = Math.min(near, p.distanceToSqr(s.center.getX(), p.getY(), s.center.getZ()));
-            if (near > 128 * 128) {   // nadie mira: se termina de golpe
+            if (near > (double) ABANDON * ABANDON) {   // nadie mira: se termina de golpe
                 while (s.index < s.plan.size()) place(level, s.plan.get(s.index++), false);
             } else {
                 List<VoidForger> workers = new ArrayList<>();

@@ -77,7 +77,7 @@ public class AstralFireBlock extends BaseFireBlock {
 
     @Override
     protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
-        if (!level.isClientSide && entity instanceof LivingEntity living && !(entity instanceof VoidKnight)) {
+        if (!level.isClientSide && entity instanceof LivingEntity living && !com.agustin.bloodmoon.invasion.VoidAllies.isVoid(entity)) {
             living.addEffect(new MobEffectInstance(ModEffects.ASTRAL_BURN, 100, 0));
         }
     }
