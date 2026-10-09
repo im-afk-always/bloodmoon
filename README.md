@@ -217,8 +217,13 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
   estandarte del Dominio, barra de jefe; potencia a las tropas cercanas; custodia un obelisco) y los **Generales**
   (**General del Vacío**: señor de guerra de ~4 bloques con yelmo astado, peto con el ojo del Dominio, capa raída,
   guja y una aureola de runas; barre con la guja, lanza un Grito de guerra que llama Centinelas y enardece a los suyos,
-  y salta sobre vos clavando la guja con una onda de choque; sede: una fortaleza). Lejos de todos vuelven a ser datos y guardan su vida.
+  y salta sobre vos clavando la guja con una onda de choque; sede: una fortaleza) y, desde la fase Dominio, el
+  **Rey del Vacío** (~6,5 bloques, flota en la arena del coliseo frente al portal; máscara de obsidiana, corona con
+  gemas orbitantes, cetro-jaula y orbe; 1200 de vida. Golpe de cetro, **Lluvia del Juicio** (lágrimas del cielo),
+  **Decreto Real** (guardia de nivel 8 y potenciación de aliados) y **Nova de la Corona** (tres anillos de choque a
+  6, 12 y 18 bloques: saltalos o alejate); fase 2 al 50%). Lejos de todos vuelven a ser datos y guardan su vida.
   Matarlos deja el puesto vacío un día; un General caído además le quita esencia al Dominio y lo frena a la mitad un día.
+  Matar al Rey abre un **interregno**: el Dominio pierde 2000 de esencia, no gana tierra por 3 días y el trono queda vacío ese tiempo.
 - **Guarniciones:** cada obelisco cercano a un jugador tiene de 2 a 5 Centinelas y Arqueros.
 - **Forjadores del Vacío:** con un jugador cerca, los obeliscos se levantan bloque a bloque; matarlos detiene la obra
   (vuelven en 30 s si el Dominio tiene). Con un jugador a menos de 64 bloques, la corrupción avanza columna a columna.
