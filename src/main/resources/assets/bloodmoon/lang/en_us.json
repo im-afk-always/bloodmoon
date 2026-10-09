@@ -225,5 +225,10 @@
   "bloodmoon.map.hierarchy.count": "%s: %s/%s",
   "bloodmoon.map.hierarchy.plain": "%s: %s",
   "bloodmoon.map.hierarchy.named": "%s %s",
-  "bloodmoon.map.hierarchy.fallen": " (fallen)"
+  "bloodmoon.map.hierarchy.fallen": " (fallen)",
+  "entity.bloodmoon.void_captain": "Void Captain",
+  "entity.bloodmoon.void_forger": "Void Forger",
+  "item.bloodmoon.dominion_banner": "Dominion Banner",
+  "bloodmoon.invasion.rank_fell": "The %s %s of the Dominion of %s has fallen. Their post will stay empty for a day.",
+  "bloodmoon.map.legend": "◆ axis · ■ obelisk · ▲ Captain · ♦ General"
 }

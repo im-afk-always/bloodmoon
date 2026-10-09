@@ -73,6 +73,8 @@ public final class InvasionManager {
     public static void onLevelTick(LevelTickEvent.Post event) {
         if (!(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
         DominionTerraform.tick(level);
+        ConstructionSites.tick(level);
+        DominionPresence.tick(level);
         if (++cycleTimer < BloodMoonConfig.INVASION_CYCLE_SECONDS.get() * 20) return;
         cycleTimer = 0;
         runCycle(level);
@@ -90,6 +92,8 @@ public final class InvasionManager {
 
     public static void onServerStopped(ServerStoppedEvent event) {
         DominionTerraform.clear();
+        ConstructionSites.clear();
+        DominionPresence.clear();
         cycleTimer = 0;
     }
 
@@ -125,7 +129,7 @@ public final class InvasionManager {
         f.center = portal.immutable();
         f.awakenedAt = level.getGameTime();
         f.forgers = 3;
-        f.ranks.add(new Faction.RankRecord(InvasionRank.CAPTAIN, DominionNames.person(r)));
+        f.newRank(InvasionRank.CAPTAIN, DominionNames.person(r)).seat = ChunkPos.asLong(portal);
         data.factions.add(f);
 
         // el coliseo se corrompe entero de golpe: el centro muere y el resto queda marchito
@@ -303,7 +307,7 @@ public final class InvasionManager {
             scored.add(Map.entry(e.getKey(), s));
         }
         scored.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
-        int grants = (int) Math.ceil(MAX_GRANTS[f.phase] * speed);
+        int grants = (int) Math.ceil(MAX_GRANTS[f.phase] * speed * (level.getGameTime() < f.slowedUntil ? 0.5 : 1));
         for (Map.Entry<Long, Double> e : scored) {
             if (grants <= 0) break;
             double c = cost(level, f, e.getKey());
@@ -317,23 +321,73 @@ public final class InvasionManager {
         }
 
         // 5) jerarquía
-        updateRanks(f, r, dead.size(), obelisks.size());
+        updateRanks(level, data, f, r, dead, obelisks);
     }
 
-    private static void updateRanks(Faction f, RandomSource r, int dead, int obelisks) {
+    /** Un día de juego: lo que tarda en ascender un reemplazo cuando cae un rango. */
+    private static final long PROMOTION_DELAY = 24000L;
+
+    private static void updateRanks(ServerLevel level, InvasionData data, Faction f, RandomSource r, List<Long> dead, List<Long> obelisks) {
         f.forgers = 3 + f.phase * 3;
-        f.troops = dead / 15;
-        int captains = Math.min(InvasionRank.CAPTAIN.max, 1 + obelisks / 3);
-        int generals = f.phase >= 2 ? Math.min(InvasionRank.GENERAL.max, 1 + dead / 1500) : 0;
+        f.troops = dead.size() / 15;
+        int captains = Math.min(InvasionRank.CAPTAIN.max, 1 + obelisks.size() / 3);
+        int generals = f.phase >= 2 ? Math.min(InvasionRank.GENERAL.max, 1 + dead.size() / 1500) : 0;
         int kings = f.phase >= 3 ? 1 : 0;
-        fill(f, r, InvasionRank.CAPTAIN, captains);
-        fill(f, r, InvasionRank.GENERAL, generals);
-        fill(f, r, InvasionRank.KING, kings);
+        long now = level.getGameTime();
+        fill(f, r, InvasionRank.CAPTAIN, captains, now);
+        fill(f, r, InvasionRank.GENERAL, generals, now);
+        fill(f, r, InvasionRank.KING, kings, now);
+        // asientos: Capitanes en obeliscos sin capitán; Generales en tierra muerta a media distancia; el Rey en el eje
+        java.util.Set<Long> taken = new HashSet<>();
+        for (Faction.RankRecord rr : f.ranks) if (rr.alive && rr.seat != Faction.RankRecord.NO_SEAT) taken.add(rr.seat);
+        for (Faction.RankRecord rr : f.ranks) {
+            if (!rr.alive || rr.seat != Faction.RankRecord.NO_SEAT) continue;
+            if (rr.rank == InvasionRank.KING) rr.seat = ChunkPos.asLong(f.center);
+            else if (rr.rank == InvasionRank.CAPTAIN) {
+                for (long ob : obelisks) if (!taken.contains(ob)) { rr.seat = ob; break; }
+            } else if (rr.rank == InvasionRank.GENERAL && !dead.isEmpty()) {
+                for (int tries = 0; tries < 40; tries++) {
+                    long k = dead.get(r.nextInt(dead.size()));
+                    double d = distance(f, k);
+                    if (d > radius() * 0.35 && d < radius() * 0.8 && !taken.contains(k)) { rr.seat = k; break; }
+                }
+            }
+            if (rr.seat != Faction.RankRecord.NO_SEAT) taken.add(rr.seat);
+        }
+        // los caídos de hace más de tres días salen de la lista
+        f.ranks.removeIf(rr -> !rr.alive && now - rr.diedAt > 3 * PROMOTION_DELAY);
     }
 
-    private static void fill(Faction f, RandomSource r, InvasionRank rank, int target) {
+    /** Completa los puestos vacíos, pero un caído se reemplaza recién un día después. */
+    private static void fill(Faction f, RandomSource r, InvasionRank rank, int target, long now) {
         long alive = f.aliveCount(rank);
-        for (long i = alive; i < target; i++) f.ranks.add(new Faction.RankRecord(rank, DominionNames.person(r)));
+        if (alive >= target) return;
+        long lastDeath = 0;
+        for (Faction.RankRecord rr : f.ranks) if (rr.rank == rank && !rr.alive) lastDeath = Math.max(lastDeath, rr.diedAt);
+        if (lastDeath > 0 && now - lastDeath < PROMOTION_DELAY) return;
+        for (long i = alive; i < target; i++) f.newRank(rank, DominionNames.person(r));
+    }
+
+    /** Un rango del Dominio murió a manos de alguien. */
+    public static void onRankKilled(ServerLevel level, int factionId, int uid, net.minecraft.world.entity.Entity killer) {
+        InvasionData data = InvasionData.get(level.getServer().overworld());
+        Faction f = data.faction(factionId);
+        if (f == null) return;
+        Faction.RankRecord rr = f.rankByUid(uid);
+        if (rr == null || !rr.alive) return;
+        rr.alive = false;
+        rr.diedAt = level.getGameTime();
+        rr.seat = Faction.RankRecord.NO_SEAT;
+        if (rr.rank == InvasionRank.GENERAL) {
+            f.essence = Math.max(0, f.essence - 400);
+            f.slowedUntil = level.getGameTime() + PROMOTION_DELAY;
+        } else if (rr.rank == InvasionRank.CAPTAIN) {
+            f.essence = Math.max(0, f.essence - 100);
+        }
+        data.setDirty();
+        Component msg = Component.translatable("bloodmoon.invasion.rank_fell", rr.rank.displayName(), rr.name, f.name)
+                .withStyle(ChatFormatting.GOLD);
+        for (ServerPlayer p : level.players()) if (p.distanceToSqr(killer == null ? p : killer) < 200 * 200) p.sendSystemMessage(msg);
     }
 
     private static void announcePhase(ServerLevel level, Faction f) {
@@ -492,7 +546,12 @@ public final class InvasionManager {
                 if (c.obelisk) obelisks++;
             }
             List<DominionMapPayload.RankView> ranks = new ArrayList<>();
-            for (Faction.RankRecord rr : f.ranks) ranks.add(new DominionMapPayload.RankView(rr.rank.ordinal(), rr.name, rr.alive));
+            for (Faction.RankRecord rr : f.ranks) {
+                boolean seated = rr.alive && rr.seat != Faction.RankRecord.NO_SEAT;
+                ChunkPos sp = seated ? new ChunkPos(rr.seat) : null;
+                ranks.add(new DominionMapPayload.RankView(rr.rank.ordinal(), rr.name, rr.alive,
+                        seated ? sp.getMiddleBlockX() : Integer.MIN_VALUE, seated ? sp.getMiddleBlockZ() : Integer.MIN_VALUE));
+            }
             views.add(new DominionMapPayload.FactionView(f.id, f.name, f.center.getX(), f.center.getZ(), maxR, f.phase,
                     (int) f.essence, f.active, f.healing, f.forgers, f.troops, dead, obelisks, ranks, half, grid));
         }

@@ -101,6 +101,8 @@ public class BloodMoonClient {
         event.registerEntityRenderer(ModEntities.SOUL_CHARGE.get(), SoulChargeRenderer::new);
         event.registerEntityRenderer(ModEntities.VOID_SENTINEL.get(), VoidSkeletonRenderer::new);
         event.registerEntityRenderer(ModEntities.VOID_ARCHER.get(), VoidSkeletonRenderer::new);
+        event.registerEntityRenderer(ModEntities.VOID_CAPTAIN.get(), VoidSkeletonRenderer::new);
+        event.registerEntityRenderer(ModEntities.VOID_FORGER.get(), VoidSkeletonRenderer::new);
         event.registerEntityRenderer(ModEntities.VOID_EYE.get(), VoidEyeRenderer::new);
         event.registerEntityRenderer(ModEntities.EYE_TENTACLE.get(), EyeTentacleRenderer::new);
         event.registerEntityRenderer(ModEntities.WATCHER_EYE.get(), WatcherEyeRenderer::new);

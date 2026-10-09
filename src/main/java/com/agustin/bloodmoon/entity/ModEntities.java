@@ -72,6 +72,22 @@ public final class ModEntities {
                     .clientTrackingRange(8)
                     .build("void_sentinel"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<VoidCaptain>> VOID_CAPTAIN =
+            ENTITIES.register("void_captain", () -> EntityType.Builder
+                    .<VoidCaptain>of(VoidCaptain::new, MobCategory.MONSTER)
+                    .sized(0.6F, 1.99F)
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .build("void_captain"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<VoidForger>> VOID_FORGER =
+            ENTITIES.register("void_forger", () -> EntityType.Builder
+                    .<VoidForger>of(VoidForger::new, MobCategory.MONSTER)
+                    .sized(0.6F, 1.99F)
+                    .fireImmune()
+                    .clientTrackingRange(8)
+                    .build("void_forger"));
+
     public static final DeferredHolder<EntityType<?>, EntityType<VoidSkeleton>> VOID_ARCHER =
             ENTITIES.register("void_archer", () -> EntityType.Builder
                     .<VoidSkeleton>of(VoidSkeleton::new, MobCategory.MONSTER)
@@ -174,6 +190,8 @@ public final class ModEntities {
         event.put(FIRST_SOUL_DRAGON.get(), FirstSoulDragon.createAttributes().build());
         event.put(VOID_SENTINEL.get(), VoidSkeleton.createAttributes().build());
         event.put(VOID_ARCHER.get(), VoidSkeleton.createAttributes().build());
+        event.put(VOID_CAPTAIN.get(), VoidCaptain.createAttributes().build());
+        event.put(VOID_FORGER.get(), VoidForger.createAttributes().build());
         event.put(VOID_EYE.get(), VoidEye.createAttributes().build());
         event.put(EYE_TENTACLE.get(), EyeTentacle.createAttributes().build());
         event.put(UNBOUND_OBSERVER.get(), VoidEye.createAttributes().build());

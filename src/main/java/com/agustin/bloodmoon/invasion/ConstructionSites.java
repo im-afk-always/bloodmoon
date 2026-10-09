@@ -1,0 +1,160 @@
+package com.agustin.bloodmoon.invasion;
+
+import com.agustin.bloodmoon.entity.ModEntities;
+import com.agustin.bloodmoon.entity.VoidForger;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Obras a la vista: si hay un jugador cerca cuando el Dominio levanta un obelisco, aparecen Forjadores y lo construyen
+ * bloque a bloque, de abajo hacia arriba. Sin Forjadores vivos la obra se detiene (vuelven a los 30 s si el Dominio
+ * tiene). Si todos se alejan, la obra se termina de golpe.
+ */
+public final class ConstructionSites {
+    private static final Map<Long, Site> SITES = new HashMap<>();
+
+    private ConstructionSites() {}
+
+    private static final class Site {
+        final long key;
+        final int faction;
+        final List<DominionTerraform.Placement> plan;
+        final int coreY;
+        final BlockPos center;
+        final List<UUID> forgers = new ArrayList<>();
+        int index;
+        long lastForgers = Long.MIN_VALUE;
+
+        Site(long key, int faction, DominionTerraform.Plan plan, BlockPos center) {
+            this.key = key;
+            this.faction = faction;
+            this.plan = plan.placements();
+            this.coreY = plan.coreY();
+            this.center = center;
+        }
+    }
+
+    public static boolean building(long key) {
+        return SITES.containsKey(key);
+    }
+
+    public static void clear() {
+        SITES.clear();
+    }
+
+    static void start(ServerLevel level, long key, Faction f) {
+        if (SITES.containsKey(key)) return;
+        ChunkPos cp = new ChunkPos(key);
+        DominionTerraform.Plan plan = DominionTerraform.obeliskPlan(level, cp);
+        BlockPos center = new BlockPos(cp.getMiddleBlockX(), plan.coreY() - 3, cp.getMiddleBlockZ());
+        Site s = new Site(key, f.id, plan, center);
+        SITES.put(key, s);
+        spawnForgers(level, s, f);
+    }
+
+    private static void spawnForgers(ServerLevel level, Site s, Faction f) {
+        int n = Math.min(3, Math.max(1, f.forgers / 3));
+        for (int i = 0; i < n; i++) {
+            VoidForger fo = ModEntities.VOID_FORGER.get().create(level);
+            if (fo == null) continue;
+            double a = level.random.nextDouble() * Math.PI * 2;
+            int x = s.center.getX() + (int) Math.round(Math.cos(a) * 5), z = s.center.getZ() + (int) Math.round(Math.sin(a) * 5);
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+            fo.moveTo(x + 0.5, y, z + 0.5, level.random.nextFloat() * 360F, 0F);
+            fo.finalizeSpawn(level, level.getCurrentDifficultyAt(new BlockPos(x, y, z)), MobSpawnType.EVENT, null);
+            fo.bindToDominion();
+            fo.setWorkSite(s.center);
+            level.addFreshEntity(fo);
+            level.sendParticles(ParticleTypes.REVERSE_PORTAL, x + 0.5, y + 1, z + 0.5, 40, 0.3, 0.8, 0.3, 0.05);
+            s.forgers.add(fo.getUUID());
+        }
+        s.lastForgers = level.getGameTime();
+    }
+
+    public static void tick(ServerLevel level) {
+        if (SITES.isEmpty() || level.getGameTime() % 5 != 0) return;
+        InvasionData data = InvasionData.get(level);
+        for (Iterator<Site> it = SITES.values().iterator(); it.hasNext(); ) {
+            Site s = it.next();
+            InvasionData.Cell c = data.cells.get(s.key);
+            Faction f = data.faction(s.faction);
+            ChunkPos cp = new ChunkPos(s.key);
+            if (c == null || !c.obelisk || f == null || !f.active || level.getChunkSource().getChunkNow(cp.x, cp.z) == null) {
+                dismiss(level, s);
+                it.remove();
+                continue;
+            }
+            double near = Double.MAX_VALUE;
+            for (ServerPlayer p : level.players()) near = Math.min(near, p.distanceToSqr(s.center.getX(), p.getY(), s.center.getZ()));
+            if (near > 128 * 128) {   // nadie mira: se termina de golpe
+                while (s.index < s.plan.size()) place(level, s.plan.get(s.index++), false);
+            } else {
+                List<VoidForger> workers = new ArrayList<>();
+                for (UUID u : s.forgers) {
+                    Entity e = level.getEntity(u);
+                    if (e instanceof VoidForger fo && fo.isAlive() && fo.distanceToSqr(s.center.getX(), s.center.getY(), s.center.getZ()) < 24 * 24) workers.add(fo);
+                }
+                if (workers.isEmpty()) {
+                    if (f.forgers > 0 && level.getGameTime() - s.lastForgers > 600) spawnForgers(level, s, f);
+                    continue;   // obra detenida
+                }
+                // el aire (despejar) va rápido; cada Forjador coloca un bloque por paso
+                int solid = workers.size();
+                while (s.index < s.plan.size() && solid > 0) {
+                    DominionTerraform.Placement p = s.plan.get(s.index++);
+                    boolean isAir = p.state().isAir();
+                    place(level, p, !isAir);
+                    if (!isAir) {
+                        workers.get(solid - 1).hammer(p.pos());
+                        solid--;
+                    }
+                }
+            }
+            if (s.index >= s.plan.size()) {
+                c.obeliskBuilt = true;
+                c.coreY = s.coreY;
+                data.setDirty();
+                for (UUID u : s.forgers) {
+                    Entity e = level.getEntity(u);
+                    if (e instanceof VoidForger fo) fo.setWorkSite(null);
+                }
+                level.playSound(null, s.center, net.minecraft.sounds.SoundEvents.BEACON_ACTIVATE, SoundSource.HOSTILE, 2F, 0.5F);
+                it.remove();
+            }
+        }
+    }
+
+    private static void place(ServerLevel level, DominionTerraform.Placement p, boolean fx) {
+        level.setBlock(p.pos(), p.state(), Block.UPDATE_ALL);
+        if (!fx) return;
+        BlockState st = p.state();
+        level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, st), p.pos().getX() + 0.5, p.pos().getY() + 0.5, p.pos().getZ() + 0.5,
+                8, 0.3, 0.3, 0.3, 0.05);
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, p.pos().getX() + 0.5, p.pos().getY() + 0.5, p.pos().getZ() + 0.5, 4, 0.3, 0.3, 0.3, 0.02);
+        level.playSound(null, p.pos(), st.getSoundType().getPlaceSound(), SoundSource.BLOCKS, 0.8F, 0.7F);
+    }
+
+    private static void dismiss(ServerLevel level, Site s) {
+        for (UUID u : s.forgers) {
+            Entity e = level.getEntity(u);
+            if (e != null) e.discard();
+        }
+    }
+}

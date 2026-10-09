@@ -14,6 +14,10 @@ import net.minecraft.resources.ResourceLocation;
 public class VoidSkeletonRenderer extends SkeletonRenderer<VoidSkeleton> {
     private static final ResourceLocation TEXTURE =
             ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/entity/void_skeleton.png");
+    private static final ResourceLocation CAPTAIN =
+            ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/entity/void_captain.png");
+    private static final ResourceLocation FORGER =
+            ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/entity/void_forger.png");
     private static final ResourceLocation GLOW =
             ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/entity/void_skeleton_glow.png");
 
@@ -30,12 +34,20 @@ public class VoidSkeletonRenderer extends SkeletonRenderer<VoidSkeleton> {
 
     @Override
     public ResourceLocation getTextureLocation(VoidSkeleton entity) {
+        if (entity instanceof com.agustin.bloodmoon.entity.VoidCaptain) return CAPTAIN;
+        if (entity instanceof com.agustin.bloodmoon.entity.VoidForger) return FORGER;
         return TEXTURE;
     }
 
     @Override
     protected void scale(VoidSkeleton entity, PoseStack poseStack, float partialTick) {
-        float s = !entity.isArcher() ? 1.1F : 1.0F;
+        // el Capitán y el Forjador ya traen su tamaño en el atributo SCALE
+        float s = entity instanceof com.agustin.bloodmoon.entity.VoidCaptain || entity instanceof com.agustin.bloodmoon.entity.VoidForger
+                ? 1.0F : !entity.isArcher() ? 1.1F : 1.0F;
         poseStack.scale(s, s, s);
+        if (entity instanceof com.agustin.bloodmoon.entity.VoidForger) {   // encorvado
+            poseStack.translate(0, 0.08, 0);
+            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(12));
+        }
     }
 }

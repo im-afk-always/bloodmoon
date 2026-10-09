@@ -26,6 +26,9 @@ public final class Faction {
     /** Activo: crece. Sanando: fue vencido y la tierra se cura. Ninguno de los dos: vencido y curado. */
     public boolean active = true, healing;
     public int forgers, troops;
+    public int nextRankUid = 1;
+    /** Hasta este tick el Dominio avanza a la mitad (murió un General). */
+    public long slowedUntil;
     public final List<RankRecord> ranks = new ArrayList<>();
     /** Lo que el Dominio se tragó de cofres y barriles: vuelve al vencerlo. */
     public final List<ItemStack> relic = new ArrayList<>();
@@ -33,14 +36,33 @@ public final class Faction {
     final Map<Long, Boolean> water = new HashMap<>();
 
     public static final class RankRecord {
+        public static final long NO_SEAT = Long.MIN_VALUE;
+        public int uid;
         public InvasionRank rank;
         public String name;
         public boolean alive = true;
+        /** Chunk donde tiene su puesto (un obelisco para los Capitanes). */
+        public long seat = NO_SEAT;
+        /** Vida guardada mientras no tiene cuerpo (0-1). */
+        public float hp = 1F;
+        public long diedAt;
 
         RankRecord(InvasionRank rank, String name) {
             this.rank = rank;
             this.name = name;
         }
+    }
+
+    RankRecord newRank(InvasionRank rank, String name) {
+        RankRecord r = new RankRecord(rank, name);
+        r.uid = nextRankUid++;
+        ranks.add(r);
+        return r;
+    }
+
+    public RankRecord rankByUid(int uid) {
+        for (RankRecord r : ranks) if (r.uid == uid) return r;
+        return null;
     }
 
     public long aliveCount(InvasionRank rank) {
@@ -60,12 +82,18 @@ public final class Faction {
         t.putBoolean("healing", healing);
         t.putInt("forgers", forgers);
         t.putInt("troops", troops);
+        t.putInt("nextRankUid", nextRankUid);
+        t.putLong("slowedUntil", slowedUntil);
         ListTag rl = new ListTag();
         for (RankRecord r : ranks) {
             CompoundTag rt = new CompoundTag();
             rt.putInt("rank", r.rank.ordinal());
             rt.putString("name", r.name);
             rt.putBoolean("alive", r.alive);
+            rt.putInt("uid", r.uid);
+            rt.putLong("seat", r.seat);
+            rt.putFloat("hp", r.hp);
+            rt.putLong("diedAt", r.diedAt);
             rl.add(rt);
         }
         t.put("ranks", rl);
@@ -88,11 +116,17 @@ public final class Faction {
         f.healing = t.getBoolean("healing");
         f.forgers = t.getInt("forgers");
         f.troops = t.getInt("troops");
+        f.nextRankUid = Math.max(1, t.getInt("nextRankUid"));
+        f.slowedUntil = t.getLong("slowedUntil");
         ListTag rl = t.getList("ranks", Tag.TAG_COMPOUND);
         for (int i = 0; i < rl.size(); i++) {
             CompoundTag rt = rl.getCompound(i);
             RankRecord r = new RankRecord(InvasionRank.byId(rt.getInt("rank")), rt.getString("name"));
             r.alive = rt.getBoolean("alive");
+            r.uid = rt.contains("uid") ? rt.getInt("uid") : f.nextRankUid++;
+            r.seat = rt.contains("seat") ? rt.getLong("seat") : RankRecord.NO_SEAT;
+            r.hp = rt.contains("hp") ? rt.getFloat("hp") : 1F;
+            r.diedAt = rt.getLong("diedAt");
             f.ranks.add(r);
         }
         ListTag items = t.getList("relic", Tag.TAG_COMPOUND);

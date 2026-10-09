@@ -222,6 +222,8 @@ public class DominionMapScreen extends Screen {
                         f.essence(), f.deadChunks(), f.obelisks());
         g.drawString(font, info, mapL, 17, f == null ? 0xFF8A8090 : 0xFFC9A6F0, false);
         g.drawString(font, Component.translatable("bloodmoon.map.hint"), mapL, height - 11, 0xFF6A6070, false);
+        Component legend = Component.translatable("bloodmoon.map.legend");
+        g.drawString(font, legend, mapL + mapW - font.width(legend), height - 11, 0xFF6A6070, false);
 
         // botón del ojo
         boolean hot = mouseX >= eyeX() && mouseX < eyeX() + 20 && mouseY >= eyeY() && mouseY < eyeY() + 18;
@@ -243,6 +245,18 @@ public class DominionMapScreen extends Screen {
                 int x = sx((ccx + gx - f.half()) * 16 + 8), y = sz((ccz + gz - f.half()) * 16 + 8);
                 g.fill(x - s - 1, y - s - 1, x + s + 1, y + s + 1, 0xFF000000);
                 g.fill(x - s, y - s, x + s, y + s, 0xFFB04CFF);
+            }
+            // rangos con puesto: Capitanes (triángulo dorado) y Generales (rombo rojo)
+            for (DominionMapPayload.RankView r : f.ranks()) {
+                if (!r.alive() || r.seatX() == Integer.MIN_VALUE) continue;
+                int rx = sx(r.seatX()), ry = sz(r.seatZ());
+                if (r.rank() == InvasionRank.GENERAL.ordinal()) {
+                    diamond(g, rx, ry, 5, 0xFF000000);
+                    diamond(g, rx, ry, 4, 0xFFE03030);
+                } else if (r.rank() == InvasionRank.CAPTAIN.ordinal()) {
+                    for (int k = 0; k <= 4; k++) g.fill(rx - k, ry - 4 + k, rx + k + 1, ry - 3 + k, 0xFF000000);
+                    for (int k = 0; k <= 3; k++) g.fill(rx - k, ry - 3 + k, rx + k + 1, ry - 2 + k, 0xFFF0C040);
+                }
             }
             // eje: el coliseo
             int x = sx(f.centerX()), y = sz(f.centerZ());

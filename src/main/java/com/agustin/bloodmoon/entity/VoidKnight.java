@@ -114,6 +114,23 @@ public abstract class VoidKnight extends Monster {
         return getHealth() <= getMaxHealth() * 0.5F;
     }
 
+    /** Ligado al Dominio del Vacío: no se guarda con el chunk; el Dominio lo vuelve a crear cuando hace falta. */
+    private boolean dominionBound;
+
+    public void bindToDominion() {
+        this.dominionBound = true;
+        this.setPersistenceRequired();
+    }
+
+    public boolean isDominionBound() {
+        return dominionBound;
+    }
+
+    @Override
+    public boolean shouldBeSaved() {
+        return !dominionBound && super.shouldBeSaved();
+    }
+
     public void bindToNight() {
         this.boundToNight = true;
     }

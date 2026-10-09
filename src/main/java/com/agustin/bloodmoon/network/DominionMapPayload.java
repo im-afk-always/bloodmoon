@@ -17,7 +17,8 @@ import java.util.List;
 public record DominionMapPayload(List<FactionView> factions) implements CustomPacketPayload {
     public static final Type<DominionMapPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "dominion_map"));
 
-    public record RankView(int rank, String name, boolean alive) {}
+    /** Rango con su puesto en el mundo (Integer.MIN_VALUE si no tiene). */
+    public record RankView(int rank, String name, boolean alive, int seatX, int seatZ) {}
 
     public record FactionView(int id, String name, int centerX, int centerZ, int radius, int phase, int essence, boolean active,
                               boolean healing, int forgers, int troops, int deadChunks, int obelisks, List<RankView> ranks,
@@ -53,6 +54,8 @@ public record DominionMapPayload(List<FactionView> factions) implements CustomPa
                         ByteBufCodecs.VAR_INT.encode(buf, r.rank());
                         ByteBufCodecs.STRING_UTF8.encode(buf, r.name());
                         ByteBufCodecs.BOOL.encode(buf, r.alive());
+                        ByteBufCodecs.INT.encode(buf, r.seatX());
+                        ByteBufCodecs.INT.encode(buf, r.seatZ());
                     }
                     ByteBufCodecs.VAR_INT.encode(buf, f.half());
                     ByteBufCodecs.BYTE_ARRAY.encode(buf, f.grid());
@@ -75,7 +78,9 @@ public record DominionMapPayload(List<FactionView> factions) implements CustomPa
                     for (int k = 0; k < rn; k++) {
                         int rank = ByteBufCodecs.VAR_INT.decode(buf);
                         String rname = ByteBufCodecs.STRING_UTF8.decode(buf);
-                        ranks.add(new RankView(rank, rname, ByteBufCodecs.BOOL.decode(buf)));
+                        boolean alive = ByteBufCodecs.BOOL.decode(buf);
+                        int sx = ByteBufCodecs.INT.decode(buf), sz = ByteBufCodecs.INT.decode(buf);
+                        ranks.add(new RankView(rank, rname, alive, sx, sz));
                     }
                     int half = ByteBufCodecs.VAR_INT.decode(buf);
                     byte[] grid = ByteBufCodecs.BYTE_ARRAY.decode(buf);

@@ -51,6 +51,7 @@ public final class DominionTerraform {
     public static void clear() {
         QUEUE.clear();
         QUEUED.clear();
+        LIVE.clear();
     }
 
     public static int pending() {
@@ -66,8 +67,9 @@ public final class DominionTerraform {
     }
 
     public static void tick(ServerLevel level) {
-        if (QUEUE.isEmpty()) return;
+        if (QUEUE.isEmpty() && LIVE.isEmpty()) return;
         InvasionData data = InvasionData.get(level);
+        tickLive(level, data);
         long start = System.nanoTime();
         while (!QUEUE.isEmpty() && System.nanoTime() - start < BUDGET_NS) {
             Long key = QUEUE.poll();
@@ -92,17 +94,33 @@ public final class DominionTerraform {
         Faction f = data.faction(c.faction);
         int target = c.stage();
         boolean protectedZone = isProtected(level, chunk.getPos());
+        long key = chunk.getPos().toLong();
+        if (LIVE.containsKey(key)) return;   // ya se está corrompiendo a la vista
         if (target > c.applied && target >= 2) {
             boolean full = target == 3;
             boolean replace = full && !protectedZone && BloodMoonConfig.INVASION_REPLACE_PLAYER_BLOCKS.get();
+            if (playerNear(level, chunk.getPos(), 64)) {   // alguien mira: se extiende columna a columna
+                LIVE.put(key, new LiveJob(key, target, full, replace));
+                return;
+            }
             for (int lx = 0; lx < 16; lx++) for (int lz = 0; lz < 16; lz++) corruptColumn(level, chunk, lx, lz, full, replace, f);
         } else if (target < c.applied && target <= 1) {
             for (int lx = 0; lx < 16; lx++) for (int lz = 0; lz < 16; lz++) healColumn(level, chunk, lx, lz);
         }
+        finish(level, data, c, chunk, target);
+    }
+
+    private static void finish(ServerLevel level, InvasionData data, InvasionData.Cell c, LevelChunk chunk, int target) {
+        Faction f = data.faction(c.faction);
+        long key = chunk.getPos().toLong();
         c.applied = target;
-        if (c.obelisk && target == 3 && !c.obeliskBuilt) {
-            c.coreY = buildObelisk(level, chunk.getPos());
-            c.obeliskBuilt = true;
+        if (c.obelisk && target == 3 && !c.obeliskBuilt && f != null && f.active && !ConstructionSites.building(key)) {
+            if (playerNear(level, chunk.getPos(), 80)) {
+                ConstructionSites.start(level, key, f);   // los Forjadores lo levantan a la vista
+            } else {
+                c.coreY = buildObelisk(level, chunk.getPos());
+                c.obeliskBuilt = true;
+            }
         }
         // un obelisco de un Dominio vencido pierde su núcleo
         if (!c.obelisk && c.obeliskBuilt && c.coreY != InvasionData.NO_CORE && f != null && !f.active) {
@@ -283,8 +301,13 @@ public final class DominionTerraform {
 
     // ------------------------------------------------------------------ obelisco
 
-    /** Obelisco del Dominio en el centro del chunk. Devuelve la altura del núcleo. */
-    static int buildObelisk(ServerLevel level, ChunkPos cp) {
+    public record Placement(BlockPos pos, BlockState state) {}
+
+    public record Plan(java.util.List<Placement> placements, int coreY) {}
+
+    /** Obelisco del Dominio en el centro del chunk, como lista ordenada de bloques (cimientos, despeje, de abajo hacia arriba). */
+    static Plan obeliskPlan(ServerLevel level, ChunkPos cp) {
+        java.util.List<Placement> out = new java.util.ArrayList<>();
         int cx = cp.getMinBlockX() + 8, cz = cp.getMinBlockZ() + 8;
         int y0 = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cx, cz);
         int height = 13 + (int) (hash(cx, cz, 7) * 6);
@@ -292,23 +315,25 @@ public final class DominionTerraform {
         BlockState bricks = ModBlocks.BLACK_ROCK_BRICKS.get().defaultBlockState();
         BlockState cracked = ModBlocks.CRACKED_BLACK_ROCK_BRICKS.get().defaultBlockState();
         BlockState air = Blocks.AIR.defaultBlockState();
+        // despejar
+        for (int dy = height + 1; dy >= 1; dy--) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+            BlockPos q = new BlockPos(cx + dx, y0 + dy, cz + dz);
+            if (!level.getBlockState(q).isAir()) out.add(new Placement(q, air));
+        }
         // cimientos hasta el suelo firme
         for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+            java.util.List<Placement> col = new java.util.ArrayList<>();
             for (int d = 1; d <= 12; d++) {
                 BlockPos q = new BlockPos(cx + dx, y0 - d, cz + dz);
-                BlockState s = level.getBlockState(q);
-                if (!s.isAir() && s.getFluidState().isEmpty() && !isPlant(s) && !s.is(BlockTags.LEAVES)) break;
-                level.setBlock(q, rock, FLAGS);
+                BlockState st = level.getBlockState(q);
+                if (!st.isAir() && st.getFluidState().isEmpty() && !isPlant(st) && !st.is(BlockTags.LEAVES)) break;
+                col.add(0, new Placement(q, rock));
             }
-        }
-        // despejar
-        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) for (int dy = 1; dy <= height + 1; dy++) {
-            BlockPos q = new BlockPos(cx + dx, y0 + dy, cz + dz);
-            if (!level.getBlockState(q).isAir()) level.setBlock(q, air, FLAGS);
+            out.addAll(col);
         }
         for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
             boolean edge = Math.abs(dx) == 2 || Math.abs(dz) == 2;
-            level.setBlock(new BlockPos(cx + dx, y0, cz + dz), edge ? rock : bricks, FLAGS);
+            out.add(new Placement(new BlockPos(cx + dx, y0, cz + dz), edge ? rock : bricks));
         }
         int coreY = y0 + 3;
         for (int dy = 1; dy <= 7; dy++) {
@@ -316,21 +341,103 @@ public final class DominionTerraform {
                 boolean corner = Math.abs(dx) == 1 && Math.abs(dz) == 1;
                 boolean center = dx == 0 && dz == 0;
                 BlockPos q = new BlockPos(cx + dx, y0 + dy, cz + dz);
-                BlockState s;
-                if (dy == 3) s = center ? ModBlocks.OBELISK_CORE.get().defaultBlockState() : corner ? bricks : air;   // ventanas al núcleo
-                else if (corner && dy <= 2) s = rock;
-                else s = hash(q.getX(), q.getZ(), q.getY()) < 0.3 ? cracked : bricks;
-                level.setBlock(q, s, FLAGS);
+                BlockState st;
+                if (dy == 3) {
+                    if (!center && !corner) continue;   // ventanas al núcleo
+                    st = center ? ModBlocks.OBELISK_CORE.get().defaultBlockState() : bricks;
+                } else if (corner && dy <= 2) st = rock;
+                else st = hash(q.getX(), q.getZ(), q.getY()) < 0.3 ? cracked : bricks;
+                out.add(new Placement(q, st));
             }
         }
         for (int dy = 8; dy <= height - 2; dy++) {
-            level.setBlock(new BlockPos(cx, y0 + dy, cz), hash(cx, dy, cz) < 0.25 ? cracked : bricks, FLAGS);
+            out.add(new Placement(new BlockPos(cx, y0 + dy, cz), hash(cx, dy, cz) < 0.25 ? cracked : bricks));
             if (dy == 8) {
-                for (var dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) level.setBlock(new BlockPos(cx + dir[0], y0 + dy, cz + dir[1]), rock, FLAGS);
+                for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) out.add(new Placement(new BlockPos(cx + d[0], y0 + dy, cz + d[1]), rock));
             }
         }
-        level.setBlock(new BlockPos(cx, y0 + height - 1, cz), ModBlocks.VOID_LANTERN.get().defaultBlockState(), FLAGS);
-        level.setBlock(new BlockPos(cx, y0 + height, cz), rock, FLAGS);
-        return coreY;
+        out.add(new Placement(new BlockPos(cx, y0 + height - 1, cz), ModBlocks.VOID_LANTERN.get().defaultBlockState()));
+        out.add(new Placement(new BlockPos(cx, y0 + height, cz), rock));
+        return new Plan(out, coreY);
+    }
+
+    /** Obelisco instantáneo (sin nadie mirando). Devuelve la altura del núcleo. */
+    static int buildObelisk(ServerLevel level, ChunkPos cp) {
+        Plan plan = obeliskPlan(level, cp);
+        for (Placement p : plan.placements()) level.setBlock(p.pos(), p.state(), FLAGS);
+        return plan.coreY();
+    }
+
+    // ------------------------------------------------------------------ propagación a la vista
+
+    /** Un chunk que se corrompe columna a columna porque hay un jugador mirando. */
+    private static final class LiveJob {
+        final long key;
+        final int target;
+        final boolean full, replace;
+        final int[] order = new int[256];
+        int index;
+
+        LiveJob(long key, int target, boolean full, boolean replace) {
+            this.key = key;
+            this.target = target;
+            this.full = full;
+            this.replace = replace;
+            for (int i = 0; i < 256; i++) order[i] = i;
+            java.util.Random r = new java.util.Random(key);
+            for (int i = 255; i > 0; i--) {
+                int j = r.nextInt(i + 1);
+                int t = order[i];
+                order[i] = order[j];
+                order[j] = t;
+            }
+        }
+    }
+
+    private static final java.util.Map<Long, LiveJob> LIVE = new java.util.LinkedHashMap<>();
+
+    static boolean playerNear(ServerLevel level, ChunkPos cp, double radius) {
+        double x = cp.getMiddleBlockX(), z = cp.getMiddleBlockZ();
+        for (var p : level.players()) {
+            double dx = p.getX() - x, dz = p.getZ() - z;
+            if (dx * dx + dz * dz < radius * radius) return true;
+        }
+        return false;
+    }
+
+    private static void tickLive(ServerLevel level, InvasionData data) {
+        if (LIVE.isEmpty()) return;
+        int jobs = 0;
+        for (java.util.Iterator<LiveJob> it = LIVE.values().iterator(); it.hasNext() && jobs < 16; jobs++) {
+            LiveJob job = it.next();
+            ChunkPos cp = new ChunkPos(job.key);
+            LevelChunk chunk = level.getChunkSource().getChunkNow(cp.x, cp.z);
+            InvasionData.Cell c = data.cells.get(job.key);
+            if (chunk == null || c == null) {
+                it.remove();
+                continue;
+            }
+            Faction f = data.faction(c.faction);
+            for (int n = 0; n < 6 && job.index < 256; n++) {
+                int col = job.order[job.index++];
+                int lx = col & 15, lz = col >> 4;
+                corruptColumn(level, chunk, lx, lz, job.full, job.replace, f);
+                if ((col * 7 + job.index) % 3 == 0) {
+                    int x = cp.getMinBlockX() + lx, z = cp.getMinBlockZ() + lz;
+                    int y = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, lx, lz) + 1;
+                    level.sendParticles(net.minecraft.core.particles.ParticleTypes.SQUID_INK, x + 0.5, y + 0.1, z + 0.5, 2, 0.3, 0.05, 0.3, 0.01);
+                    level.sendParticles(net.minecraft.core.particles.ParticleTypes.REVERSE_PORTAL, x + 0.5, y + 0.2, z + 0.5, 2, 0.3, 0.1, 0.3, 0.02);
+                }
+            }
+            if (job.index % 48 == 0) {
+                level.playSound(null, new BlockPos(cp.getMiddleBlockX(), chunk.getHeight(Heightmap.Types.WORLD_SURFACE, 8, 8), cp.getMiddleBlockZ()),
+                        net.minecraft.sounds.SoundEvents.SCULK_BLOCK_SPREAD, net.minecraft.sounds.SoundSource.BLOCKS, 1.2F, 0.6F);
+            }
+            if (job.index >= 256) {
+                it.remove();
+                finish(level, data, c, chunk, job.target);
+                data.setDirty();
+            }
+        }
     }
 }
