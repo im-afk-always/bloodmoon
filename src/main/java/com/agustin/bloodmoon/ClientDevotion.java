@@ -14,6 +14,9 @@ public final class ClientDevotion {
     public record Aura(Deity deity, int level) {}
     public static final Map<UUID, Aura> AURAS = new ConcurrentHashMap<>();
 
+    /** Lo asigna el cliente: recalcula los nombres mostrados cuando cambian los rangos. */
+    public static Runnable onAurasChanged = () -> {};
+
     private ClientDevotion() {}
 
     public static void set(String id, int rep) {
@@ -27,6 +30,7 @@ public final class ClientDevotion {
             Deity d = Deity.byId(e.deity());
             if (d != null && e.level() > 0) AURAS.put(e.id(), new Aura(d, e.level()));
         }
+        onAurasChanged.run();
     }
 
     public static void reset() {

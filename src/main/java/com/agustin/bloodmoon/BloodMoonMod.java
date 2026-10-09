@@ -62,6 +62,8 @@ public class BloodMoonMod {
         NeoForge.EVENT_BUS.addListener(OfferingManager::onPlayerLogin);
         NeoForge.EVENT_BUS.addListener(OfferingManager::onPlayerChangeDimension);
         NeoForge.EVENT_BUS.addListener(DevotionManager::onPlayerLogin);
+        NeoForge.EVENT_BUS.addListener(DevotionManager::onNameFormat);
+        NeoForge.EVENT_BUS.addListener(DevotionManager::onTabListNameFormat);
         NeoForge.EVENT_BUS.addListener(BloodMoonCommand::register);
         NeoForge.EVENT_BUS.addListener(SupernovaCrater::onLevelTick);
         NeoForge.EVENT_BUS.addListener(SupernovaCrater::onServerStopped);

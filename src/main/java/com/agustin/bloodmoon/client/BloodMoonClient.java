@@ -60,6 +60,10 @@ public class BloodMoonClient {
 
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(DevotionAura::onClientTick);
+        com.agustin.bloodmoon.ClientDevotion.onAurasChanged = () -> {
+            var level = net.minecraft.client.Minecraft.getInstance().level;
+            if (level != null) level.players().forEach(net.minecraft.world.entity.player.Player::refreshDisplayName);
+        };
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onFogColor);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onLogout);
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.ScreenEvent.Init.Post e) -> {

@@ -21,5 +21,9 @@ public final class ModParticles {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> DEVOTION_BOLT =
             PARTICLES.register("devotion_bolt", () -> new SimpleParticleType(true));
 
+    /** Llamas de sangre del aura de devoción (las dibuja el cliente). */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> DEVOTION_FLAME =
+            PARTICLES.register("devotion_flame", () -> new SimpleParticleType(true));
+
     private ModParticles() {}
 }

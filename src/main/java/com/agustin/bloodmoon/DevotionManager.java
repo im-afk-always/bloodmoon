@@ -92,6 +92,7 @@ public final class DevotionManager {
         DevotionRank after = DevotionRank.of(e.reputation);
         if (after != before) broadcastAuras(overworld.getServer());
         if (player == null) return;
+        if (after != before) refreshName(player);
         Style color = deityStyle(e.deity);
         Component gain = Component.translatable(amount > 0 ? "bloodmoon.devotion.gain" : "bloodmoon.devotion.loss",
                 Math.abs(amount), e.deity.inSentence(), e.reputation);
@@ -162,6 +163,7 @@ public final class DevotionManager {
         player.playNotifySound(SoundEvents.BELL_RESONATE, SoundSource.PLAYERS, 1F, 0.5F);
         sync(player);
         broadcastAuras(player.server);
+        refreshName(player);
         return 1;
     }
 
@@ -229,6 +231,7 @@ public final class DevotionManager {
         data.setDirty();
         sync(player);
         broadcastAuras(player.server);
+        refreshName(player);
         return 1;
     }
 
@@ -248,10 +251,51 @@ public final class DevotionManager {
         PacketDistributor.sendToAllPlayers(new com.agustin.bloodmoon.network.DevotionAuraPayload(list));
     }
 
+    // ---------------------------------------------------------------- prefijo [Rango] en el nombre
+
+    /** "[Apóstol] " con corchetes y rango del color de la facción, o null si no es devoto. */
+    public static Component rankPrefix(Deity deity, int level) {
+        if (deity == null || level <= 0) return null;
+        DevotionRank rank = DevotionRank.values()[Math.min(level, DevotionRank.values().length) - 1];
+        return Component.literal("[").append(rank.displayName()).append("]").withStyle(deityStyle(deity))
+                .append(Component.literal(" ").withStyle(ChatFormatting.RESET));
+    }
+
+    private static Component prefixFor(net.minecraft.world.entity.player.Player player) {
+        if (player.level().isClientSide) {
+            ClientDevotion.Aura a = ClientDevotion.AURAS.get(player.getUUID());
+            return a == null ? null : rankPrefix(a.deity(), a.level());
+        }
+        if (player.getServer() == null) return null;
+        DevotionData.Entry e = DevotionData.get(player.getServer().overworld()).all().get(player.getUUID());
+        return e == null || e.deity == null ? null : rankPrefix(e.deity, DevotionRank.of(e.reputation).level());
+    }
+
+    /** Nombre en el chat y sobre la cabeza (corre en servidor y cliente). */
+    public static void onNameFormat(PlayerEvent.NameFormat event) {
+        Component prefix = prefixFor(event.getEntity());
+        if (prefix != null) event.setDisplayname(Component.empty().append(prefix).append(event.getDisplayname()));
+    }
+
+    /** Nombre en la lista de jugadores (Tab). */
+    public static void onTabListNameFormat(PlayerEvent.TabListNameFormat event) {
+        Component prefix = prefixFor(event.getEntity());
+        if (prefix == null) return;
+        Component base = event.getDisplayName() != null ? event.getDisplayName()
+                : net.minecraft.world.scores.PlayerTeam.formatNameForTeam(event.getEntity().getTeam(), event.getEntity().getName());
+        event.setDisplayName(Component.empty().append(prefix).append(base));
+    }
+
+    private static void refreshName(ServerPlayer player) {
+        player.refreshDisplayName();
+        player.refreshTabListName();
+    }
+
     public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             sync(player);
             broadcastAuras(player.server);
+            refreshName(player);
         }
     }
 }

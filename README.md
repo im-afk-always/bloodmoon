@@ -60,9 +60,13 @@ reputación 0. NO: la deidad lo recuerda; la propuesta vuelve con el próximo pe
 En el inventario (bajo la grilla de crafteo) aparece un encapuchado; sus ojos toman el color de la deidad (rojo sangre
 para la Luna de la Cosecha). Al hacer clic muestra deidad, rango, nivel de adoración y reputación.
 
-**Aura de sangre:** los devotos de la Luna de la Cosecha andan envueltos en una bruma de sangre que todos ven. Con cada
-rango se espesa y se agranda (de ~0,5 a ~1,3 bloques de radio); desde Creyente la recorren rayos de estática anaranjado
-oscuro, cada vez más largos y frecuentes. En primera persona la propia aura es tenue y queda de la cintura para abajo.
+**Aura de sangre:** los devotos de la Luna de la Cosecha arden en llamas translúcidas color sangre que nacen en los pies
+y suben (todos las ven). En Iniciado solo lamen los pies; con cada rango suben más hasta envolver a la persona entera
+en Elegido. Desde Creyente las recorren rayos de estática anaranjado oscuro, cada vez más largos y frecuentes. En primera
+persona las propias llamas quedan bajas y ralas.
+
+**Prefijo:** el nombre del devoto lleva su rango delante, con el color de la facción: `[Apóstol] Jugador` en el chat,
+en la lista de jugadores (Tab) y sobre la cabeza.
 
 ## Eclipse Solar
 `/bloodmoon eclipse` lleva la hora al amanecer y arranca uno (o cada N días con `solarEclipseEveryDays`; 0 = solo por

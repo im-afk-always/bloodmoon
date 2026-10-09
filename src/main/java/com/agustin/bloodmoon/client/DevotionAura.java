@@ -2,7 +2,14 @@ package com.agustin.bloodmoon.client;
 
 import com.agustin.bloodmoon.ClientDevotion;
 import com.agustin.bloodmoon.registry.ModParticles;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -10,7 +17,6 @@ import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.particle.TextureSheetParticle;
 import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
@@ -18,26 +24,43 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
-import org.joml.Vector3f;
 
 /**
- * Aura de los devotos de la Luna de la Cosecha: una bruma de sangre que los envuelve. Con cada rango se espesa y se
- * agranda; desde Creyente (III) la recorren rayos de estática anaranjado oscuro, cada vez más largos y frecuentes.
- * En primera persona la propia aura se dibuja más tenue y solo de la cintura para abajo, para no tapar la vista.
+ * Aura de los devotos de la Luna de la Cosecha: llamas translúcidas color sangre que nacen en los pies y suben.
+ * En rangos bajos solo lamen los pies; con cada rango suben más alto hasta envolver a la persona entera (y un poco más).
+ * Desde Creyente (III) las recorren rayos de estática anaranjado oscuro, cada vez más largos y frecuentes.
+ * En primera persona las propias llamas quedan bajas y más ralas, para no tapar la vista.
  */
 public final class DevotionAura {
     private static final int RANGE = 64;
-    private static final Vector3f BLOOD_DARK = new Vector3f(0.20F, 0.0F, 0.012F);
-    private static final Vector3f BLOOD = new Vector3f(0.62F, 0.03F, 0.05F);
-    private static final Vector3f MIST_DARK = new Vector3f(0.13F, 0.0F, 0.01F);
-    private static final Vector3f MIST = new Vector3f(0.32F, 0.01F, 0.02F);
-    private static SpriteSet boltSprites;
+    private static SpriteSet boltSprites, flameSprites;
+
+    /** Como PARTICLE_SHEET_TRANSLUCENT pero sin escribir profundidad: las llamas superpuestas no se recortan entre sí. */
+    static final ParticleRenderType SOFT = new ParticleRenderType() {
+        @Override
+        public BufferBuilder begin(Tesselator tesselator, TextureManager textureManager) {
+            RenderSystem.depthMask(false);
+            RenderSystem.setShaderTexture(0, TextureAtlas.LOCATION_PARTICLES);
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+            return tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+        }
+
+        @Override
+        public String toString() {
+            return "bloodmoon:devotion_soft";
+        }
+    };
 
     private DevotionAura() {}
 
     public static void onRegisterProviders(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ModParticles.DEVOTION_BOLT.get(), set -> {
             boltSprites = set;
+            return (type, level, x, y, z, dx, dy, dz) -> null;
+        });
+        event.registerSpriteSet(ModParticles.DEVOTION_FLAME.get(), set -> {
+            flameSprites = set;
             return (type, level, x, y, z, dx, dy, dz) -> null;
         });
     }
@@ -56,34 +79,24 @@ public final class DevotionAura {
         }
     }
 
+    /** Altura a la que llegan las llamas según el rango: ~0,35 (pies) en Iniciado, ~2,2 (sobre la cabeza) en Elegido. */
+    static float flameHeight(int rank) {
+        float t = Mth.clamp((rank - 1) / 10F, 0F, 1F);
+        return 0.35F + 1.85F * (float) Math.pow(t, 0.85);
+    }
+
     private static void emit(Minecraft mc, ClientLevel level, Player p, int rank, boolean self) {
         RandomSource r = level.random;
         float t = Mth.clamp((rank - 1) / 10F, 0F, 1F);
-        float radius = 0.45F + 0.85F * t;
-        float yMax = self ? 0.9F : p.getBbHeight() * 1.05F;
-        float k = self ? 0.3F : 1F;
-
-        // motas de sangre que suben lento
-        int n = count(r, (1.2F + 8.5F * t) * k);
-        for (int i = 0; i < n; i++) {
-            double a = r.nextDouble() * Math.PI * 2, d = radius * (0.35 + 0.65 * Math.sqrt(r.nextDouble()));
-            Vector3f c = new Vector3f(BLOOD_DARK).lerp(BLOOD, r.nextFloat());
-            float scale = (0.7F + 1.3F * t) * (0.6F + 0.4F * r.nextFloat());
-            level.addParticle(new DustParticleOptions(c, scale),
-                    p.getX() + Math.cos(a) * d, p.getY() + r.nextFloat() * yMax, p.getZ() + Math.sin(a) * d,
-                    0, 0.02 + 0.03 * t, 0);
+        float height = flameHeight(rank);
+        if (self) height = Math.min(height, 0.55F);
+        if (flameSprites != null) {
+            int n = count(r, (2.2F + 5.5F * t) * (self ? 0.45F : 1F));
+            for (int i = 0; i < n; i++) mc.particleEngine.add(new Flame(level, p, height, t, flameSprites));
         }
-        // bruma espesa y oscura: lo que hace que el aura "pese"
-        int m = count(r, (0.15F + 2.4F * t) * k);
-        for (int i = 0; i < m; i++) {
-            double a = r.nextDouble() * Math.PI * 2, d = radius * (0.2 + 0.8 * r.nextDouble());
-            Vector3f c = new Vector3f(MIST_DARK).lerp(MIST, r.nextFloat());
-            level.addParticle(new DustParticleOptions(c, Math.min(4F, 2.2F + 1.8F * t)),
-                    p.getX() + Math.cos(a) * d, p.getY() + r.nextFloat() * yMax * 0.85, p.getZ() + Math.sin(a) * d,
-                    0, 0.01, 0);
-        }
-        // estática: rayos anaranjado oscuro desde Creyente
         if (rank >= 3 && boltSprites != null) {
+            float radius = 0.45F + 0.5F * t;
+            float yMax = self ? 0.9F : Math.min(p.getBbHeight() * 1.05F, height + 0.2F);
             float chance = (0.03F + 0.22F * (rank - 3) / 8F) * (self ? 0.5F : 1F);
             int bolts = count(r, chance * (1F + t));
             for (int i = 0; i < bolts; i++) mc.particleEngine.add(new Bolt(level, p, radius, yMax, t, boltSprites));
@@ -93,6 +106,99 @@ public final class DevotionAura {
     private static int count(RandomSource r, float f) {
         int n = (int) f;
         return n + (r.nextFloat() < f - n ? 1 : 0);
+    }
+
+    // ------------------------------------------------------------------ llama
+
+    /** Lengua de fuego pegada al jugador: nace en un anillo alrededor de los pies, sube, se cierra hacia el cuerpo y se apaga. */
+    static final class Flame extends TextureSheetParticle {
+        private static final int LIGHT = 15728880;
+        private final Player owner;
+        private final SpriteSet sprites;
+        private final float height, size0, sway, swayPhase;
+        private float ox, oy, oz, pox, poy, poz;
+
+        Flame(ClientLevel level, Player owner, float height, float t, SpriteSet sprites) {
+            super(level, owner.getX(), owner.getY(), owner.getZ());
+            this.owner = owner;
+            this.sprites = sprites;
+            this.hasPhysics = false;
+            this.gravity = 0F;
+            this.lifetime = 9 + this.random.nextInt(7);
+            double a = this.random.nextDouble() * Math.PI * 2;
+            float ring = 0.18F + 0.22F * this.random.nextFloat();
+            this.ox = (float) Math.cos(a) * ring;
+            this.oz = (float) Math.sin(a) * ring;
+            this.oy = 0.02F;
+            // unas llamas llegan al tope, otras se quedan a mitad de camino
+            this.height = height * (0.55F + 0.45F * this.random.nextFloat());
+            this.size0 = (0.30F + 0.28F * t) * (0.75F + 0.5F * this.random.nextFloat()) * Math.min(1F, 0.5F + height);
+            this.sway = 0.02F + 0.03F * this.random.nextFloat();
+            this.swayPhase = this.random.nextFloat() * 6.28F;
+            float shade = this.random.nextFloat();
+            this.setColor(Mth.lerp(shade, 0.55F, 0.92F), Mth.lerp(shade, 0.02F, 0.10F), Mth.lerp(shade, 0.03F, 0.08F));
+            this.pox = ox; this.poy = oy; this.poz = oz;
+            this.setSize(1.5F, 3F);
+            this.setSpriteFromAge(sprites);
+            this.setAlpha(0F);
+        }
+
+        @Override
+        public void tick() {
+            this.xo = this.x; this.yo = this.y; this.zo = this.z;
+            pox = ox; poy = oy; poz = oz;
+            if (this.age++ >= this.lifetime || owner.isRemoved()) {
+                this.remove();
+                return;
+            }
+            float life = age / (float) lifetime;
+            oy += height / lifetime;
+            // se cierra hacia el cuerpo al subir y ondula
+            float pull = 0.92F;
+            ox = ox * pull + Mth.sin(age * 0.9F + swayPhase) * sway;
+            oz = oz * pull + Mth.cos(age * 0.8F + swayPhase) * sway;
+            this.setPos(owner.getX(), owner.getY(), owner.getZ());
+            this.setSpriteFromAge(sprites);
+            float in = Mth.clamp(life / 0.15F, 0F, 1F), out = Mth.clamp((1F - life) / 0.45F, 0F, 1F);
+            this.setAlpha(0.62F * in * out);
+            this.quadSize = size0 * (0.75F + 0.5F * Mth.sin(Mth.PI * Math.min(1F, life * 1.3F)));
+        }
+
+        /** Siempre vertical: gira solo alrededor del eje Y para mirar a la cámara. */
+        @Override
+        public void render(VertexConsumer buf, Camera camera, float pt) {
+            Vec3 cam = camera.getPosition();
+            float cx = (float) (Mth.lerp(pt, owner.xo, owner.getX()) - cam.x) + Mth.lerp(pt, pox, ox);
+            float cy = (float) (Mth.lerp(pt, owner.yo, owner.getY()) - cam.y) + Mth.lerp(pt, poy, oy);
+            float cz = (float) (Mth.lerp(pt, owner.zo, owner.getZ()) - cam.z) + Mth.lerp(pt, poz, oz);
+            float hl = Mth.sqrt(cx * cx + cz * cz);
+            float rx, rz;
+            if (hl < 1e-4F) { rx = 1F; rz = 0F; } else { rx = -cz / hl; rz = cx / hl; }
+            float s = getQuadSize(pt);
+            float w = s * 0.75F, h = s * 1.6F;
+            float x0 = cx - rx * w, z0 = cz - rz * w, x1 = cx + rx * w, z1 = cz + rz * w;
+            float yb = cy - h * 0.25F, yt = cy + h * 0.75F;
+            float u0 = getU0(), u1 = getU1(), v0 = getV0(), v1 = getV1();
+            float r = rCol, g = gCol, b = bCol, a = alpha;
+            buf.addVertex(x0, yb, z0).setUv(u1, v1).setColor(r, g, b, a).setLight(LIGHT);
+            buf.addVertex(x0, yt, z0).setUv(u1, v0).setColor(r, g, b, a).setLight(LIGHT);
+            buf.addVertex(x1, yt, z1).setUv(u0, v0).setColor(r, g, b, a).setLight(LIGHT);
+            buf.addVertex(x1, yb, z1).setUv(u0, v1).setColor(r, g, b, a).setLight(LIGHT);
+            buf.addVertex(x1, yb, z1).setUv(u0, v1).setColor(r, g, b, a).setLight(LIGHT);
+            buf.addVertex(x1, yt, z1).setUv(u0, v0).setColor(r, g, b, a).setLight(LIGHT);
+            buf.addVertex(x0, yt, z0).setUv(u1, v0).setColor(r, g, b, a).setLight(LIGHT);
+            buf.addVertex(x0, yb, z0).setUv(u1, v1).setColor(r, g, b, a).setLight(LIGHT);
+        }
+
+        @Override
+        public ParticleRenderType getRenderType() {
+            return SOFT;
+        }
+
+        @Override
+        protected int getLightColor(float partialTick) {
+            return LIGHT;
+        }
     }
 
     // ------------------------------------------------------------------ rayo de estática
