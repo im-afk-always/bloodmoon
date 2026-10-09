@@ -72,10 +72,11 @@ public final class DevotionManager {
     // ---------------------------------------------------------------- reputación y rangos
 
     /** Criar animales: reputación para los devotos de la Providencia. */
-    public static void onBreed(ServerLevel overworld, ServerPlayer player, int amount) {
+    /** @param centi reputación en centésimas (100 = 1). */
+    public static void onBreed(ServerLevel overworld, ServerPlayer player, int centi) {
         Deity d = DevotionData.get(overworld).entry(player.getUUID()).deity;
         if (d == Deity.PROVIDENCE) {
-            addReputation(overworld, player.getUUID(), player, amount, true);
+            addReputationCenti(overworld, player.getUUID(), player, centi, true);
         } else {
             // sin esto, criar sin ser devoto no da ninguna señal y parece que no funciona
             player.displayClientMessage(Component.translatable(d == null ? "bloodmoon.providence.breed.none" : "bloodmoon.providence.breed.other",
@@ -95,19 +96,26 @@ public final class DevotionManager {
     }
 
     public static void addReputation(ServerLevel overworld, UUID id, ServerPlayer player, int amount, boolean quiet) {
+        addReputationCenti(overworld, id, player, amount * 100, quiet);
+    }
+
+    /** Suma (o resta) reputación en centésimas; las fracciones se acumulan hasta formar puntos enteros. */
+    public static void addReputationCenti(ServerLevel overworld, UUID id, ServerPlayer player, int centi, boolean quiet) {
         DevotionData data = DevotionData.get(overworld);
         DevotionData.Entry e = data.entry(id);
-        if (e.deity == null || amount == 0) return;
+        if (e.deity == null || centi == 0) return;
         DevotionRank before = DevotionRank.of(e.reputation);
-        e.reputation = Math.max(0, e.reputation + amount);
+        int total = Math.max(0, e.centi() + centi);
+        e.reputation = total / 100;
+        e.partial = total % 100;
         data.setDirty();
         DevotionRank after = DevotionRank.of(e.reputation);
         if (after != before) broadcastAuras(overworld.getServer());
         if (player == null) return;
         if (after != before) refreshName(player);
         Style color = deityStyle(e.deity);
-        Component gain = Component.translatable(amount > 0 ? "bloodmoon.devotion.gain" : "bloodmoon.devotion.loss",
-                Math.abs(amount), e.deity.inSentence(), e.reputation);
+        Component gain = Component.translatable(centi > 0 ? "bloodmoon.devotion.gain" : "bloodmoon.devotion.loss",
+                DevotionRank.format(Math.abs(centi)), e.deity.inSentence(), DevotionRank.format(total));
         if (quiet) {
             player.displayClientMessage(gain.copy().withStyle(color), true);
             player.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.35F, 1.3F + player.getRandom().nextFloat() * 0.3F);
@@ -164,6 +172,7 @@ public final class DevotionManager {
         e.pendingOffer = null;
         e.deity = deity;
         e.reputation = 0;
+        e.partial = 0;
         data.setDirty();
 
         Style color = deityStyle(deity);
@@ -236,7 +245,7 @@ public final class DevotionManager {
         } else {
             DevotionRank rank = DevotionRank.of(e.reputation);
             player.sendSystemMessage(Component.translatable("bloodmoon.devotion.status.devotion", e.deity.displayName(), rank.displayName(),
-                    rank.roman(), e.reputation).withStyle(deityStyle(e.deity)));
+                    rank.roman(), DevotionRank.format(e.centi())).withStyle(deityStyle(e.deity)));
         }
         if (e.pendingOffer != null) {
             player.sendSystemMessage(Component.translatable("bloodmoon.devotion.status.pending", e.pendingOffer.displayName()).withStyle(ChatFormatting.GRAY));
@@ -270,6 +279,7 @@ public final class DevotionManager {
         DevotionData.Entry e = data.entry(player.getUUID());
         e.deity = null;
         e.reputation = 0;
+        e.partial = 0;
         e.pendingOffer = null;
         data.setDirty();
         sync(player);
@@ -282,7 +292,7 @@ public final class DevotionManager {
 
     public static void sync(ServerPlayer player) {
         DevotionData.Entry e = DevotionData.get(player.server.overworld()).entry(player.getUUID());
-        PacketDistributor.sendToPlayer(player, new DevotionPayload(e.deity == null ? "" : e.deity.id(), e.reputation));
+        PacketDistributor.sendToPlayer(player, new DevotionPayload(e.deity == null ? "" : e.deity.id(), e.reputation, e.partial));
     }
 
     /** Deidad y nivel de cada devoto, a todos los jugadores (para que vean las auras ajenas). */

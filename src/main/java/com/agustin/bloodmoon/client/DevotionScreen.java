@@ -60,16 +60,17 @@ public class DevotionScreen extends Screen {
         g.drawString(font, deity.displayName(), tx, ty, accent | 0xFF000000, true);
         g.drawString(font, Component.translatable("bloodmoon.devotion.screen.rank", rank.displayName()), tx, ty + 14, 0xFFE8DCD0, false);
         g.drawString(font, Component.translatable("bloodmoon.devotion.screen.level", rank.roman()), tx, ty + 26, 0xFFC8BCB0, false);
-        g.drawString(font, Component.translatable("bloodmoon.devotion.screen.reputation", rep), tx, ty + 38, 0xFFC8BCB0, false);
+        int centi = rep * 100 + ClientDevotion.partial;
+        g.drawString(font, Component.translatable("bloodmoon.devotion.screen.reputation", DevotionRank.format(centi)), tx, ty + 38, 0xFFC8BCB0, false);
 
         // barra al siguiente rango
         int bw = W - (tx - x0) - 12, by = ty + 52;
         g.fill(tx, by, tx + bw, by + 4, 0xFF2A1A1E);
-        float frac = next == null ? 1F : (rep - rank.minReputation) / (float) (next.minReputation - rank.minReputation);
+        float frac = next == null ? 1F : (centi / 100F - rank.minReputation) / (float) (next.minReputation - rank.minReputation);
         g.fill(tx, by, tx + Math.round(bw * Math.min(1F, frac)), by + 4, accent);
         Component prog = next == null
                 ? Component.translatable("bloodmoon.devotion.screen.max")
-                : Component.translatable("bloodmoon.devotion.screen.next", rep, next.minReputation, next.displayName());
+                : Component.translatable("bloodmoon.devotion.screen.next", DevotionRank.format(centi), next.minReputation, next.displayName());
         g.drawString(font, prog, tx, by + 7, 0xFF8A8086, false);
     }
 }

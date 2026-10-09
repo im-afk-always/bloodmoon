@@ -31,6 +31,12 @@ public enum DevotionRank {
 
     public String roman() { return ROMAN[ordinal()]; }
 
+    /** Reputación en centésimas como texto: "12" o "12.45". */
+    public static String format(int centi) {
+        if (centi % 100 == 0) return Integer.toString(centi / 100);
+        return String.format(java.util.Locale.ROOT, "%d.%02d", centi / 100, Math.abs(centi % 100));
+    }
+
     /** Siguiente rango, o null si es el máximo. */
     public DevotionRank next() {
         int i = ordinal() + 1;

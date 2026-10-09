@@ -20,6 +20,11 @@ public class DevotionData extends SavedData {
         /** Deidad a la que es devoto (null = ninguna). */
         public Deity deity;
         public int reputation;
+        /** Fracción de reputación acumulada, en centésimas (0..99). */
+        public int partial;
+
+        /** Reputación total en centésimas. */
+        public int centi() { return reputation * 100 + partial; }
         /** Deidad que le ofreció su culto y espera respuesta (null = ninguna). */
         public Deity pendingOffer;
     }
@@ -42,6 +47,7 @@ public class DevotionData extends SavedData {
             Entry e = new Entry();
             e.deity = Deity.byId(t.getString("deity"));
             e.reputation = t.getInt("reputation");
+            e.partial = t.getInt("partial");
             e.pendingOffer = Deity.byId(t.getString("pending"));
             data.players.put(t.getUUID("id"), e);
         }
@@ -61,6 +67,7 @@ public class DevotionData extends SavedData {
             t.putUUID("id", id);
             t.putString("deity", e.deity == null ? "" : e.deity.id());
             t.putInt("reputation", e.reputation);
+            t.putInt("partial", e.partial);
             t.putString("pending", e.pendingOffer == null ? "" : e.pendingOffer.id());
             list.add(t);
         });

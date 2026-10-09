@@ -16,6 +16,7 @@ public final class BloodMoonConfig {
     public static final ModConfigSpec.DoubleValue OFFERING_BLESSING_CHANCE;
     public static final ModConfigSpec.DoubleValue PROVIDENCE_PER_DAY;
     public static final ModConfigSpec.IntValue PROVIDENCE_CAP;
+    public static final ModConfigSpec.DoubleValue PROVIDENCE_SURPLUS;
     public static final ModConfigSpec.BooleanValue ECLIPSE_MOBS;
 
     public static final ModConfigSpec.IntValue CREEPER_EXPLOSION_MULT;
@@ -54,6 +55,8 @@ public final class BloodMoonConfig {
         PROVIDENCE_PER_DAY = b.comment("Tributos (cultivos maduros cosechados + minerales extraídos) exigidos en cada Luna de la Providencia = días x este valor.")
                 .defineInRange("providenceTributePerDay", 5.0, 0.0, 1000.0);
         PROVIDENCE_CAP = b.comment("Máximo de tributos exigidos por Luna de la Providencia (0 = sin tope).").defineInRange("providenceTributeCap", 150, 0, 100000);
+        PROVIDENCE_SURPLUS = b.comment("Reputación por cada mineral, cultivo o cría después de cumplir el pedido de la Providencia (solo devotos).")
+                .defineInRange("providenceSurplusReputation", 0.15, 0.0, 100.0);
         ECLIPSE_INTERVAL = b.comment("Cada cuántos días ocurre un Eclipse Solar (0 = solo con /bloodmoon eclipse).")
                 .defineInRange("solarEclipseEveryDays", 0, 0, 1000);
         ECLIPSE_MOBS = b.comment("Durante la totalidad despiertan criaturas de la noche alrededor de cada jugador a cielo abierto,",

@@ -220,7 +220,12 @@ public final class OfferingManager {
         }
         BloodMoonData data = BloodMoonData.get(level);
         if (data.isOfferingComplete()) {
-            player.displayClientMessage(Component.translatable("bloodmoon.devotion.status.done").withStyle(ChatFormatting.GRAY), true);
+            // pedido cumplido: cada tributo extra da una fracción de reputación a los devotos
+            if (DevotionData.get(level).entry(player.getUUID()).deity == Deity.PROVIDENCE) {
+                DevotionManager.addReputationCenti(level, player.getUUID(), player, surplusCenti(), true);
+            } else {
+                player.displayClientMessage(Component.translatable("bloodmoon.devotion.status.done").withStyle(ChatFormatting.GRAY), true);
+            }
             return;
         }
         data.addOfferingDone(1);
@@ -265,11 +270,18 @@ public final class OfferingManager {
         return 1;
     }
 
-    /** Criar animales: reputación con la Providencia (doble durante su luna). */
+    /** Criar animales: reputación con la Providencia (+1; +2 durante su luna; 0,15 una vez cumplido su pedido). */
     public static void onBabySpawn(net.neoforged.neoforge.event.entity.living.BabyEntitySpawnEvent event) {
         if (!(event.getCausedByPlayer() instanceof ServerPlayer player)) return;
         ServerLevel overworld = player.server.overworld();
-        DevotionManager.onBreed(overworld, player, providenceActive(overworld) ? 2 : 1);
+        boolean active = providenceActive(overworld);
+        int centi = active && BloodMoonData.get(overworld).isOfferingComplete() ? surplusCenti() : (active ? 200 : 100);
+        DevotionManager.onBreed(overworld, player, centi);
+    }
+
+    /** Reputación (en centésimas) por cada acción extra tras cumplir el pedido de la Providencia. */
+    private static int surplusCenti() {
+        return (int) Math.round(BloodMoonConfig.PROVIDENCE_SURPLUS.get() * 100);
     }
 
     // ---------------------------------------------------------------- dormir

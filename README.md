@@ -85,7 +85,8 @@ remolacha, verruga del Nether, cacao, calabaza, sandía...) y cada **mineral ext
 coloca durante la noche no cuenta (no se puede poner y romper). Arriba a la derecha: «Tributos restantes X/Y».
 No hay ofensas: si no se cumple, la Providencia solo lo recuerda. Cumplirlo da reputación y la propuesta de devoción.
 **Criar animales** da reputación a sus devotos: +1 por cría, +2 durante su luna.
-Config: `providenceTributePerDay` (5), `providenceTributeCap` (150).
+Una vez cumplido el pedido, cada mineral, cultivo o cría de esa noche da **+0,15** (las fracciones se acumulan).
+Config: `providenceTributePerDay` (5), `providenceTributeCap` (150), `providenceSurplusReputation` (0,15).
 
 ## Eclipse Solar
 `/bloodmoon eclipse` lleva la hora al amanecer y arranca uno (o cada N días con `solarEclipseEveryDays`; 0 = solo por

@@ -10,6 +10,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class ClientDevotion {
     public static volatile Deity deity;
     public static volatile int reputation;
+    /** Fracción de reputación en centésimas (0..99). */
+    public static volatile int partial;
 
     public record Aura(Deity deity, int level) {}
     public static final Map<UUID, Aura> AURAS = new ConcurrentHashMap<>();
@@ -19,9 +21,10 @@ public final class ClientDevotion {
 
     private ClientDevotion() {}
 
-    public static void set(String id, int rep) {
+    public static void set(String id, int rep, int part) {
         deity = Deity.byId(id);
         reputation = rep;
+        partial = part;
     }
 
     public static void setAuras(DevotionAuraPayload payload) {
@@ -36,6 +39,7 @@ public final class ClientDevotion {
     public static void reset() {
         deity = null;
         reputation = 0;
+        partial = 0;
         AURAS.clear();
     }
 }
