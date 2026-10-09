@@ -185,5 +185,6 @@
   "bloodmoon.devotion.status.devotion": "Devoción: %s · %s (nivel %s) · reputación %s",
   "bloodmoon.devotion.status.pending": "Propuesta pendiente de: %s",
   "bloodmoon.devotion.status.request": "Pedido en curso: %s · %s/%s (tu aporte: %s)",
-  "bloodmoon.devotion.status.norequest": "No hay ningún pedido en curso (solo durante la Luna de la Cosecha o la de la Providencia)."
+  "bloodmoon.devotion.status.norequest": "No hay ningún pedido en curso (solo durante la Luna de la Cosecha o la de la Providencia).",
+  "bloodmoon.devotion.status.done": "El pedido de esta noche ya está cumplido."
 }

@@ -140,15 +140,7 @@ public final class OfferingManager {
             data.addOfferingDone(1);
             DevotionManager.onOfferingKill(level, killer);
             if (killer.getRandom().nextDouble() < BloodMoonConfig.OFFERING_BLESSING_CHANCE.get()) bless(killer);
-            if (data.isOfferingComplete()) {
-                data.setOfferingSettled();
-                tell(level, Component.translatable("bloodmoon.offering.complete").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
-                for (ServerPlayer p : level.players()) {
-                    p.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.MASTER, 0.8F, 0.8F);
-                }
-                // la reputación se mide por el pedido original: las ofrendas deshonrosas no la inflan
-                DevotionManager.onRequestComplete(level, Deity.HARVEST, requiredFor(level));
-            }
+            if (data.isOfferingComplete()) complete(level, Deity.HARVEST);
             broadcast(level);
         } else if (victim instanceof Mob) {
             data.addOfferingRequired(2);
@@ -208,14 +200,41 @@ public final class OfferingManager {
         int left = Math.max(0, data.getOfferingRequired() - data.getOfferingDone());
         player.displayClientMessage(Component.translatable("bloodmoon.providence.counted", left).withStyle(ChatFormatting.GOLD), true);
         player.playNotifySound(SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.5F, 1.4F + player.getRandom().nextFloat() * 0.3F);
-        if (data.isOfferingComplete()) {
-            data.setOfferingSettled();
-            BloodMoonMod.LOGGER.info("Providence request complete ({} tributes)", data.getOfferingRequired());
-            tell(level, Component.translatable("bloodmoon.providence.complete").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
-            for (ServerPlayer p : level.players()) p.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.MASTER, 0.8F, 1.2F);
-            DevotionManager.onRequestComplete(level, Deity.PROVIDENCE, requiredFor(level, Deity.PROVIDENCE));
-        }
+        if (data.isOfferingComplete()) complete(level, Deity.PROVIDENCE);
         broadcast(level);
+    }
+
+    /** Pedido cumplido: anuncio y reputación (o la propuesta de devoción) para quienes aportaron. */
+    private static void complete(ServerLevel level, Deity deity) {
+        BloodMoonData data = BloodMoonData.get(level);
+        data.setOfferingSettled();
+        BloodMoonMod.LOGGER.info("{} request complete ({}/{})", deity.id(), data.getOfferingDone(), data.getOfferingRequired());
+        boolean prov = deity == Deity.PROVIDENCE;
+        tell(level, Component.translatable(prov ? "bloodmoon.providence.complete" : "bloodmoon.offering.complete")
+                .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+        for (ServerPlayer p : level.players()) p.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.MASTER, 0.8F, prov ? 1.2F : 0.8F);
+        // la reputación se mide por el pedido original: las ofrendas deshonrosas no la inflan
+        DevotionManager.onRequestComplete(level, deity, requiredFor(level, deity));
+    }
+
+    /** Para pruebas (OP): completa el pedido en curso como si lo hubiera hecho entero quien ejecuta el comando. */
+    public static int debugComplete(ServerPlayer player) {
+        ServerLevel level = player.server.overworld();
+        BloodMoonData data = BloodMoonData.get(level);
+        if (!data.isOfferingActive()) {
+            player.sendSystemMessage(Component.translatable("bloodmoon.devotion.status.norequest").withStyle(ChatFormatting.GRAY));
+            return 0;
+        }
+        int left = data.getOfferingRequired() - data.getOfferingDone();
+        if (left <= 0) {
+            player.sendSystemMessage(Component.translatable("bloodmoon.devotion.status.done").withStyle(ChatFormatting.GRAY));
+            return 0;
+        }
+        data.addOfferingDone(left);
+        for (int i = 0; i < left; i++) DevotionManager.onOfferingKill(level, player);
+        complete(level, data.getOfferingDeity());
+        broadcast(level);
+        return 1;
     }
 
     /** Criar animales: reputación con la Providencia (doble durante su luna). */

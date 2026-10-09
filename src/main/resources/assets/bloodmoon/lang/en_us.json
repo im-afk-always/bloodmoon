@@ -185,5 +185,6 @@
   "bloodmoon.devotion.status.devotion": "Devotion: %s · %s (level %s) · reputation %s",
   "bloodmoon.devotion.status.pending": "Pending offer from: %s",
   "bloodmoon.devotion.status.request": "Current request: %s · %s/%s (your share: %s)",
-  "bloodmoon.devotion.status.norequest": "No request in progress (only during the Harvest Moon or the Providence Moon)."
+  "bloodmoon.devotion.status.norequest": "No request in progress (only during the Harvest Moon or the Providence Moon).",
+  "bloodmoon.devotion.status.done": "Tonight's request is already fulfilled."
 }
