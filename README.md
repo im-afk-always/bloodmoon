@@ -203,7 +203,7 @@ oscureciendo; al tocar el suelo, en la negrura brota de golpe la luz y estalla c
 Tras el Ojo Colosal y las Fauces baja exhausto hasta el piso (vulnerable). Al morir, todos vuelven al Santuario con el botín.
 Morir en el Más Allá no hace perder el inventario. Si pierden, el Santuario se reabre en 5 minutos.
 
-## Invasión del Vacío (etapa 1)
+## Invasión del Vacío (etapas 1 y 2)
 Encender el portal del zigurat de un **Coliseo del Vacío** despierta un **Dominio** con eje en ese portal. El Dominio
 crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarlos), hasta **1000 bloques** del portal
 (`invasionRadius`); avanzar le cuesta más cuanto más lejos y sobre el agua. Cuando un chunk se carga, se aplica:
@@ -213,6 +213,13 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
   contenido de cofres y barriles va al **Relicario**. El coliseo no se toca.
 - **Obeliscos del Dominio:** anclas de roca negra con un **Núcleo** (pico de diamante); romperlo hace retroceder la influencia.
 - **Fases:** Despertar, Arraigo, Conquista y Dominio (con los valores por defecto: ~día 7, ~18 y ~33).
+- **Rangos con cuerpo:** cuando te acercás a su puesto aparecen el **Capitán del Vacío** (esqueleto de élite con el
+  estandarte del Dominio, barra de jefe; potencia a las tropas cercanas; custodia un obelisco) y los **Generales**
+  (el Emisario o el Ejecutor, en tierra muerta a media distancia). Lejos de todos vuelven a ser datos y guardan su vida.
+  Matarlos deja el puesto vacío un día; un General caído además le quita esencia al Dominio y lo frena a la mitad un día.
+- **Guarniciones:** cada obelisco cercano a un jugador tiene de 2 a 5 Centinelas y Arqueros.
+- **Forjadores del Vacío:** con un jugador cerca, los obeliscos se levantan bloque a bloque; matarlos detiene la obra
+  (vuelven en 30 s si el Dominio tiene). Con un jugador a menos de 64 bloques, la corrupción avanza columna a columna.
 - **Final:** entrar por el portal de ese coliseo y vencer al **Observador Desatado**. El Dominio se quiebra, el Relicario
   aparece en cofres junto al portal y la tierra sana de afuera hacia adentro.
 - **Mapa del Dominio:** botón con un mapa en el inventario (junto al encapuchado). Muestra el terreno que ya viste y el
