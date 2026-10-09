@@ -11,6 +11,7 @@ Una vez por jugador y por mundo; `/bloodmoon intro` lo repite.
 | Luna de Sangre | cada 3 noches | Luna vanilla teñida de rojo, cielo negro sin estrellas |
 | Luna de la Cosecha | cada 13 noches | Cielo carmesí, luna realista con halo, todo teñido de rojo |
 | Luna Dorada | cada 7 noches | Luna vanilla dorada, cielo oscuro con brillo dorado (sin efectos de juego) |
+| Eclipse Solar | por comando (o cada N días) | Ver "Eclipse Solar" |
 | Noche sin Luna | cada 50 noches | La noche cae lento hasta negro total; una ruptura nace en el cenit, se propaga a los horizontes y se abre en una grieta; dentro, un ojo púrpura de pupila felina que frunce la mirada. La grieta y el ojo irradian una luz violeta difusa: el mundo se ilumina tenuemente de púrpura a medida que se abre (las antorchas viran a lavanda), con resplandor, contraste y viñeta violeta. Toda la noche surgen hordas de **Centinelas** (espada) y **Arqueros del Vacío** (arco): esqueletos de hueso negro con armadura del Vacío encantada; se desvanecen al amanecer. A medianoche cae del cielo como un bólido negro el **Emisario Desconocido** o **El Ejecutor**, dejando un cráter |
 
 Prioridad si coinciden: Sin Luna > Súper > Sangre > Dorada.
@@ -33,6 +34,21 @@ solo con la luna; la mano y la interfaz no se tiñen. Se puede apagar en `config
 - Zombis: diamante completo + espada de diamante, Velocidad I + Fuerza I.
 - Phantoms gigantes (x3, daño x2) que aparecen sin necesidad de insomnio.
 - **Jinete del Apocalipsis** (1 por jugador a medianoche): wither skeleton x2 con netherite y arco Flame + Punch I que dispara 5 flechas en abanico, sobre un caballo esqueleto x2. Barra de jefe.
+
+## Eclipse Solar
+`/bloodmoon eclipse` lleva la hora a la mañana y arranca uno (o cada N días con `solarEclipseEveryDays`; 0 = solo por
+comando). `/bloodmoon eclipse cancel` lo cancela. Todo ocurre en ~3 min 40 s de juego:
+- Ese día el sol es realista (granulación, borde más oscuro y anaranjado, resplandor). A ~45° de altura la luna nueva
+  empieza a morderlo; es invisible contra el cielo salvo donde tapa al sol, como en la realidad.
+- La luz se ahoga poco a poco (casi no cambia hasta ~75% tapado y después cae en picada): el mundo vira a un gris pardo
+  apagado, el cielo a pizarra casi negro, las nubes se apagan y el horizonte queda encendido todo alrededor como un
+  atardecer de 360°. Las antorchas no cambian: en la totalidad son lo único que brilla.
+- Justo antes de la totalidad, las **cuentas de Baily** titilan en el borde y estalla el **anillo de diamante**: el
+  último rayo de sol con un destello cegador y rayos larguísimos (encandila si lo mirás).
+- **Totalidad** (~24 s, con el sol a ~61°): la corona perlada con sus serpentinas y protuberancias rosadas, estrellas
+  en pleno día, un acorde grave. Despiertan criaturas de la noche alrededor de quienes estén a cielo abierto y los
+  no-muertos no se queman mientras dura la oscuridad (`solarEclipseCreatures`).
+- Al salir, el anillo de diamante vuelve por el borde opuesto y la luz regresa.
 
 ## Emisario Desconocido (Noche sin Luna, medianoche)
 Caballero no-muerto de ~12 bloques, armadura negra y espadón rúnico. 400 de vida, barra de jefe propia.

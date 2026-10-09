@@ -95,20 +95,14 @@ public final class EclipseSkyRenderer {
         float d = st == null ? 9F : st.d();
         float mx = s * Eclipse.DIR_X * SR, mz = s * Eclipse.DIR_Y * SR;
 
-        // 1) resplandor del sol: se apaga a medida que la luna lo tapa
         RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
-        float glow = clear * (float) Math.pow(b, 1.3);
-        fan(m, 0F, 0F, SR * 9F, 1F, 0.86F, 0.62F, 0.32F * glow);
-        fan(m, 0F, 0F, SR * 3.2F, 1F, 0.95F, 0.82F, 0.55F * glow);
-
-        // 2) el disco solar
+        // 1) el disco solar
         RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         RenderSystem.setShaderTexture(0, SUN);
         Minecraft.getInstance().getTextureManager().getTexture(SUN).setFilter(true, false);
         quad(m, 0F, 0F, SR, 1F, 1F, 1F, clear);
 
-        // 3) la corona (detrás de la luna: la luna tapa su centro)
+        // 2) la corona (detrás de la luna: la luna tapa su centro)
         float cor = st == null ? 0F : st.corona();
         if (cor > 0.003F) {
             RenderSystem.setShaderTexture(0, CORONA);
@@ -117,7 +111,7 @@ public final class EclipseSkyRenderer {
             quad(m, 0F, 0F, SR * 4.5F * breathe, 1F, 1F, 1F, clear * cor);
         }
 
-        // 4) la luna nueva, del color del cielo: solo se nota donde tapa al sol
+        // 3) la luna nueva, del color del cielo: solo se nota donde tapa al sol
         if (st != null && d < 2.3F) {
             RenderSystem.defaultBlendFunc();
             RenderSystem.setShader(GameRenderer::getPositionColorShader);
@@ -126,7 +120,15 @@ public final class EclipseSkyRenderer {
             disc(m, mx, mz, SR * Eclipse.MOON_R, (float) sky.x * dim, (float) sky.y * dim, (float) sky.z * dim, 1F);
         }
 
-        // 5) cuentas de Baily y anillo de diamante, sobre el borde por donde se va (o vuelve) el último rayo
+        // 5) el resplandor del sol, encima de la luna: el brillo de lo que queda del disco la vuelve invisible
+        //    contra el cielo (como en la realidad) y se apaga a medida que la luna lo tapa
+        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        float glow = clear * (float) Math.pow(b, 1.3);
+        fan(m, 0F, 0F, SR * 9F, 1F, 0.86F, 0.62F, 0.32F * glow);
+        fan(m, 0F, 0F, SR * 3.2F, 1F, 0.95F, 0.82F, 0.55F * glow);
+
+        // 6) cuentas de Baily y anillo de diamante, sobre el borde por donde se va (o vuelve) el último rayo
         if (st != null) {
             float side = s < 0F ? 1F : -1F;
             float px = side * Eclipse.DIR_X * SR, pz = side * Eclipse.DIR_Y * SR;
