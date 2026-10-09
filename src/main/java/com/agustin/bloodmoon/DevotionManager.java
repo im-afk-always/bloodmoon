@@ -71,7 +71,18 @@ public final class DevotionManager {
 
     // ---------------------------------------------------------------- reputación y rangos
 
+    /** Kill por encima de la cuota de la noche: +1 de reputación (aviso discreto en la barra de acción). */
+    public static void onSurplusKill(ServerLevel overworld, ServerPlayer killer, Deity deity) {
+        if (DevotionData.get(overworld).entry(killer.getUUID()).deity == deity) {
+            addReputation(overworld, killer.getUUID(), killer, 1, true);
+        }
+    }
+
     public static void addReputation(ServerLevel overworld, UUID id, ServerPlayer player, int amount) {
+        addReputation(overworld, id, player, amount, false);
+    }
+
+    public static void addReputation(ServerLevel overworld, UUID id, ServerPlayer player, int amount, boolean quiet) {
         DevotionData data = DevotionData.get(overworld);
         DevotionData.Entry e = data.entry(id);
         if (e.deity == null || amount == 0) return;
@@ -79,10 +90,13 @@ public final class DevotionManager {
         e.reputation = Math.max(0, e.reputation + amount);
         data.setDirty();
         DevotionRank after = DevotionRank.of(e.reputation);
+        if (after != before) broadcastAuras(overworld.getServer());
         if (player == null) return;
         Style color = deityStyle(e.deity);
-        player.sendSystemMessage(Component.translatable(amount > 0 ? "bloodmoon.devotion.gain" : "bloodmoon.devotion.loss",
-                Math.abs(amount), e.deity.inSentence(), e.reputation).withStyle(ChatFormatting.GRAY));
+        Component gain = Component.translatable(amount > 0 ? "bloodmoon.devotion.gain" : "bloodmoon.devotion.loss",
+                Math.abs(amount), e.deity.inSentence(), e.reputation);
+        if (quiet) player.displayClientMessage(gain.copy().withStyle(color), true);
+        else player.sendSystemMessage(gain.copy().withStyle(ChatFormatting.GRAY));
         if (after.ordinal() > before.ordinal()) {
             player.sendSystemMessage(Component.translatable("bloodmoon.devotion.rankup", after.displayName(), e.deity.inSentence())
                     .withStyle(color.withBold(true)));
@@ -147,6 +161,7 @@ public final class DevotionManager {
         player.playNotifySound(SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 1F, 0.6F);
         player.playNotifySound(SoundEvents.BELL_RESONATE, SoundSource.PLAYERS, 1F, 0.5F);
         sync(player);
+        broadcastAuras(player.server);
         return 1;
     }
 
@@ -213,6 +228,7 @@ public final class DevotionManager {
         e.pendingOffer = null;
         data.setDirty();
         sync(player);
+        broadcastAuras(player.server);
         return 1;
     }
 
@@ -223,7 +239,19 @@ public final class DevotionManager {
         PacketDistributor.sendToPlayer(player, new DevotionPayload(e.deity == null ? "" : e.deity.id(), e.reputation));
     }
 
+    /** Deidad y nivel de cada devoto, a todos los jugadores (para que vean las auras ajenas). */
+    public static void broadcastAuras(net.minecraft.server.MinecraftServer server) {
+        java.util.List<com.agustin.bloodmoon.network.DevotionAuraPayload.Entry> list = new java.util.ArrayList<>();
+        DevotionData.get(server.overworld()).all().forEach((id, e) -> {
+            if (e.deity != null) list.add(new com.agustin.bloodmoon.network.DevotionAuraPayload.Entry(id, e.deity.id(), DevotionRank.of(e.reputation).level()));
+        });
+        PacketDistributor.sendToAllPlayers(new com.agustin.bloodmoon.network.DevotionAuraPayload(list));
+    }
+
     public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) sync(player);
+        if (event.getEntity() instanceof ServerPlayer player) {
+            sync(player);
+            broadcastAuras(player.server);
+        }
     }
 }

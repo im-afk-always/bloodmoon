@@ -100,7 +100,12 @@ public final class OfferingManager {
         if (!(event.getSource().getEntity() instanceof ServerPlayer killer)) return;
         if (victim instanceof Player) return;
         BloodMoonData data = BloodMoonData.get(level);
-        if (!data.isOfferingActive() || data.isOfferingComplete()) return;
+        if (!data.isOfferingActive()) return;
+        if (data.isOfferingComplete()) {
+            // cuota cumplida: cada criatura hostil extra da +1 de reputación a sus devotos
+            if (victim instanceof Enemy) DevotionManager.onSurplusKill(level, killer, Deity.HARVEST);
+            return;
+        }
 
         if (victim instanceof Enemy) {
             data.addOfferingDone(1);

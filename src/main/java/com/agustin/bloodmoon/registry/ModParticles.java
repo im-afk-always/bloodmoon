@@ -17,5 +17,9 @@ public final class ModParticles {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SUPERNOVA_GLOW =
             PARTICLES.register("supernova_glow", () -> new SimpleParticleType(true));
 
+    /** Rayos de estática del aura de devoción (los dibuja el cliente). */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> DEVOTION_BOLT =
+            PARTICLES.register("devotion_bolt", () -> new SimpleParticleType(true));
+
     private ModParticles() {}
 }

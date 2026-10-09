@@ -53,11 +53,13 @@ public class BloodMoonClient {
         modBus.addListener(NukeClouds::onRegisterProviders);
         NukeClouds.init();
         modBus.addListener(SupernovaFx::onRegisterProviders);
+        modBus.addListener(DevotionAura::onRegisterProviders);
         SupernovaFx.init();
         IntroEye.init();
         EyeFightFx.init();
 
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onClientTick);
+        NeoForge.EVENT_BUS.addListener(DevotionAura::onClientTick);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onFogColor);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onLogout);
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.ScreenEvent.Init.Post e) -> {

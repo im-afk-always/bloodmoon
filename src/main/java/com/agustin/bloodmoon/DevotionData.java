@@ -81,6 +81,8 @@ public class DevotionData extends SavedData {
         return players.computeIfAbsent(id, k -> new Entry());
     }
 
+    public Map<UUID, Entry> all() { return players; }
+
     public Map<UUID, Integer> contributions() { return contributions; }
 
     public void addContribution(UUID id) {

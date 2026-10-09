@@ -38,7 +38,8 @@ la derecha aparece **«Ofrendas restantes X/Y»**. La cuenta es compartida por t
 
 ### Devoción
 Completar el pedido de una deidad da **reputación** a cada jugador que aportó: entre el 50 % y el 100 % de la dificultad
-del pedido, según su parte (las ofrendas deshonrosas no la inflan). Quien no es devoto recibe en el chat
+del pedido, según su parte (las ofrendas deshonrosas no la inflan). Una vez cumplida la cuota de la noche, cada criatura
+hostil extra da **+1** de reputación a sus devotos. Quien no es devoto recibe en el chat
 *«¿Quieres ser devoto de la Luna de la Cosecha? - [SÍ] [NO]»* (clic con el chat abierto). SÍ: entra como Iniciado con
 reputación 0. NO: la deidad lo recuerda; la propuesta vuelve con el próximo pedido cumplido.
 
@@ -58,6 +59,10 @@ reputación 0. NO: la deidad lo recuerda; la propuesta vuelve con el próximo pe
 
 En el inventario (bajo la grilla de crafteo) aparece un encapuchado; sus ojos toman el color de la deidad (rojo sangre
 para la Luna de la Cosecha). Al hacer clic muestra deidad, rango, nivel de adoración y reputación.
+
+**Aura de sangre:** los devotos de la Luna de la Cosecha andan envueltos en una bruma de sangre que todos ven. Con cada
+rango se espesa y se agranda (de ~0,5 a ~1,3 bloques de radio); desde Creyente la recorren rayos de estática anaranjado
+oscuro, cada vez más largos y frecuentes. En primera persona la propia aura es tenue y queda de la cintura para abajo.
 
 ## Eclipse Solar
 `/bloodmoon eclipse` lleva la hora al amanecer y arranca uno (o cada N días con `solarEclipseEveryDays`; 0 = solo por
