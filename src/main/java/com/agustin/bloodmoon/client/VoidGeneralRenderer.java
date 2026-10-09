@@ -9,11 +9,11 @@ import net.minecraft.client.renderer.entity.MobRenderer;
 import net.minecraft.client.renderer.entity.layers.EyesLayer;
 import net.minecraft.resources.ResourceLocation;
 
-/** General del Vacío (×1,8): armadura oscura con la visera, el ojo del peto, la hoja y las runas encendidas. */
+/** General del Vacío (×0,9 sobre un modelo de doble resolución): armadura oscura con la visera, el ojo del peto, la hoja y las runas encendidas. */
 public class VoidGeneralRenderer extends MobRenderer<VoidGeneral, VoidGeneralModel> {
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/entity/void_general.png");
     private static final ResourceLocation GLOW = ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/entity/void_general_glow.png");
-    private static final float SCALE = 1.8F;
+    private static final float SCALE = 0.9F;
 
     public VoidGeneralRenderer(EntityRendererProvider.Context context) {
         super(context, new VoidGeneralModel(context.bakeLayer(VoidGeneralModel.LAYER)), 1.2F);

@@ -29,6 +29,8 @@ public final class Faction {
     public int nextRankUid = 1;
     /** Hasta este tick el Dominio avanza a la mitad (murió un General). */
     public long slowedUntil;
+    /** Interregno: tras la caída del Rey, el Dominio no gana tierra hasta este tick. */
+    public long haltedUntil;
     public final List<RankRecord> ranks = new ArrayList<>();
     /** Lo que el Dominio se tragó de cofres y barriles: vuelve al vencerlo. */
     public final List<ItemStack> relic = new ArrayList<>();
@@ -84,6 +86,7 @@ public final class Faction {
         t.putInt("troops", troops);
         t.putInt("nextRankUid", nextRankUid);
         t.putLong("slowedUntil", slowedUntil);
+        t.putLong("haltedUntil", haltedUntil);
         ListTag rl = new ListTag();
         for (RankRecord r : ranks) {
             CompoundTag rt = new CompoundTag();
@@ -118,6 +121,7 @@ public final class Faction {
         f.troops = t.getInt("troops");
         f.nextRankUid = Math.max(1, t.getInt("nextRankUid"));
         f.slowedUntil = t.getLong("slowedUntil");
+        f.haltedUntil = t.getLong("haltedUntil");
         ListTag rl = t.getList("ranks", Tag.TAG_COMPOUND);
         for (int i = 0; i < rl.size(); i++) {
             CompoundTag rt = rl.getCompound(i);

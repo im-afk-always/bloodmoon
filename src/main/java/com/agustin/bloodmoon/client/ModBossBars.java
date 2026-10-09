@@ -34,6 +34,8 @@ public final class ModBossBars {
             Map.entry("bloodmoon.invasion.named.raid_captain", new Style(true, 0x3A0A2A, 0xFF7040, 0x5A1A30, 0xFF9A60)),
             Map.entry("bloodmoon.invasion.named.general", new Style(true, 0x1A0420, 0xD040FF, 0x3A0A50, 0xFF70FF)),
             Map.entry("entity.bloodmoon.void_general", new Style(true, 0x1A0420, 0xD040FF, 0x3A0A50, 0xFF70FF)),
+            Map.entry("bloodmoon.invasion.named.king", new Style(true, 0x2A1404, 0xFFD060, 0x4A2A0A, 0xFFF0A0)),
+            Map.entry("entity.bloodmoon.void_king", new Style(true, 0x2A1404, 0xFFD060, 0x4A2A0A, 0xFFF0A0)),
             Map.entry("entity.bloodmoon.void_captain", new Style(true, 0x2A0A3E, 0xE0B040, 0x4A1A6A, 0xF0C860)),
             Map.entry("entity.bloodmoon.apocalypse_rider", new Style(false, 0x2B2B2B, 0xB0B0B0, 0x3A3A3A, 0x6E6E6E)));
 

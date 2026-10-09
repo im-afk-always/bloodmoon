@@ -87,14 +87,15 @@ public final class DominionPresence {
                 BODIES.remove(key);
                 body = null;
             }
-            if (!r.alive || r.rank == InvasionRank.KING) continue;   // el Rey todavía no camina (etapa 4)
+            if (!r.alive) continue;
             if (body == null) {
                 if (r.seat == Faction.RankRecord.NO_SEAT) continue;
                 ChunkPos cp = new ChunkPos(r.seat);
                 InvasionData.Cell seatCell = data.cells.get(r.seat);
                 int st = seatCell == null ? DominionStructures.NONE : seatCell.structure;
                 int x = cp.getMiddleBlockX(), z = cp.getMiddleBlockZ();
-                if (st == DominionStructures.TOWER) { x += 2; z += 2; }          // arriba de la atalaya
+                if (r.rank == InvasionRank.KING) { x = f.center.getX(); z = f.center.getZ() + 14; }   // en la arena, frente al portal
+                else if (st == DominionStructures.TOWER) { x += 2; z += 2; }     // arriba de la atalaya
                 else if (st == DominionStructures.FORTRESS) z += 11;            // frente a la puerta de la fortaleza
                 else if (r.rank == InvasionRank.CAPTAIN) x += 4;                // al pie del obelisco
                 if (!loaded(level, x, z) || nearestPlayer(level, x, z) > RANK_SPAWN) continue;
@@ -113,6 +114,7 @@ public final class DominionPresence {
         EntityType<? extends Mob> type = switch (r.rank) {
             case CAPTAIN -> ModEntities.VOID_CAPTAIN.get();
             case GENERAL -> ModEntities.VOID_GENERAL.get();
+            case KING -> ModEntities.VOID_KING.get();
             default -> null;
         };
         if (type == null) return null;
@@ -124,6 +126,7 @@ public final class DominionPresence {
         if (mob instanceof VoidSkeleton s) s.bindToDominion();
         if (mob instanceof VoidKnight k) k.bindToDominion();
         if (mob instanceof com.agustin.bloodmoon.entity.VoidGeneral g) g.bindToDominion();
+        if (mob instanceof com.agustin.bloodmoon.entity.VoidKing k) k.bindToDominion();
         mob.setCustomName(Component.translatable("bloodmoon.invasion.named." + r.rank.name().toLowerCase(java.util.Locale.ROOT), r.name));
         mob.setCustomNameVisible(true);
         mob.setHealth(mob.getMaxHealth() * Math.max(0.05F, r.hp));

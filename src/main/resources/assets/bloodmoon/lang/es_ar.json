@@ -243,5 +243,9 @@
   "bloodmoon.invasion.named.general": "General %s",
   "bloodmoon.invasion.named.king": "Rey %s",
   "bloodmoon.invasion.named.raid_captain": "Capitán de Asalto",
-  "bloodmoon.invasion.raid.progress": "Asalto nivel %s · caídos %s/%s"
+  "bloodmoon.invasion.raid.progress": "Asalto nivel %s · caídos %s/%s",
+  "entity.bloodmoon.void_king": "Rey del Vacío",
+  "item.bloodmoon.void_king_spawn_egg": "Huevo de Rey del Vacío",
+  "bloodmoon.invasion.king_fell": "¡Cayó el Rey %s! El Dominio de %s queda sin trono: no ganará tierra por tres días.",
+  "bloodmoon.void_king.phase2": "%s pierde la paciencia: la corona arde."
 }

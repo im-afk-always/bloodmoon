@@ -320,7 +320,8 @@ public final class InvasionManager {
             scored.add(Map.entry(e.getKey(), s));
         }
         scored.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
-        int grants = (int) Math.ceil(MAX_GRANTS[f.phase] * speed * (level.getGameTime() < f.slowedUntil ? 0.5 : 1));
+        int grants = level.getGameTime() < f.haltedUntil ? 0
+                : (int) Math.ceil(MAX_GRANTS[f.phase] * speed * (level.getGameTime() < f.slowedUntil ? 0.5 : 1));
         for (Map.Entry<Long, Double> e : scored) {
             if (grants <= 0) break;
             double c = cost(level, f, e.getKey());
@@ -465,7 +466,8 @@ public final class InvasionManager {
         if (alive >= target) return;
         long lastDeath = 0;
         for (Faction.RankRecord rr : f.ranks) if (rr.rank == rank && !rr.alive) lastDeath = Math.max(lastDeath, rr.diedAt);
-        if (lastDeath > 0 && now - lastDeath < PROMOTION_DELAY) return;
+        long delay = rank == InvasionRank.KING ? 3 * PROMOTION_DELAY : PROMOTION_DELAY;   // interregno: tres días sin Rey
+        if (lastDeath > 0 && now - lastDeath < delay) return;
         for (long i = alive; i < target; i++) f.newRank(rank, DominionNames.person(r));
     }
 
@@ -479,7 +481,18 @@ public final class InvasionManager {
         rr.alive = false;
         rr.diedAt = level.getGameTime();
         rr.seat = Faction.RankRecord.NO_SEAT;
-        if (rr.rank == InvasionRank.GENERAL) {
+        if (rr.rank == InvasionRank.KING) {
+            f.essence = Math.max(0, f.essence - 2000);
+            f.haltedUntil = level.getGameTime() + 3 * PROMOTION_DELAY;
+            data.setDirty();
+            Component kmsg = Component.translatable("bloodmoon.invasion.king_fell", rr.name, f.name)
+                    .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
+            for (ServerPlayer p : level.players()) {
+                p.sendSystemMessage(kmsg);
+                p.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.MASTER, 1F, 0.8F);
+            }
+            return;
+        } else if (rr.rank == InvasionRank.GENERAL) {
             f.essence = Math.max(0, f.essence - 400);
             f.slowedUntil = level.getGameTime() + PROMOTION_DELAY;
         } else if (rr.rank == InvasionRank.CAPTAIN) {

@@ -243,5 +243,9 @@
   "bloodmoon.invasion.named.general": "General %s",
   "bloodmoon.invasion.named.king": "King %s",
   "bloodmoon.invasion.named.raid_captain": "Raid Captain",
-  "bloodmoon.invasion.raid.progress": "Raid tier %s · fallen %s/%s"
+  "bloodmoon.invasion.raid.progress": "Raid tier %s · fallen %s/%s",
+  "entity.bloodmoon.void_king": "Void King",
+  "item.bloodmoon.void_king_spawn_egg": "Void King Spawn Egg",
+  "bloodmoon.invasion.king_fell": "King %s has fallen! The Dominion of %s is left without a throne: it won't gain land for three days.",
+  "bloodmoon.void_king.phase2": "%s loses his patience: the crown burns."
 }

@@ -18,7 +18,7 @@ public final class VoidAllies {
 
     public static boolean isVoid(Entity e) {
         return e instanceof VoidSkeleton || e instanceof VoidKnight || e instanceof FirstSoulDragon
-                || e instanceof com.agustin.bloodmoon.entity.VoidGeneral;
+                || e instanceof com.agustin.bloodmoon.entity.VoidGeneral || e instanceof com.agustin.bloodmoon.entity.VoidKing;
     }
 
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {

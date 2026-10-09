@@ -34,6 +34,8 @@ public class AbyssTear extends Entity {
     private static final EntityDataAccessor<Integer> DATA_FLIGHT = SynchedEntityData.defineId(AbyssTear.class, EntityDataSerializers.INT);
 
     private int ownerId = -1;
+    /** El Rey del Vacío las llama sin cráter: no destroza su propio coliseo. */
+    private boolean crater = true;
     private Vec3 start = Vec3.ZERO;
 
     public AbyssTear(EntityType<? extends AbyssTear> type, Level level) {
@@ -43,8 +45,13 @@ public class AbyssTear extends Entity {
     }
 
     public static void spawn(ServerLevel level, Entity owner, Vec3 target, int flight) {
+        spawn(level, owner, target, flight, true);
+    }
+
+    public static void spawn(ServerLevel level, Entity owner, Vec3 target, int flight, boolean crater) {
         AbyssTear t = ModEntities.ABYSS_TEAR.get().create(level);
         if (t == null) return;
+        t.crater = crater;
         double a = level.random.nextDouble() * Math.PI * 2;
         Vec3 s = target.add(Math.cos(a) * 45, 95, Math.sin(a) * 45);
         t.ownerId = owner.getId();
@@ -110,6 +117,7 @@ public class AbyssTear extends Entity {
         for (LivingEntity e : sl.getEntitiesOfClass(LivingEntity.class, new AABB(t, t).inflate(RADIUS, 4, RADIUS),
                 e -> e.isAlive() && !(e instanceof UnboundObserver))) {
             if (e instanceof Player pl && (pl.isCreative() || pl.isSpectator())) continue;
+            if (owner != null && com.agustin.bloodmoon.invasion.VoidAllies.isVoid(owner) && com.agustin.bloodmoon.invasion.VoidAllies.isVoid(e)) continue;
             double dx = e.getX() - t.x, dz = e.getZ() - t.z, d = Math.max(0.5, Math.sqrt(dx * dx + dz * dz));
             if (d > RADIUS) continue;
             e.hurt(damageSources().indirectMagic(this, owner != null ? owner : this), (float) (26 * (1 - 0.6 * d / RADIUS)));
@@ -117,8 +125,8 @@ public class AbyssTear extends Entity {
             e.setDeltaMovement(dx / d * 1.6, 0.8, dz / d * 1.6);
             e.hurtMarked = true;
         }
-        if (sl.dimension() == com.agustin.bloodmoon.registry.ModDimensions.BEYOND
-                || sl.getGameRules().getBoolean(net.minecraft.world.level.GameRules.RULE_MOBGRIEFING)) VoidImpact.meteorCrater(sl, t, 5.5F);
+        if (crater && sl.dimension() == com.agustin.bloodmoon.registry.ModDimensions.BEYOND
+                || crater && sl.getGameRules().getBoolean(net.minecraft.world.level.GameRules.RULE_MOBGRIEFING)) VoidImpact.meteorCrater(sl, t, 5.5F);
         sl.sendParticles(ParticleTypes.EXPLOSION_EMITTER, t.x, t.y + 1, t.z, 4, 2, 1, 2, 0);
         sl.sendParticles(ParticleTypes.END_ROD, t.x, t.y + 1, t.z, 120, 0.5, 0.5, 0.5, 1.2);
         sl.sendParticles(ParticleTypes.REVERSE_PORTAL, t.x, t.y + 0.5, t.z, 120, 3, 0.5, 3, 0.5);
