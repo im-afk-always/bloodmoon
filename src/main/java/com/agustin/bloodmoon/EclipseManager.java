@@ -27,6 +27,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
  * En la totalidad despiertan criaturas de la noche y, mientras dura la oscuridad, los no-muertos no se queman.
  */
 public final class EclipseManager {
+    private static final long MORNING = 400L;
     private static long announcedStart = -1, announcedTotal = -1, announcedEnd = -1;
     /** true mientras el sol está casi tapado (lo lee el mixin de quemadura solar). */
     private static volatile boolean dark;
@@ -37,12 +38,15 @@ public final class EclipseManager {
         return dark && !level.isClientSide && level.dimension() == Level.OVERWORLD && BloodMoonConfig.ECLIPSE_MOBS.get();
     }
 
-    /** Empieza un eclipse ya: lleva la hora a unos segundos antes del primer contacto de hoy. */
+    /**
+     * Empieza un eclipse ya: lleva la hora a la mañana temprano (el sol recién salido). Unos 40 s después la luna asoma
+     * por el horizonte, lo persigue más rápido y lo alcanza a ~61° de altura.
+     */
     public static void startNow(ServerLevel overworld) {
         long day = overworld.getDayTime() / 24000L;
-        if (overworld.getDayTime() % 24000L > Eclipse.START - 200) day++;   // ya pasó la mañana: el de mañana
+        if (overworld.getDayTime() % 24000L > MORNING) day++;   // ya pasó la mañana: el de mañana
         BloodMoonData.get(overworld).setEclipseDay(day);
-        for (ServerLevel l : overworld.getServer().getAllLevels()) l.setDayTime(day * 24000L + Eclipse.START - 200);
+        for (ServerLevel l : overworld.getServer().getAllLevels()) l.setDayTime(day * 24000L + MORNING);
         resetAnnouncements();
         broadcast(overworld);
     }

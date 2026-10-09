@@ -35,10 +35,13 @@ import org.joml.Vector3f;
  */
 public final class EclipseSkyRenderer {
     private static final ResourceLocation SUN = ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/environment/eclipse_sun.png");
+    private static final ResourceLocation MOON = ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/environment/blood_moon.png");
     private static final ResourceLocation CORONA = ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/environment/eclipse_corona.png");
     /** Radio del disco solar en unidades del cielo (a 100 de distancia): más grande que el real, para que impresione. */
     private static final float SR = 8F;
     private static final float Y = 100F;
+    /** Grados de cielo que mide un radio solar (para mover la luna por la esfera celeste). */
+    private static final float MOON_DEG = (float) Math.toDegrees(Math.atan(SR / Y));
 
     private static float lastDiamond, lastU = -9F;
     private static boolean wasTotal;
@@ -91,47 +94,63 @@ public final class EclipseSkyRenderer {
         RenderSystem.depthMask(false);
 
         float b = st == null ? 1F : st.brightness();
-        float s = st == null ? 9F : st.s();
+        float c = st == null ? 0F : st.coverage();
+        float s = st == null ? -9F : st.s();
         float d = st == null ? 9F : st.d();
-        float mx = s * Eclipse.DIR_X * SR, mz = s * Eclipse.DIR_Y * SR;
+        // en el plano del sol: z = a lo largo de la órbita (la dirección en la que se mueve el sol), x = perpendicular
+        float mx = s * Eclipse.DIR_Y * SR, mz = s * Eclipse.DIR_X * SR;
 
-        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
         // 1) el disco solar
+        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
         RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         RenderSystem.setShaderTexture(0, SUN);
         Minecraft.getInstance().getTextureManager().getTexture(SUN).setFilter(true, false);
         quad(m, 0F, 0F, SR, 1F, 1F, 1F, clear);
 
-        // 2) la corona (detrás de la luna: la luna tapa su centro)
+        // 2) resplandor: proporcional a lo que queda descubierto (la luna lo tapa y se ve su silueta)
+        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        float glow = clear * (float) Math.pow(1F - c, 0.8) * (float) Math.sqrt(b);
+        fan(m, 0F, 0F, SR * 7F, 1F, 0.88F, 0.66F, 0.2F * glow);
+        fan(m, 0F, 0F, SR * 2.4F, 1F, 0.96F, 0.84F, 0.32F * glow);
+
+        // 3) la corona: un halo que contornea el disco lunar
         float cor = st == null ? 0F : st.corona();
         if (cor > 0.003F) {
+            RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
             RenderSystem.setShaderTexture(0, CORONA);
             Minecraft.getInstance().getTextureManager().getTexture(CORONA).setFilter(true, false);
-            float breathe = 1F + 0.02F * Mth.sin(time * 0.03F);
-            quad(m, 0F, 0F, SR * 4.5F * breathe, 1F, 1F, 1F, clear * cor);
+            float breathe = 1F + 0.015F * Mth.sin(time * 0.03F);
+            quad(m, mx, mz, SR * Eclipse.MOON_R * 2.4F * breathe, 1F, 1F, 1F, clear * cor);
         }
 
-        // 3) la luna nueva, del color del cielo: solo se nota donde tapa al sol
-        if (st != null && d < 2.3F) {
-            RenderSystem.defaultBlendFunc();
-            RenderSystem.setShader(GameRenderer::getPositionColorShader);
-            Vec3 sky = level.getSkyColor(mc.gameRenderer.getMainCamera().getPosition(), pt);
-            float dim = 0.8F;
-            disc(m, mx, mz, SR * Eclipse.MOON_R, (float) sky.x * dim, (float) sky.y * dim, (float) sky.z * dim, 1F);
+        // 4) la luna: sale por el horizonte un rato después que el sol, lo persigue más rápido y lo alcanza.
+        //    Lejos del sol es la luna pálida de día; al acercarse se vuelve una silueta oscura.
+        if (st != null) {
+            float along = s * Eclipse.DIR_X * MOON_DEG, across = s * Eclipse.DIR_Y * MOON_DEG;
+            Matrix4f mm = new Matrix4f(event.getModelViewMatrix()).rotateY(-90F * Mth.DEG_TO_RAD)
+                    .rotateX((tod * 360F + along) * Mth.DEG_TO_RAD).rotateZ(-across * Mth.DEG_TO_RAD);
+            Vector3f up = new Matrix4f().rotateY(-90F * Mth.DEG_TO_RAD).rotateX((tod * 360F + along) * Mth.DEG_TO_RAD)
+                    .rotateZ(-across * Mth.DEG_TO_RAD).transformDirection(new Vector3f(0F, 1F, 0F));
+            float rise = smooth((up.y() + 0.03F) / 0.08F);                      // asoma por el horizonte
+            if (rise > 0.003F) {
+                Vec3 sky = level.getSkyColor(mc.gameRenderer.getMainCamera().getPosition(), pt);
+                float near = 1F - smooth((d - 0.8F) / 1.6F);
+                float pr = (float) sky.x * 0.72F + 0.26F, pg = (float) sky.y * 0.72F + 0.27F, pb = (float) sky.z * 0.72F + 0.3F;
+                float sr = (float) sky.x * 0.35F, sg = (float) sky.y * 0.35F, sb = (float) sky.z * 0.35F;
+                RenderSystem.defaultBlendFunc();
+                RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+                RenderSystem.setShaderTexture(0, MOON);
+                Minecraft.getInstance().getTextureManager().getTexture(MOON).setFilter(true, false);
+                float mr = SR * Eclipse.MOON_R;
+                quad(mm, 0F, 0F, mr, Mth.lerp(near, pr, sr), Mth.lerp(near, pg, sg), Mth.lerp(near, pb, sb),
+                        rise * clear * Mth.lerp(near, 0.8F, 1F));
+            }
         }
-
-        // 5) el resplandor del sol, encima de la luna: el brillo de lo que queda del disco la vuelve invisible
-        //    contra el cielo (como en la realidad) y se apaga a medida que la luna lo tapa
-        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
-        float glow = clear * (float) Math.pow(b, 1.3);
-        fan(m, 0F, 0F, SR * 9F, 1F, 0.86F, 0.62F, 0.32F * glow);
-        fan(m, 0F, 0F, SR * 3.2F, 1F, 0.95F, 0.82F, 0.55F * glow);
 
         // 6) cuentas de Baily y anillo de diamante, sobre el borde por donde se va (o vuelve) el último rayo
         if (st != null) {
             float side = s < 0F ? 1F : -1F;
-            float px = side * Eclipse.DIR_X * SR, pz = side * Eclipse.DIR_Y * SR;
+            float px = side * Eclipse.DIR_Y * SR, pz = side * Eclipse.DIR_X * SR;
             float baseAng = (float) Math.atan2(pz, px);
             RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
             RenderSystem.setShader(GameRenderer::getPositionColorShader);

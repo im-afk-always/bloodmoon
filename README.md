@@ -36,16 +36,16 @@ solo con la luna; la mano y la interfaz no se tiñen. Se puede apagar en `config
 - **Jinete del Apocalipsis** (1 por jugador a medianoche): wither skeleton x2 con netherite y arco Flame + Punch I que dispara 5 flechas en abanico, sobre un caballo esqueleto x2. Barra de jefe.
 
 ## Eclipse Solar
-`/bloodmoon eclipse` lleva la hora a la mañana y arranca uno (o cada N días con `solarEclipseEveryDays`; 0 = solo por
+`/bloodmoon eclipse` lleva la hora al amanecer y arranca uno (o cada N días con `solarEclipseEveryDays`; 0 = solo por
 comando). `/bloodmoon eclipse cancel` lo cancela. Todo ocurre en ~3 min 40 s de juego:
-- Ese día el sol es realista (granulación, borde más oscuro y anaranjado, resplandor). A ~45° de altura la luna nueva
-  empieza a morderlo; es invisible contra el cielo salvo donde tapa al sol, como en la realidad.
+- Ese día el sol es realista (granulación, borde más oscuro y anaranjado, resplandor). Un rato después del amanecer la
+  luna asoma pálida por el horizonte, lo persigue más rápido y lo alcanza; al acercarse se vuelve una silueta oscura.
 - La luz se ahoga poco a poco (casi no cambia hasta ~75% tapado y después cae en picada): el mundo vira a un gris pardo
   apagado, el cielo a pizarra casi negro, las nubes se apagan y el horizonte queda encendido todo alrededor como un
   atardecer de 360°. Las antorchas no cambian: en la totalidad son lo único que brilla.
 - Justo antes de la totalidad, las **cuentas de Baily** titilan en el borde y estalla el **anillo de diamante**: el
   último rayo de sol con un destello cegador y rayos larguísimos (encandila si lo mirás).
-- **Totalidad** (~24 s, con el sol a ~61°): la corona perlada con sus serpentinas y protuberancias rosadas, estrellas
+- **Totalidad** (~24 s, con el sol a ~61°): un halo perlado que contornea el disco lunar, con protuberancias rosadas, estrellas
   en pleno día, un acorde grave. Despiertan criaturas de la noche alrededor de quienes estén a cielo abierto y los
   no-muertos no se queman mientras dura la oscuridad (`solarEclipseCreatures`).
 - Al salir, el anillo de diamante vuelve por el borde opuesto y la luz regresa.

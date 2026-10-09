@@ -7,6 +7,7 @@ package com.agustin.bloodmoon;
  *  4100  máximo: totalidad centrada, el sol a ~61° de altura (≈ los 60° pedidos)
  *  6300  último contacto: la luna termina de salir
  * </pre>
+ * Antes (~1230) la luna asoma por el horizonte este y persigue al sol, más rápida, hasta alcanzarlo.
  * El sol mide 1 (radio) y la luna 1,06: la totalidad dura ~24 s. La luna avanza en línea recta, algo inclinada, y
  * se frena cerca del centro para que la totalidad y el anillo de diamante tengan su momento.
  */
