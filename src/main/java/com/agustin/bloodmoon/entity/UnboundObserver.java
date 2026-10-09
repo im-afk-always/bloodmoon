@@ -793,6 +793,10 @@ public class UnboundObserver extends VoidEye {
             }
             ServerLevel back = returnLevel(sl);
             if (back != null && returnHome != null) EyeSanctums.markDefeated(back, returnHome);
+            // vencer al Observador Desatado termina la Invasión del Vacío que abrió el camino
+            List<ServerPlayer> fighters = new java.util.ArrayList<>();
+            for (ServerPlayer p : sl.players()) if (p.distanceToSqr(this) < 400 * 400) fighters.add(p);
+            com.agustin.bloodmoon.invasion.InvasionManager.onUnboundDefeated(sl.getServer(), fighters);
         }
         if (deathTime == DEATH_TICKS + RETURN_DELAY) {
             lootReleased = true;

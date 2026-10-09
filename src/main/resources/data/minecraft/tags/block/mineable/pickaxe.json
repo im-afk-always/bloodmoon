@@ -2,6 +2,11 @@
   "replace": false,
   "values": [
     "bloodmoon:void_stone",
-    "bloodmoon:void_block"
+    "bloodmoon:void_block",
+    "bloodmoon:black_rock",
+    "bloodmoon:black_rock_bricks",
+    "bloodmoon:cracked_black_rock_bricks",
+    "bloodmoon:void_lantern",
+    "bloodmoon:obelisk_core"
   ]
 }

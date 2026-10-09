@@ -21,6 +21,15 @@ public final class ModItems {
 
     public static final DeferredItem<BlockItem> VOID_STONE = ITEMS.registerSimpleBlockItem(ModBlocks.VOID_STONE);
     public static final DeferredItem<BlockItem> VOID_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.VOID_BLOCK);
+    public static final DeferredItem<BlockItem> DEAD_GRASS_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.DEAD_GRASS_BLOCK);
+    public static final DeferredItem<BlockItem> BARREN_DIRT = ITEMS.registerSimpleBlockItem(ModBlocks.BARREN_DIRT);
+    public static final DeferredItem<BlockItem> DEAD_GRASS = ITEMS.registerSimpleBlockItem(ModBlocks.DEAD_GRASS);
+    public static final DeferredItem<BlockItem> CHARRED_LOG = ITEMS.registerSimpleBlockItem(ModBlocks.CHARRED_LOG);
+    public static final DeferredItem<BlockItem> BLACK_ROCK = ITEMS.registerSimpleBlockItem(ModBlocks.BLACK_ROCK);
+    public static final DeferredItem<BlockItem> BLACK_ROCK_BRICKS = ITEMS.registerSimpleBlockItem(ModBlocks.BLACK_ROCK_BRICKS);
+    public static final DeferredItem<BlockItem> CRACKED_BLACK_ROCK_BRICKS = ITEMS.registerSimpleBlockItem(ModBlocks.CRACKED_BLACK_ROCK_BRICKS);
+    public static final DeferredItem<BlockItem> VOID_LANTERN = ITEMS.registerSimpleBlockItem(ModBlocks.VOID_LANTERN);
+    public static final DeferredItem<BlockItem> OBELISK_CORE = ITEMS.registerSimpleBlockItem(ModBlocks.OBELISK_CORE);
 
     public static final DeferredItem<ArmorItem> VOID_HELMET = armor("void_helmet", ArmorItem.Type.HELMET);
     public static final DeferredItem<ArmorItem> VOID_CHESTPLATE = armor("void_chestplate", ArmorItem.Type.CHESTPLATE);
@@ -81,6 +90,16 @@ public final class ModItems {
         } else if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
             event.accept(VOID_BLOCK);
             event.accept(VOID_STONE);
+            event.accept(BLACK_ROCK);
+            event.accept(BLACK_ROCK_BRICKS);
+            event.accept(CRACKED_BLACK_ROCK_BRICKS);
+            event.accept(VOID_LANTERN);
+            event.accept(OBELISK_CORE);
+            event.accept(CHARRED_LOG);
+        } else if (event.getTabKey() == CreativeModeTabs.NATURAL_BLOCKS) {
+            event.accept(DEAD_GRASS_BLOCK);
+            event.accept(BARREN_DIRT);
+            event.accept(DEAD_GRASS);
         } else if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) {
             event.accept(EMISSARY_SPAWN_EGG);
             event.accept(EXECUTIONER_SPAWN_EGG);

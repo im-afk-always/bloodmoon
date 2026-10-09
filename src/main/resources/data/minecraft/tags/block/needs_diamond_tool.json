@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "bloodmoon:void_block"
+    "bloodmoon:void_block",
+    "bloodmoon:obelisk_core"
   ]
 }

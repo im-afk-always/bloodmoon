@@ -55,6 +55,7 @@ public final class VoidPortals {
         if (!level.isClientSide && level instanceof ServerLevel sl) {
             shape.fill(level);
             PortalData.get(sl).add(shape.bottomLeft());
+            com.agustin.bloodmoon.invasion.InvasionManager.onPortalLit(sl, shape.bottomLeft());
             level.playSound(null, clicked, SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 0.5F, 1.5F);
             if (stack.is(Items.FLINT_AND_STEEL)) {
                 stack.hurtAndBreak(1, event.getEntity(), LivingEntity.getSlotForHand(event.getHand()));
@@ -121,6 +122,9 @@ public final class VoidPortals {
         ResourceKey<Level> key = level.dimension() == ModDimensions.VOID_LABYRINTH ? Level.OVERWORLD : ModDimensions.VOID_LABYRINTH;
         ServerLevel target = level.getServer().getLevel(key);
         if (target == null) return null;
+        if (level.dimension() == Level.OVERWORLD && entity instanceof net.minecraft.server.level.ServerPlayer sp) {
+            com.agustin.bloodmoon.invasion.InvasionManager.linkPlayer(sp, pos);
+        }
         BlockPos near = target.getWorldBorder().clampToBounds(entity.getX(), pos.getY(), entity.getZ());
         BlockPos arrival = findOrCreate(target, near);
         return new DimensionTransition(target, Vec3.atBottomCenterOf(arrival), Vec3.ZERO, entity.getYRot(), entity.getXRot(),

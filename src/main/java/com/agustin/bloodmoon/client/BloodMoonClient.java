@@ -60,6 +60,9 @@ public class BloodMoonClient {
 
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(DevotionAura::onClientTick);
+        NeoForge.EVENT_BUS.addListener(ExploredMap::onChunkLoad);
+        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post e) -> ExploredMap.tick());
+        NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingIn e) -> ExploredMap.load());
         com.agustin.bloodmoon.ClientDevotion.onAurasChanged = () -> {
             var level = net.minecraft.client.Minecraft.getInstance().level;
             if (level != null) level.players().forEach(net.minecraft.world.entity.player.Player::refreshDisplayName);
@@ -67,7 +70,10 @@ public class BloodMoonClient {
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onFogColor);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onLogout);
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.ScreenEvent.Init.Post e) -> {
-            if (e.getScreen() instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen inv) e.addListener(new DevotionButton(inv));
+            if (e.getScreen() instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen inv) {
+                e.addListener(new DevotionButton(inv));
+                e.addListener(new DominionMapButton(inv));
+            }
         });
         NeoForge.EVENT_BUS.addListener(MoonlessSkyRenderer::onRenderStage);
         NeoForge.EVENT_BUS.addListener(BloodSkyRenderer::onRenderStage);
@@ -249,6 +255,8 @@ public class BloodMoonClient {
         com.agustin.bloodmoon.ClientEclipse.reset();
         com.agustin.bloodmoon.ClientOffering.reset();
         com.agustin.bloodmoon.ClientDevotion.reset();
+        com.agustin.bloodmoon.ClientDominion.reset();
+        ExploredMap.save();
         ClientAstralState.reset();
         NukeClouds.reset();
         SupernovaFx.reset();

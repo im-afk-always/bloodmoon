@@ -17,6 +17,10 @@ public final class BloodMoonConfig {
     public static final ModConfigSpec.DoubleValue PROVIDENCE_PER_DAY;
     public static final ModConfigSpec.IntValue PROVIDENCE_CAP;
     public static final ModConfigSpec.DoubleValue PROVIDENCE_SURPLUS;
+    public static final ModConfigSpec.IntValue INVASION_RADIUS;
+    public static final ModConfigSpec.IntValue INVASION_CYCLE_SECONDS;
+    public static final ModConfigSpec.DoubleValue INVASION_SPEED;
+    public static final ModConfigSpec.BooleanValue INVASION_REPLACE_PLAYER_BLOCKS;
     public static final ModConfigSpec.BooleanValue ECLIPSE_MOBS;
 
     public static final ModConfigSpec.IntValue CREEPER_EXPLOSION_MULT;
@@ -57,6 +61,13 @@ public final class BloodMoonConfig {
         PROVIDENCE_CAP = b.comment("Máximo de tributos exigidos por Luna de la Providencia (0 = sin tope).").defineInRange("providenceTributeCap", 150, 0, 100000);
         PROVIDENCE_SURPLUS = b.comment("Reputación por cada mineral, cultivo o cría después de cumplir el pedido de la Providencia (solo devotos).")
                 .defineInRange("providenceSurplusReputation", 0.15, 0.0, 100.0);
+        INVASION_RADIUS = b.comment("Invasión del Vacío: radio máximo del Dominio, medido desde el portal del coliseo.")
+                .defineInRange("invasionRadius", 1000, 64, 4000);
+        INVASION_CYCLE_SECONDS = b.comment("Cada cuántos segundos avanza el Dominio (simulación abstracta, no carga chunks).")
+                .defineInRange("invasionCycleSeconds", 20, 1, 3600);
+        INVASION_SPEED = b.comment("Multiplicador de crecimiento del Dominio.").defineInRange("invasionSpeed", 1.0, 0.0, 50.0);
+        INVASION_REPLACE_PLAYER_BLOCKS = b.comment("En tierra muerta, el Dominio reemplaza los bloques de jugadores (los cofres van al Relicario).")
+                .define("invasionReplacePlayerBlocks", true);
         ECLIPSE_INTERVAL = b.comment("Cada cuántos días ocurre un Eclipse Solar (0 = solo con /bloodmoon eclipse).")
                 .defineInRange("solarEclipseEveryDays", 0, 0, 1000);
         ECLIPSE_MOBS = b.comment("Durante la totalidad despiertan criaturas de la noche alrededor de cada jugador a cielo abierto,",

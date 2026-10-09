@@ -25,6 +25,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /bloodmoon summon unbound              -> el Observador Desatado emerge donde estás (prueba de la fase final)
  * /bloodmoon locate sanctum              -> Santuario del Ojo más cercano (en el Laberinto del Vacío)
  * /bloodmoon eclipse [cancel]            -> Eclipse Solar ahora (lleva la hora al amanecer) / cancelarlo
+ * /bloodmoon invasion start|grow <ciclos>|end|status -> Invasión del Vacío (pruebas)
  * /bloodmoon devotion offer [harvest|providence]|add <n>|reset|status|complete -> pruebas del culto: propuesta, sumar reputación, borrar devoción
  * /bloodmoon eclipse permanent           -> congela el eclipse en el instante actual (otra vez: sigue su curso)
  * Requiere permiso 2 (OP / trucos activados).
@@ -46,6 +47,16 @@ public final class BloodMoonCommand {
                 .requires(src -> src.hasPermission(2))
                 .then(force)
                 .then(Commands.literal("cancel").executes(BloodMoonCommand::cancel))
+                .then(Commands.literal("invasion")
+                        .then(Commands.literal("start").executes(BloodMoonCommand::invasionStart))
+                        .then(Commands.literal("grow").then(Commands.argument("cycles", IntegerArgumentType.integer(1, 5000))
+                                .executes(ctx -> invasionGrow(ctx, IntegerArgumentType.getInteger(ctx, "cycles")))))
+                        .then(Commands.literal("end").executes(BloodMoonCommand::invasionEnd))
+                        .then(Commands.literal("status").executes(ctx -> {
+                            String st = com.agustin.bloodmoon.invasion.InvasionManager.status(ctx.getSource().getServer().overworld());
+                            ctx.getSource().sendSuccess(() -> Component.literal(st), false);
+                            return 1;
+                        })))
                 .then(Commands.literal("devotion")
                         .then(devotionOffer())
                         .then(Commands.literal("status").executes(ctx -> DevotionManager.debugStatus(ctx.getSource().getPlayerOrException())))
@@ -115,6 +126,39 @@ public final class BloodMoonCommand {
             offer.then(Commands.literal(d.id()).executes(ctx -> DevotionManager.debugOffer(ctx.getSource().getPlayerOrException(), d)));
         }
         return offer;
+    }
+
+    /** Despierta el coliseo más cercano (como si se encendiera su portal). */
+    private static int invasionStart(CommandContext<CommandSourceStack> ctx) {
+        ServerLevel ow = ctx.getSource().getServer().overworld();
+        net.minecraft.core.BlockPos from = net.minecraft.core.BlockPos.containing(ctx.getSource().getPosition());
+        var site = com.agustin.bloodmoon.world.ColiseumSites.nearest(ow, from, 2);
+        if (site.isEmpty()) {
+            ctx.getSource().sendFailure(Component.translatable("bloodmoon.command.locate.none"));
+            return 0;
+        }
+        var f = com.agustin.bloodmoon.invasion.InvasionManager.awaken(ow, site.get().center());
+        ctx.getSource().sendSuccess(() -> Component.literal("Dominio " + f.name + " @ " + f.center.toShortString()), true);
+        return 1;
+    }
+
+    private static int invasionGrow(CommandContext<CommandSourceStack> ctx, int cycles) {
+        ServerLevel ow = ctx.getSource().getServer().overworld();
+        for (int i = 0; i < cycles; i++) com.agustin.bloodmoon.invasion.InvasionManager.runCycle(ow);
+        String st = com.agustin.bloodmoon.invasion.InvasionManager.status(ow);
+        ctx.getSource().sendSuccess(() -> Component.literal(st), true);
+        return 1;
+    }
+
+    private static int invasionEnd(CommandContext<CommandSourceStack> ctx) {
+        ServerLevel ow = ctx.getSource().getServer().overworld();
+        var f = com.agustin.bloodmoon.invasion.InvasionManager.nearest(ow, net.minecraft.core.BlockPos.containing(ctx.getSource().getPosition()));
+        if (f == null || !f.active) {
+            ctx.getSource().sendFailure(Component.literal("-"));
+            return 0;
+        }
+        com.agustin.bloodmoon.invasion.InvasionManager.defeat(ow, com.agustin.bloodmoon.invasion.InvasionData.get(ow), f);
+        return 1;
     }
 
     private static int cancel(CommandContext<CommandSourceStack> ctx) {

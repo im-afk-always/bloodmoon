@@ -1,0 +1,532 @@
+package com.agustin.bloodmoon.invasion;
+
+import com.agustin.bloodmoon.BloodMoonConfig;
+import com.agustin.bloodmoon.BloodMoonManager;
+import com.agustin.bloodmoon.BloodMoonMod;
+import com.agustin.bloodmoon.MoonType;
+import com.agustin.bloodmoon.network.DominionMapPayload;
+import com.agustin.bloodmoon.world.ColiseumSites;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.core.QuartPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.BiomeTags;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.neoforged.neoforge.event.level.ChunkEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+/**
+ * Invasión del Vacío. Encender el portal del zigurat de un Coliseo despierta un Dominio con eje en ese portal.
+ * El Dominio vive en una grilla abstracta de chunks (no carga nada) y avanza cada ciclo:
+ * <ol>
+ *   <li>gana esencia (goteo + territorio muerto; x3 en la Noche sin Luna);</li>
+ *   <li>los obeliscos irradian influencia gratis a su alrededor;</li>
+ *   <li>compra avance sobre la frontera: cuesta más lejos del eje {@code 1 + (d/333)²} y el triple sobre el agua;</li>
+ *   <li>levanta obeliscos nuevos cerca de la frontera y completa su jerarquía según la fase.</li>
+ * </ol>
+ * Se vence matando al Observador Desatado tras entrar por ese portal: el Dominio cae, la tierra sana de afuera hacia
+ * adentro y el Relicario aparece junto al portal.
+ */
+public final class InvasionManager {
+    public static final String LINK_KEY = "bloodmoon_invasion_link";
+    private static final double[] PHASE_AT = {0, 400, 1800, 6000};
+    private static final int[] MAX_GRANTS = {4, 8, 14, 20};
+    private static final int OBELISK_COST = 25, OBELISK_AURA = 3;
+    private static int cycleTimer;
+
+    private InvasionManager() {}
+
+    static int radius() {
+        return BloodMoonConfig.INVASION_RADIUS.get();
+    }
+
+    static int coliseumChunks() {
+        return (ColiseumSites.reach() + 16) / 16;
+    }
+
+    // ------------------------------------------------------------------ tick y carga de chunks
+
+    public static void onLevelTick(LevelTickEvent.Post event) {
+        if (!(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
+        DominionTerraform.tick(level);
+        if (++cycleTimer < BloodMoonConfig.INVASION_CYCLE_SECONDS.get() * 20) return;
+        cycleTimer = 0;
+        runCycle(level);
+    }
+
+    public static void onChunkLoad(ChunkEvent.Load event) {
+        if (!(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
+        if (!(event.getChunk() instanceof LevelChunk chunk)) return;
+        InvasionData data = InvasionData.get(level);
+        if (data.cells.isEmpty()) return;
+        long key = chunk.getPos().toLong();
+        InvasionData.Cell c = data.cells.get(key);
+        if (c != null && DominionTerraform.needsWork(data, c)) DominionTerraform.enqueue(key);
+    }
+
+    public static void onServerStopped(ServerStoppedEvent event) {
+        DominionTerraform.clear();
+        cycleTimer = 0;
+    }
+
+    // ------------------------------------------------------------------ despertar
+
+    /** Al encender un portal del Vacío: si es el del zigurat de un coliseo, despierta su Dominio. */
+    public static void onPortalLit(ServerLevel level, BlockPos portal) {
+        if (level.dimension() != Level.OVERWORLD) return;
+        Optional<ColiseumSites.Site> site = ColiseumSites.nearest(level, portal, 1);
+        if (site.isEmpty()) return;
+        BlockPos c = site.get().center();
+        double dx = c.getX() - portal.getX(), dz = c.getZ() - portal.getZ();
+        if (dx * dx + dz * dz > 24 * 24) return;
+        awaken(level, portal);
+    }
+
+    /** Dominio cuyo eje está a menos de 32 bloques (o null). */
+    static Faction factionAt(InvasionData data, BlockPos pos) {
+        for (Faction f : data.factions) {
+            if (f.center.distSqr(new BlockPos(pos.getX(), f.center.getY(), pos.getZ())) < 32 * 32) return f;
+        }
+        return null;
+    }
+
+    public static Faction awaken(ServerLevel level, BlockPos portal) {
+        InvasionData data = InvasionData.get(level);
+        Faction existing = factionAt(data, portal);
+        if (existing != null) return existing;   // ya despierto (o purificado: no vuelve)
+        RandomSource r = level.random;
+        Faction f = new Faction();
+        f.id = data.nextId++;
+        f.name = DominionNames.faction(r);
+        f.center = portal.immutable();
+        f.awakenedAt = level.getGameTime();
+        f.forgers = 3;
+        f.ranks.add(new Faction.RankRecord(InvasionRank.CAPTAIN, DominionNames.person(r)));
+        data.factions.add(f);
+
+        // el coliseo se corrompe entero de golpe: el centro muere y el resto queda marchito
+        ChunkPos cc = new ChunkPos(portal);
+        int reach = coliseumChunks();
+        List<Long> loaded = new ArrayList<>();
+        for (int dx = -reach; dx <= reach; dx++) for (int dz = -reach; dz <= reach; dz++) {
+            int d2 = dx * dx + dz * dz;
+            if (d2 > reach * reach) continue;
+            long key = ChunkPos.asLong(cc.x + dx, cc.z + dz);
+            InvasionData.Cell cell = claim(data, key, f);
+            if (cell == null) continue;
+            cell.influence = Math.max(cell.influence, d2 <= 64 ? 100 : 60);
+            if (level.getChunkSource().getChunkNow(cc.x + dx, cc.z + dz) != null) loaded.add(key);
+        }
+        loaded.sort(Comparator.comparingLong(k -> d2(new ChunkPos(k), cc)));
+        loaded.forEach(DominionTerraform::enqueue);
+        data.setDirty();
+
+        Component msg = Component.translatable("bloodmoon.invasion.awaken", f.name).withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD);
+        for (ServerPlayer p : level.players()) {
+            p.sendSystemMessage(msg);
+            p.playNotifySound(SoundEvents.RAID_HORN.value(), SoundSource.HOSTILE, 1.4F, 0.5F);
+        }
+        level.playSound(null, portal, SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 3F, 0.4F);
+        BloodMoonMod.LOGGER.info("Void Dominion {} awakened at {}", f.name, portal);
+        return f;
+    }
+
+    /** Toma un chunk para el Dominio si está libre, es suyo o de un Dominio ya vencido. */
+    static InvasionData.Cell claim(InvasionData data, long key, Faction f) {
+        InvasionData.Cell c = data.cells.get(key);
+        if (c == null) {
+            c = new InvasionData.Cell();
+            c.faction = f.id;
+            data.cells.put(key, c);
+            return c;
+        }
+        if (c.faction == f.id) return c;
+        Faction owner = data.faction(c.faction);
+        if (owner != null && (owner.active || owner.healing)) return null;
+        c.faction = f.id;
+        c.obelisk = false;
+        return c;
+    }
+
+    // ------------------------------------------------------------------ ciclo
+
+    public static void runCycle(ServerLevel level) {
+        InvasionData data = InvasionData.get(level);
+        if (data.factions.isEmpty()) return;
+        Set<Long> changed = new HashSet<>();
+        for (Faction f : data.factions) {
+            if (f.active) cycleActive(level, data, f, changed);
+            else if (f.healing) cycleHealing(level, data, f, changed);
+        }
+        if (changed.isEmpty()) return;
+        data.setDirty();
+        for (long key : changed) {
+            ChunkPos cp = new ChunkPos(key);
+            if (level.getChunkSource().getChunkNow(cp.x, cp.z) != null) DominionTerraform.enqueue(key);
+        }
+    }
+
+    private static long d2(ChunkPos a, ChunkPos b) {
+        long dx = a.x - b.x, dz = a.z - b.z;
+        return dx * dx + dz * dz;
+    }
+
+    private static double distance(Faction f, long key) {
+        ChunkPos cp = new ChunkPos(key);
+        double dx = cp.getMiddleBlockX() - f.center.getX(), dz = cp.getMiddleBlockZ() - f.center.getZ();
+        return Math.sqrt(dx * dx + dz * dz);
+    }
+
+    private static boolean water(ServerLevel level, Faction f, long key) {
+        return f.water.computeIfAbsent(key, k -> {
+            ChunkPos cp = new ChunkPos(k);
+            var gen = level.getChunkSource().getGenerator();
+            Holder<Biome> b = gen.getBiomeSource().getNoiseBiome(QuartPos.fromBlock(cp.getMiddleBlockX()), QuartPos.fromBlock(64),
+                    QuartPos.fromBlock(cp.getMiddleBlockZ()), level.getChunkSource().randomState().sampler());
+            return b.is(BiomeTags.IS_OCEAN) || b.is(BiomeTags.IS_DEEP_OCEAN) || b.is(BiomeTags.IS_RIVER);
+        });
+    }
+
+    /** Penalización por distancia al eje (y por agua). */
+    static double cost(ServerLevel level, Faction f, long key) {
+        double d = distance(f, key) / 333.0;
+        return (1 + d * d) * (water(level, f, key) ? 3 : 1);
+    }
+
+    private static void cycleActive(ServerLevel level, InvasionData data, Faction f, Set<Long> changed) {
+        RandomSource r = level.random;
+        double speed = BloodMoonConfig.INVASION_SPEED.get();
+        List<Long> dead = new ArrayList<>();
+        List<Long> obelisks = new ArrayList<>();
+        for (Map.Entry<Long, InvasionData.Cell> e : data.cells.entrySet()) {
+            InvasionData.Cell c = e.getValue();
+            if (c.faction != f.id) continue;
+            if (c.influence >= 100) dead.add(e.getKey());
+            if (c.obelisk) obelisks.add(e.getKey());
+        }
+
+        // 1) esencia
+        double moon = BloodMoonManager.current() == MoonType.MOONLESS ? 3 : 1;
+        double income = (4 + 0.012 * dead.size()) * speed * moon;
+        f.essence = Math.min(2000 + 500 * f.phase, f.essence + income);
+        f.earned += income;
+        int phase = 0;
+        for (int i = 0; i < PHASE_AT.length; i++) if (f.earned >= PHASE_AT[i]) phase = i;
+        if (phase > f.phase) {
+            f.phase = phase;
+            announcePhase(level, f);
+        }
+
+        int maxR = radius();
+        // 2) los obeliscos irradian
+        for (long ob : obelisks) {
+            ChunkPos o = new ChunkPos(ob);
+            for (int dx = -OBELISK_AURA; dx <= OBELISK_AURA; dx++) for (int dz = -OBELISK_AURA; dz <= OBELISK_AURA; dz++) {
+                if (dx * dx + dz * dz > OBELISK_AURA * OBELISK_AURA + 1) continue;
+                long k = ChunkPos.asLong(o.x + dx, o.z + dz);
+                if (distance(f, k) > maxR) continue;
+                InvasionData.Cell c = claim(data, k, f);
+                if (c == null || c.influence >= 100) continue;
+                c.influence = Math.min(100, c.influence + (int) Math.ceil(6 * speed));
+                changed.add(k);
+            }
+        }
+
+        // 3) frontera
+        Map<Long, Integer> cand = new HashMap<>();
+        for (long k : dead) {
+            ChunkPos cp = new ChunkPos(k);
+            for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                long n = ChunkPos.asLong(cp.x + d[0], cp.z + d[1]);
+                InvasionData.Cell c = data.cells.get(n);
+                if (c != null && c.faction == f.id && c.influence >= 100) continue;
+                if (c != null && c.faction != f.id) {
+                    Faction owner = data.faction(c.faction);
+                    if (owner != null && (owner.active || owner.healing)) continue;
+                }
+                if (distance(f, n) > maxR) continue;
+                cand.merge(n, 1, Integer::sum);
+            }
+        }
+        List<Map.Entry<Long, Double>> scored = new ArrayList<>();
+        for (Map.Entry<Long, Integer> e : cand.entrySet()) {
+            double s = e.getValue() / cost(level, f, e.getKey()) * (0.6 + 0.8 * r.nextDouble());
+            scored.add(Map.entry(e.getKey(), s));
+        }
+        scored.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+        int grants = (int) Math.ceil(MAX_GRANTS[f.phase] * speed);
+        for (Map.Entry<Long, Double> e : scored) {
+            if (grants <= 0) break;
+            double c = cost(level, f, e.getKey());
+            if (f.essence < c) break;
+            InvasionData.Cell cell = claim(data, e.getKey(), f);
+            if (cell == null) continue;
+            f.essence -= c;
+            cell.influence = Math.min(100, cell.influence + 34);
+            changed.add(e.getKey());
+            grants--;
+        }
+
+        // 4) obeliscos nuevos: anclas cerca de la frontera
+        if (dead.size() / 40 > obelisks.size() && f.essence >= OBELISK_COST) {
+            Long best = null;
+            double bestD = -1;
+            int col = coliseumChunks() + 2;
+            for (long k : dead) {
+                ChunkPos cp = new ChunkPos(k);
+                ChunkPos cc = new ChunkPos(f.center);
+                if (d2(cp, cc) <= (long) col * col) continue;
+                boolean near = false;
+                for (long ob : obelisks) if (d2(new ChunkPos(ob), cp) < 25) { near = true; break; }
+                if (near) continue;
+                double d = distance(f, k) + r.nextDouble() * 48;
+                if (d > bestD) { bestD = d; best = k; }
+            }
+            if (best != null) {
+                InvasionData.Cell c = data.cells.get(best);
+                c.obelisk = true;
+                c.obeliskBuilt = false;
+                f.essence -= OBELISK_COST;
+                obelisks.add(best);
+                changed.add(best);
+            }
+        }
+
+        // 5) jerarquía
+        updateRanks(f, r, dead.size(), obelisks.size());
+    }
+
+    private static void updateRanks(Faction f, RandomSource r, int dead, int obelisks) {
+        f.forgers = 3 + f.phase * 3;
+        f.troops = dead / 15;
+        int captains = Math.min(InvasionRank.CAPTAIN.max, 1 + obelisks / 3);
+        int generals = f.phase >= 2 ? Math.min(InvasionRank.GENERAL.max, 1 + dead / 1500) : 0;
+        int kings = f.phase >= 3 ? 1 : 0;
+        fill(f, r, InvasionRank.CAPTAIN, captains);
+        fill(f, r, InvasionRank.GENERAL, generals);
+        fill(f, r, InvasionRank.KING, kings);
+    }
+
+    private static void fill(Faction f, RandomSource r, InvasionRank rank, int target) {
+        long alive = f.aliveCount(rank);
+        for (long i = alive; i < target; i++) f.ranks.add(new Faction.RankRecord(rank, DominionNames.person(r)));
+    }
+
+    private static void announcePhase(ServerLevel level, Faction f) {
+        Component msg = Component.translatable("bloodmoon.invasion.phase_up", f.name,
+                Component.translatable("bloodmoon.invasion.phase." + f.phase)).withStyle(ChatFormatting.DARK_PURPLE);
+        double r2 = Math.pow(radius() + 500, 2);
+        for (ServerPlayer p : level.players()) {
+            if (p.blockPosition().distSqr(f.center) < r2) {
+                p.sendSystemMessage(msg);
+                p.playNotifySound(SoundEvents.RAID_HORN.value(), SoundSource.HOSTILE, 1F, 0.6F);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ núcleos
+
+    public static void onCoreRemoved(ServerLevel level, BlockPos pos) {
+        if (level.dimension() != Level.OVERWORLD) return;
+        InvasionData data = InvasionData.get(level);
+        long key = ChunkPos.asLong(pos);
+        InvasionData.Cell c = data.cells.get(key);
+        if (c == null || !c.obelisk) return;
+        Faction f = data.faction(c.faction);
+        if (f == null || !f.active) return;
+        c.obelisk = false;
+        f.essence = Math.max(0, f.essence - 50);
+        ChunkPos o = new ChunkPos(key);
+        for (int dx = -OBELISK_AURA; dx <= OBELISK_AURA; dx++) for (int dz = -OBELISK_AURA; dz <= OBELISK_AURA; dz++) {
+            InvasionData.Cell n = data.cells.get(ChunkPos.asLong(o.x + dx, o.z + dz));
+            if (n != null && n.faction == f.id) n.influence = Math.max(0, n.influence - 60);
+        }
+        data.setDirty();
+        Component msg = Component.translatable("bloodmoon.invasion.obelisk_fell", f.name).withStyle(ChatFormatting.LIGHT_PURPLE);
+        for (ServerPlayer p : level.players()) {
+            if (p.blockPosition().distSqr(pos) < 160 * 160) {
+                p.sendSystemMessage(msg);
+                p.playNotifySound(SoundEvents.BEACON_DEACTIVATE, SoundSource.BLOCKS, 1F, 0.6F);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ final: el Observador Desatado cae
+
+    /** El jugador cruza un portal del Overworld: si es el eje de un Dominio, queda vinculado a él. */
+    public static void linkPlayer(ServerPlayer player, BlockPos portal) {
+        InvasionData data = InvasionData.get(player.server.overworld());
+        Faction f = factionAt(data, portal);
+        if (f != null && f.active) player.getPersistentData().putInt(LINK_KEY, f.id);
+    }
+
+    public static void onUnboundDefeated(MinecraftServer server, List<ServerPlayer> participants) {
+        ServerLevel overworld = server.overworld();
+        InvasionData data = InvasionData.get(overworld);
+        Set<Integer> ids = new HashSet<>();
+        for (ServerPlayer p : participants) {
+            if (p.getPersistentData().contains(LINK_KEY)) ids.add(p.getPersistentData().getInt(LINK_KEY));
+            p.getPersistentData().remove(LINK_KEY);
+        }
+        if (ids.isEmpty()) for (Faction f : data.factions) if (f.active) ids.add(f.id);   // sin vínculo: caen todos
+        for (int id : ids) {
+            Faction f = data.faction(id);
+            if (f != null && f.active) defeat(overworld, data, f);
+        }
+    }
+
+    public static void defeat(ServerLevel level, InvasionData data, Faction f) {
+        f.active = false;
+        f.healing = true;
+        for (InvasionData.Cell c : data.cells.values()) if (c.faction == f.id) c.obelisk = false;
+        for (Faction.RankRecord r : f.ranks) r.alive = false;
+        dropRelic(level, f);
+        data.setDirty();
+        Component msg = Component.translatable("bloodmoon.invasion.defeated", f.name).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
+        for (ServerPlayer p : level.getServer().getPlayerList().getPlayers()) {
+            p.sendSystemMessage(msg);
+            p.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.MASTER, 1F, 0.7F);
+        }
+        // los chunks cargados con núcleos los pierden ya
+        for (Map.Entry<Long, InvasionData.Cell> e : data.cells.entrySet()) {
+            if (e.getValue().faction != f.id) continue;
+            ChunkPos cp = new ChunkPos(e.getKey());
+            if (level.getChunkSource().getChunkNow(cp.x, cp.z) != null && DominionTerraform.needsWork(data, e.getValue())) {
+                DominionTerraform.enqueue(e.getKey());
+            }
+        }
+    }
+
+    /** El Relicario: cofres junto al portal con todo lo que el Dominio se tragó. */
+    private static void dropRelic(ServerLevel level, Faction f) {
+        if (f.relic.isEmpty()) return;
+        List<ItemStack> items = new ArrayList<>(f.relic);
+        f.relic.clear();
+        level.getChunk(f.center);
+        int placed = 0;
+        for (int i = 0; i < 16 && !items.isEmpty(); i++) {
+            int dx = (i % 4) - 1, dz = 2 + i / 4;
+            BlockPos p = f.center.offset(dx, 0, (i % 2 == 0 ? 1 : -1) * dz);
+            if (!level.getBlockState(p).isAir()) continue;
+            level.setBlock(p, Blocks.CHEST.defaultBlockState(), 3);
+            if (level.getBlockEntity(p) instanceof ChestBlockEntity chest) {
+                for (int s = 0; s < chest.getContainerSize() && !items.isEmpty(); s++) chest.setItem(s, items.remove(0));
+                placed++;
+            }
+        }
+        for (ItemStack st : items) {   // si no entró todo, cae al piso junto al portal
+            net.minecraft.world.entity.item.ItemEntity ie = new net.minecraft.world.entity.item.ItemEntity(level,
+                    f.center.getX() + 0.5, f.center.getY() + 1, f.center.getZ() + 0.5, st);
+            level.addFreshEntity(ie);
+        }
+        BloodMoonMod.LOGGER.info("Dominion {} relic: {} chests", f.name, placed);
+    }
+
+    /** La tierra sana de afuera hacia adentro. */
+    private static void cycleHealing(ServerLevel level, InvasionData data, Faction f, Set<Long> changed) {
+        List<Long> mine = new ArrayList<>();
+        for (Map.Entry<Long, InvasionData.Cell> e : data.cells.entrySet()) {
+            if (e.getValue().faction == f.id && e.getValue().influence > 0) mine.add(e.getKey());
+        }
+        if (mine.isEmpty()) {
+            f.healing = false;
+            return;
+        }
+        mine.sort((a, b) -> Double.compare(distance(f, b), distance(f, a)));
+        int n = Math.min(mine.size(), 80);
+        for (int i = 0; i < n; i++) {
+            InvasionData.Cell c = data.cells.get(mine.get(i));
+            c.influence = Math.max(0, c.influence - 34);
+            changed.add(mine.get(i));
+        }
+    }
+
+    // ------------------------------------------------------------------ mapa
+
+    public static void sendMap(ServerPlayer player) {
+        ServerLevel overworld = player.server.overworld();
+        InvasionData data = InvasionData.get(overworld);
+        List<DominionMapPayload.FactionView> views = new ArrayList<>();
+        int maxR = radius();
+        int half = maxR / 16 + 1;
+        int side = half * 2 + 1;
+        for (Faction f : data.factions) {
+            if (!f.active && !f.healing) continue;
+            if (player.blockPosition().distSqr(new BlockPos(f.center.getX(), player.getBlockY(), f.center.getZ())) > Math.pow(maxR + 4000, 2)) continue;
+            byte[] grid = new byte[side * side];
+            ChunkPos cc = new ChunkPos(f.center);
+            int dead = 0, obelisks = 0;
+            for (Map.Entry<Long, InvasionData.Cell> e : data.cells.entrySet()) {
+                InvasionData.Cell c = e.getValue();
+                if (c.faction != f.id || c.influence <= 0) continue;
+                ChunkPos cp = new ChunkPos(e.getKey());
+                int gx = cp.x - cc.x + half, gz = cp.z - cc.z + half;
+                if (gx < 0 || gz < 0 || gx >= side || gz >= side) continue;
+                int v = c.influence >= 100 && c.obelisk ? 101 : c.influence;
+                grid[gz * side + gx] = (byte) v;
+                if (c.influence >= 100) dead++;
+                if (c.obelisk) obelisks++;
+            }
+            List<DominionMapPayload.RankView> ranks = new ArrayList<>();
+            for (Faction.RankRecord rr : f.ranks) ranks.add(new DominionMapPayload.RankView(rr.rank.ordinal(), rr.name, rr.alive));
+            views.add(new DominionMapPayload.FactionView(f.id, f.name, f.center.getX(), f.center.getZ(), maxR, f.phase,
+                    (int) f.essence, f.active, f.healing, f.forgers, f.troops, dead, obelisks, ranks, half, grid));
+        }
+        PacketDistributor.sendToPlayer(player, new DominionMapPayload(views));
+    }
+
+    // ------------------------------------------------------------------ comandos
+
+    public static Faction nearest(ServerLevel level, BlockPos pos) {
+        Faction best = null;
+        double bd = Double.MAX_VALUE;
+        for (Faction f : InvasionData.get(level).factions) {
+            if (!f.active && !f.healing) continue;
+            double d = f.center.distSqr(pos);
+            if (d < bd) { bd = d; best = f; }
+        }
+        return best;
+    }
+
+    public static String status(ServerLevel level) {
+        InvasionData data = InvasionData.get(level);
+        StringBuilder sb = new StringBuilder();
+        for (Faction f : data.factions) {
+            int dead = 0, all = 0, ob = 0;
+            for (InvasionData.Cell c : data.cells.values()) {
+                if (c.faction != f.id || c.influence <= 0) continue;
+                all++;
+                if (c.influence >= 100) dead++;
+                if (c.obelisk) ob++;
+            }
+            sb.append(String.format("%s [%s] fase %d · esencia %.0f · chunks %d (muertos %d) · obeliscos %d · eje %s%n",
+                    f.name, f.active ? "activo" : f.healing ? "sanando" : "vencido", f.phase, f.essence, all, dead, ob, f.center.toShortString()));
+        }
+        sb.append("Conversiones pendientes: ").append(DominionTerraform.pending());
+        return sb.toString();
+    }
+}

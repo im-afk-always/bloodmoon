@@ -66,6 +66,9 @@ public class BloodMoonMod {
         NeoForge.EVENT_BUS.addListener(OfferingManager::onPlayerLogin);
         NeoForge.EVENT_BUS.addListener(OfferingManager::onPlayerChangeDimension);
         NeoForge.EVENT_BUS.addListener(DevotionManager::onPlayerLogin);
+        NeoForge.EVENT_BUS.addListener(com.agustin.bloodmoon.invasion.InvasionManager::onLevelTick);
+        NeoForge.EVENT_BUS.addListener(com.agustin.bloodmoon.invasion.InvasionManager::onChunkLoad);
+        NeoForge.EVENT_BUS.addListener(com.agustin.bloodmoon.invasion.InvasionManager::onServerStopped);
         NeoForge.EVENT_BUS.addListener(DevotionManager::onNameFormat);
         NeoForge.EVENT_BUS.addListener(DevotionManager::onTabListNameFormat);
         NeoForge.EVENT_BUS.addListener(BloodMoonCommand::register);
