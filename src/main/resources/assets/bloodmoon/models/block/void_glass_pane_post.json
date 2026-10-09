@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/template_glass_pane_post",
+  "textures": {
+    "pane": "bloodmoon:block/void_glass",
+    "edge": "bloodmoon:block/void_glass_pane_top"
+  },
+  "render_type": "minecraft:translucent"
+}

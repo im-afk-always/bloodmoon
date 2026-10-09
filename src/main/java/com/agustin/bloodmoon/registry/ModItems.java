@@ -28,6 +28,14 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> BLACK_ROCK = ITEMS.registerSimpleBlockItem(ModBlocks.BLACK_ROCK);
     public static final DeferredItem<BlockItem> BLACK_ROCK_BRICKS = ITEMS.registerSimpleBlockItem(ModBlocks.BLACK_ROCK_BRICKS);
     public static final DeferredItem<BlockItem> CRACKED_BLACK_ROCK_BRICKS = ITEMS.registerSimpleBlockItem(ModBlocks.CRACKED_BLACK_ROCK_BRICKS);
+    public static final DeferredItem<BlockItem> POLISHED_BLACK_ROCK = ITEMS.registerSimpleBlockItem(ModBlocks.POLISHED_BLACK_ROCK);
+    public static final DeferredItem<BlockItem> CHISELED_BLACK_ROCK_BRICKS = ITEMS.registerSimpleBlockItem(ModBlocks.CHISELED_BLACK_ROCK_BRICKS);
+    public static final DeferredItem<BlockItem> BLACK_ROCK_PILLAR = ITEMS.registerSimpleBlockItem(ModBlocks.BLACK_ROCK_PILLAR);
+    public static final DeferredItem<BlockItem> BLACK_ROCK_BRICK_STAIRS = ITEMS.registerSimpleBlockItem(ModBlocks.BLACK_ROCK_BRICK_STAIRS);
+    public static final DeferredItem<BlockItem> BLACK_ROCK_BRICK_SLAB = ITEMS.registerSimpleBlockItem(ModBlocks.BLACK_ROCK_BRICK_SLAB);
+    public static final DeferredItem<BlockItem> BLACK_ROCK_BRICK_WALL = ITEMS.registerSimpleBlockItem(ModBlocks.BLACK_ROCK_BRICK_WALL);
+    public static final DeferredItem<BlockItem> VOID_CHAIN = ITEMS.registerSimpleBlockItem(ModBlocks.VOID_CHAIN);
+    public static final DeferredItem<BlockItem> VOID_GLASS_PANE = ITEMS.registerSimpleBlockItem(ModBlocks.VOID_GLASS_PANE);
     public static final DeferredItem<BlockItem> VOID_LANTERN = ITEMS.registerSimpleBlockItem(ModBlocks.VOID_LANTERN);
     public static final DeferredItem<BlockItem> OBELISK_CORE = ITEMS.registerSimpleBlockItem(ModBlocks.OBELISK_CORE);
 
@@ -101,6 +109,14 @@ public final class ModItems {
             event.accept(BLACK_ROCK);
             event.accept(BLACK_ROCK_BRICKS);
             event.accept(CRACKED_BLACK_ROCK_BRICKS);
+            event.accept(POLISHED_BLACK_ROCK);
+            event.accept(CHISELED_BLACK_ROCK_BRICKS);
+            event.accept(BLACK_ROCK_PILLAR);
+            event.accept(BLACK_ROCK_BRICK_STAIRS);
+            event.accept(BLACK_ROCK_BRICK_SLAB);
+            event.accept(BLACK_ROCK_BRICK_WALL);
+            event.accept(VOID_CHAIN);
+            event.accept(VOID_GLASS_PANE);
             event.accept(VOID_LANTERN);
             event.accept(OBELISK_CORE);
             event.accept(CHARRED_LOG);

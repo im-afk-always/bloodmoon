@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "bloodmoon:block/black_rock_brick_slab"
+    },
+    "type=top": {
+      "model": "bloodmoon:block/black_rock_brick_slab_top"
+    },
+    "type=double": {
+      "model": "bloodmoon:block/black_rock_bricks"
+    }
+  }
+}

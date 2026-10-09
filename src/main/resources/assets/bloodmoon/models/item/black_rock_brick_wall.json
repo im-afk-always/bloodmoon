@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/wall_inventory",
+  "textures": {
+    "wall": "bloodmoon:block/black_rock_bricks"
+  }
+}

@@ -247,5 +247,13 @@
   "entity.bloodmoon.void_king": "Void King",
   "item.bloodmoon.void_king_spawn_egg": "Void King Spawn Egg",
   "bloodmoon.invasion.king_fell": "King %s has fallen! The Dominion of %s is left without a throne: it won't gain land for three days.",
-  "bloodmoon.void_king.phase2": "%s loses his patience: the crown burns."
+  "bloodmoon.void_king.phase2": "%s loses his patience: the crown burns.",
+  "block.bloodmoon.polished_black_rock": "Polished Black Rock",
+  "block.bloodmoon.chiseled_black_rock_bricks": "Chiseled Black Rock Bricks",
+  "block.bloodmoon.black_rock_pillar": "Black Rock Pillar",
+  "block.bloodmoon.black_rock_brick_stairs": "Black Rock Brick Stairs",
+  "block.bloodmoon.black_rock_brick_slab": "Black Rock Brick Slab",
+  "block.bloodmoon.black_rock_brick_wall": "Black Rock Brick Wall",
+  "block.bloodmoon.void_chain": "Void Chain",
+  "block.bloodmoon.void_glass_pane": "Void Glass Pane"
 }

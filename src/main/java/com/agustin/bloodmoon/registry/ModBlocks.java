@@ -97,5 +97,37 @@ public final class ModBlocks {
                     .sound(SoundType.AMETHYST).lightLevel(state -> 12).pushReaction(PushReaction.BLOCK)
                     .emissiveRendering((state, level, pos) -> true)));
 
+    // ---- arquitectura del Dominio (también se pueden fabricar a mano en creativo)
+    private static BlockBehaviour.Properties stone(float hardness) {
+        return BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).requiresCorrectToolForDrops()
+                .strength(hardness, 6.0F).sound(SoundType.DEEPSLATE_BRICKS);
+    }
+
+    public static final DeferredBlock<Block> POLISHED_BLACK_ROCK = BLOCKS.registerSimpleBlock("polished_black_rock", stone(3.5F));
+
+    /** Runa del ojo del Dominio, encendida. */
+    public static final DeferredBlock<Block> CHISELED_BLACK_ROCK_BRICKS = BLOCKS.registerSimpleBlock("chiseled_black_rock_bricks",
+            stone(3.5F).lightLevel(state -> 7).emissiveRendering((state, level, pos) -> true));
+
+    public static final DeferredBlock<net.minecraft.world.level.block.RotatedPillarBlock> BLACK_ROCK_PILLAR = BLOCKS.register("black_rock_pillar",
+            () -> new net.minecraft.world.level.block.RotatedPillarBlock(stone(3.5F)));
+
+    public static final DeferredBlock<net.minecraft.world.level.block.StairBlock> BLACK_ROCK_BRICK_STAIRS = BLOCKS.register("black_rock_brick_stairs",
+            () -> new net.minecraft.world.level.block.StairBlock(BLACK_ROCK_BRICKS.get().defaultBlockState(), stone(3.5F)));
+
+    public static final DeferredBlock<net.minecraft.world.level.block.SlabBlock> BLACK_ROCK_BRICK_SLAB = BLOCKS.register("black_rock_brick_slab",
+            () -> new net.minecraft.world.level.block.SlabBlock(stone(3.5F)));
+
+    public static final DeferredBlock<net.minecraft.world.level.block.WallBlock> BLACK_ROCK_BRICK_WALL = BLOCKS.register("black_rock_brick_wall",
+            () -> new net.minecraft.world.level.block.WallBlock(stone(3.5F).forceSolidOn()));
+
+    public static final DeferredBlock<net.minecraft.world.level.block.ChainBlock> VOID_CHAIN = BLOCKS.register("void_chain",
+            () -> new net.minecraft.world.level.block.ChainBlock(BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK)
+                    .requiresCorrectToolForDrops().strength(5.0F, 6.0F).sound(SoundType.CHAIN).noOcclusion()));
+
+    public static final DeferredBlock<net.minecraft.world.level.block.IronBarsBlock> VOID_GLASS_PANE = BLOCKS.register("void_glass_pane",
+            () -> new net.minecraft.world.level.block.IronBarsBlock(BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE)
+                    .strength(0.6F).sound(SoundType.GLASS).noOcclusion().lightLevel(state -> 3)));
+
     private ModBlocks() {}
 }

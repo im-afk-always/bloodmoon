@@ -247,5 +247,13 @@
   "entity.bloodmoon.void_king": "Rey del Vacío",
   "item.bloodmoon.void_king_spawn_egg": "Huevo de Rey del Vacío",
   "bloodmoon.invasion.king_fell": "¡Cayó el Rey %s! El Dominio de %s queda sin trono: no ganará tierra por tres días.",
-  "bloodmoon.void_king.phase2": "%s pierde la paciencia: la corona arde."
+  "bloodmoon.void_king.phase2": "%s pierde la paciencia: la corona arde.",
+  "block.bloodmoon.polished_black_rock": "Roca negra pulida",
+  "block.bloodmoon.chiseled_black_rock_bricks": "Ladrillos de roca negra cincelados",
+  "block.bloodmoon.black_rock_pillar": "Pilar de roca negra",
+  "block.bloodmoon.black_rock_brick_stairs": "Escaleras de ladrillos de roca negra",
+  "block.bloodmoon.black_rock_brick_slab": "Losa de ladrillos de roca negra",
+  "block.bloodmoon.black_rock_brick_wall": "Muro de ladrillos de roca negra",
+  "block.bloodmoon.void_chain": "Cadena del Vacío",
+  "block.bloodmoon.void_glass_pane": "Panel de vidrio del Vacío"
 }
