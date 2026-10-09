@@ -146,7 +146,7 @@ public class DominionMapScreen extends Screen {
 
     private int overlay(DominionMapPayload.FactionView f, int bx, int bz, int rgb) {
         int val = f.at(bx >> 4, bz >> 4);
-        boolean healing = !f.active;
+        boolean healing = !f.active();
         if (val > 0) {
             if (val < 50) rgb = mix(rgb, healing ? 0x5A9A6A : 0x9B4DFF, 0.16F + 0.22F * val / 50F);
             else if (val < 100) rgb = mix(rgb, healing ? 0x3A6A4A : 0x6A2A9E, 0.5F);
@@ -218,7 +218,7 @@ public class DominionMapScreen extends Screen {
         Component info = f == null
                 ? Component.translatable("bloodmoon.map.none")
                 : Component.translatable("bloodmoon.map.info", f.name(),
-                        f.active ? Component.translatable("bloodmoon.invasion.phase." + f.phase()) : Component.translatable("bloodmoon.map.healing"),
+                        f.active() ? Component.translatable("bloodmoon.invasion.phase." + f.phase()) : Component.translatable("bloodmoon.map.healing"),
                         f.essence(), f.deadChunks(), f.obelisks());
         g.drawString(font, info, mapL, 17, f == null ? 0xFF8A8090 : 0xFFC9A6F0, false);
         g.drawString(font, Component.translatable("bloodmoon.map.hint"), mapL, height - 11, 0xFF6A6070, false);
@@ -247,9 +247,9 @@ public class DominionMapScreen extends Screen {
             // eje: el coliseo
             int x = sx(f.centerX()), y = sz(f.centerZ());
             diamond(g, x, y, 6, 0xFF000000);
-            diamond(g, x, y, 5, f.active ? 0xFFD070FF : 0xFF70D090);
+            diamond(g, x, y, 5, f.active() ? 0xFFD070FF : 0xFF70D090);
             diamond(g, x, y, 2, 0xFF1A0C22);
-            if (bpp <= 8) g.drawCenteredString(font, f.name(), x, y - 16, f.active ? 0xFFE0B0FF : 0xFFA0E0B0);
+            if (bpp <= 8) g.drawCenteredString(font, f.name(), x, y - 16, f.active() ? 0xFFE0B0FF : 0xFFA0E0B0);
         }
         // jugador
         if (minecraft.player != null) {
