@@ -66,7 +66,7 @@ public final class DevotionManager {
                 offer(overworld, player, deity);
             }
         }
-        data.clearContributions();
+        // los aportes quedan hasta la próxima luna (los muestra /bloodmoon devotion status); se limpian en onOfferingBegin
     }
 
     // ---------------------------------------------------------------- reputación y rangos
@@ -246,6 +246,9 @@ public final class DevotionManager {
             Integer mine = DevotionData.get(overworld).contributions().get(player.getUUID());
             player.sendSystemMessage(Component.translatable("bloodmoon.devotion.status.request", data.getOfferingDeity().displayName(),
                     data.getOfferingDone(), data.getOfferingRequired(), mine == null ? 0 : mine).withStyle(ChatFormatting.GRAY));
+            if (data.isOfferingComplete()) {
+                player.sendSystemMessage(Component.translatable("bloodmoon.devotion.status.done").withStyle(ChatFormatting.GRAY));
+            }
         } else {
             player.sendSystemMessage(Component.translatable("bloodmoon.devotion.status.norequest").withStyle(ChatFormatting.GRAY));
         }

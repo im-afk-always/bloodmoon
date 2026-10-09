@@ -188,13 +188,41 @@ public final class OfferingManager {
         if (isTribute(event.getPlacedBlock())) PLACED.add(event.getPos().immutable());
     }
 
+    /** Bloques ya evaluados en este tick (los dos eventos de abajo pueden llegar por el mismo bloque). */
+    private static final java.util.Set<Long> SEEN = new java.util.HashSet<>();
+    private static long seenTick = -1;
+
+    /** Al romper (antes de que el bloque desaparezca). Prioridad mínima: si otro mod cancela la rotura, no cuenta. */
     public static void onBlockBreak(net.neoforged.neoforge.event.level.BlockEvent.BreakEvent event) {
-        if (!(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
-        if (!(event.getPlayer() instanceof ServerPlayer player) || player.isSpectator()) return;
-        if (!providenceActive(level) || !isTribute(event.getState())) return;
-        if (PLACED.remove(event.getPos())) return;
+        if (!(event.getLevel() instanceof ServerLevel level) || !(event.getPlayer() instanceof ServerPlayer player)) return;
+        tryTribute(level, player, event.getPos(), event.getState());
+    }
+
+    /** Respaldo: al soltar los drops de un bloque roto por un jugador. */
+    public static void onBlockDrops(net.neoforged.neoforge.event.level.BlockDropsEvent event) {
+        if (!(event.getBreaker() instanceof ServerPlayer player)) return;
+        tryTribute(event.getLevel(), player, event.getPos(), event.getState());
+    }
+
+    private static void tryTribute(ServerLevel level, ServerPlayer player, net.minecraft.core.BlockPos pos,
+                                   net.minecraft.world.level.block.state.BlockState state) {
+        if (level.dimension() != Level.OVERWORLD || player.isSpectator()) return;
+        if (!providenceActive(level) || !isTribute(state)) return;
+        long now = level.getGameTime();
+        if (now != seenTick) {
+            SEEN.clear();
+            seenTick = now;
+        }
+        if (!SEEN.add(pos.asLong())) return;
+        if (PLACED.remove(pos)) {
+            player.displayClientMessage(Component.translatable("bloodmoon.providence.placed").withStyle(ChatFormatting.GRAY), true);
+            return;
+        }
         BloodMoonData data = BloodMoonData.get(level);
-        if (data.isOfferingComplete()) return;
+        if (data.isOfferingComplete()) {
+            player.displayClientMessage(Component.translatable("bloodmoon.devotion.status.done").withStyle(ChatFormatting.GRAY), true);
+            return;
+        }
         data.addOfferingDone(1);
         DevotionManager.onOfferingKill(level, player);
         int left = Math.max(0, data.getOfferingRequired() - data.getOfferingDone());
