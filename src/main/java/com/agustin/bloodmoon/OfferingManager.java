@@ -54,6 +54,7 @@ public final class OfferingManager {
         boolean unskippable = data.getOffenses() >= MAX_OFFENSES;
         int required = requiredFor(overworld);
         data.startOffering(required, unskippable);
+        DevotionManager.onOfferingBegin(overworld);
         tell(overworld, Component.translatable("bloodmoon.offering.start", required).withStyle(ChatFormatting.GOLD));
         if (unskippable) {
             tell(overworld, Component.translatable("bloodmoon.offering.unskippable").withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD));
@@ -103,6 +104,7 @@ public final class OfferingManager {
 
         if (victim instanceof Enemy) {
             data.addOfferingDone(1);
+            DevotionManager.onOfferingKill(level, killer);
             if (killer.getRandom().nextDouble() < BloodMoonConfig.OFFERING_BLESSING_CHANCE.get()) bless(killer);
             if (data.isOfferingComplete()) {
                 data.setOfferingSettled();
@@ -110,6 +112,8 @@ public final class OfferingManager {
                 for (ServerPlayer p : level.players()) {
                     p.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.MASTER, 0.8F, 0.8F);
                 }
+                // la reputación se mide por el pedido original: las ofrendas deshonrosas no la inflan
+                DevotionManager.onRequestComplete(level, Deity.HARVEST, requiredFor(level));
             }
             broadcast(level);
         } else if (victim instanceof Mob) {

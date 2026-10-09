@@ -3,6 +3,7 @@ package com.agustin.bloodmoon;
 import com.agustin.bloodmoon.entity.ApocalypseRider;
 import com.agustin.bloodmoon.entity.ModEntities;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
@@ -13,7 +14,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 /**
- * /bloodmoon force [blood|super|golden|moonless] -> fuerza esa luna en la noche entrante (por defecto: blood)
+ * /bloodmoon force [super|golden|moonless] -> fuerza esa luna en la noche entrante (por defecto: super)
  * /bloodmoon cancel                      -> cancela un forzado pendiente
  * /bloodmoon status                      -> estado y próximas lunas
  * /bloodmoon summon rider                -> invoca un Jinete del Apocalipsis montado donde estás
@@ -24,6 +25,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /bloodmoon summon unbound              -> el Observador Desatado emerge donde estás (prueba de la fase final)
  * /bloodmoon locate sanctum              -> Santuario del Ojo más cercano (en el Laberinto del Vacío)
  * /bloodmoon eclipse [cancel]            -> Eclipse Solar ahora (lleva la hora al amanecer) / cancelarlo
+ * /bloodmoon devotion offer|add <n>|reset -> pruebas del culto: propuesta, sumar reputación, borrar devoción
  * /bloodmoon eclipse permanent           -> congela el eclipse en el instante actual (otra vez: sigue su curso)
  * Requiere permiso 2 (OP / trucos activados).
  */
@@ -32,6 +34,7 @@ public final class BloodMoonCommand {
 
     public static void register(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
+        DevotionManager.registerPlayerCommand(dispatcher);
 
         LiteralArgumentBuilder<CommandSourceStack> force = Commands.literal("force")
                 .executes(ctx -> force(ctx, MoonType.SUPER));
@@ -43,6 +46,11 @@ public final class BloodMoonCommand {
                 .requires(src -> src.hasPermission(2))
                 .then(force)
                 .then(Commands.literal("cancel").executes(BloodMoonCommand::cancel))
+                .then(Commands.literal("devotion")
+                        .then(Commands.literal("offer").executes(ctx -> DevotionManager.debugOffer(ctx.getSource().getPlayerOrException())))
+                        .then(Commands.literal("add").then(Commands.argument("amount", IntegerArgumentType.integer(-100000, 100000))
+                                .executes(ctx -> DevotionManager.debugAdd(ctx.getSource().getPlayerOrException(), IntegerArgumentType.getInteger(ctx, "amount")))))
+                        .then(Commands.literal("reset").executes(ctx -> DevotionManager.debugReset(ctx.getSource().getPlayerOrException()))))
                 .then(Commands.literal("eclipse")
                         .executes(ctx -> {
                             EclipseManager.startNow(ctx.getSource().getServer().overworld());

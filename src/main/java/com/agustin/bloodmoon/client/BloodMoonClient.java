@@ -60,6 +60,9 @@ public class BloodMoonClient {
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onFogColor);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onLogout);
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.ScreenEvent.Init.Post e) -> {
+            if (e.getScreen() instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen inv) e.addListener(new DevotionButton(inv));
+        });
         NeoForge.EVENT_BUS.addListener(MoonlessSkyRenderer::onRenderStage);
         NeoForge.EVENT_BUS.addListener(BloodSkyRenderer::onRenderStage);
         NeoForge.EVENT_BUS.addListener(EclipseSkyRenderer::onRenderStage);
@@ -239,6 +242,7 @@ public class BloodMoonClient {
         ClientMoonState.reset();
         com.agustin.bloodmoon.ClientEclipse.reset();
         com.agustin.bloodmoon.ClientOffering.reset();
+        com.agustin.bloodmoon.ClientDevotion.reset();
         ClientAstralState.reset();
         NukeClouds.reset();
         SupernovaFx.reset();

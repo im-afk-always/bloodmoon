@@ -36,6 +36,29 @@ la derecha aparece **«Ofrendas restantes X/Y»**. La cuenta es compartida por t
 - A las 3 ofensas, la siguiente Luna de la Cosecha **no deja dormir**. Al terminar esa luna, las ofensas vuelven a cero.
 - Config: `offeringPerDay` (1,5), `offeringCap` (tope; 0 = sin tope), `offeringBlessingChance` (0,3).
 
+### Devoción
+Completar el pedido de una deidad da **reputación** a cada jugador que aportó: entre el 50 % y el 100 % de la dificultad
+del pedido, según su parte (las ofrendas deshonrosas no la inflan). Quien no es devoto recibe en el chat
+*«¿Quieres ser devoto de la Luna de la Cosecha? - [SÍ] [NO]»* (clic con el chat abierto). SÍ: entra como Iniciado con
+reputación 0. NO: la deidad lo recuerda; la propuesta vuelve con el próximo pedido cumplido.
+
+| Nivel | Rango | Reputación |
+|---|---|---|
+| I | Iniciado | 0 |
+| II | Acólito | 50 |
+| III | Creyente | 120 |
+| IV | Fiel | 250 |
+| V | Diácono | 450 |
+| VI | Sacerdote | 700 |
+| VII | Obispo | 1000 |
+| VIII | Arzobispo | 1500 |
+| IX | Apóstol | 2200 |
+| X | Profeta | 3200 |
+| XI | Elegido | 4500 |
+
+En el inventario (bajo la grilla de crafteo) aparece un encapuchado; sus ojos toman el color de la deidad (rojo sangre
+para la Luna de la Cosecha). Al hacer clic muestra deidad, rango, nivel de adoración y reputación.
+
 ## Eclipse Solar
 `/bloodmoon eclipse` lleva la hora al amanecer y arranca uno (o cada N días con `solarEclipseEveryDays`; 0 = solo por
 comando). `/bloodmoon eclipse cancel` lo cancela. `/bloodmoon eclipse permanent` lo congela en el instante actual
@@ -154,6 +177,7 @@ Morir en el Más Allá no hace perder el inventario. Si pierden, el Santuario se
 ## Comandos (OP)
 - `/bloodmoon force [super|golden|moonless]`
 - `/bloodmoon cancel`
+- `/bloodmoon devotion offer|add <n>|reset` (pruebas del culto)
 - `/bloodmoon status`
 - `/bloodmoon summon rider`
 - `/bloodmoon summon emissary`
