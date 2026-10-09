@@ -255,5 +255,6 @@
   "block.bloodmoon.black_rock_brick_slab": "Losa de ladrillos de roca negra",
   "block.bloodmoon.black_rock_brick_wall": "Muro de ladrillos de roca negra",
   "block.bloodmoon.void_chain": "Cadena del Vacío",
-  "block.bloodmoon.void_glass_pane": "Panel de vidrio del Vacío"
+  "block.bloodmoon.void_glass_pane": "Panel de vidrio del Vacío",
+  "bloodmoon.invasion.throne_sealed": "El Rey %s sella el portal: primero tiene que caer el trono."
 }

@@ -330,6 +330,17 @@ public final class InvasionManager {
             scored.add(Map.entry(e.getKey(), s));
         }
         scored.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+        // faros encendidos: no se reclama tierra a su alcance y la que ya era del Dominio retrocede
+        Set<Long> shield = beaconShield(level);
+        if (!shield.isEmpty()) {
+            scored.removeIf(e -> shield.contains(e.getKey()));
+            for (long k : shield) {
+                InvasionData.Cell c = data.cells.get(k);
+                if (c == null || c.faction != f.id || c.influence <= 0 || c.obelisk || c.structure != DominionStructures.NONE) continue;
+                c.influence = Math.max(0, c.influence - 25);
+                changed.add(k);
+            }
+        }
         int grants = level.getGameTime() < f.haltedUntil ? 0
                 : (int) Math.ceil(MAX_GRANTS[f.phase] * speed * (level.getGameTime() < f.slowedUntil ? 0.5 : 1));
         for (Map.Entry<Long, Double> e : scored) {
@@ -700,6 +711,75 @@ public final class InvasionManager {
     }
 
     // ------------------------------------------------------------------ comandos
+
+    /**
+     * El Trono: el portal del coliseo de un Dominio con Rey vivo está sellado. Avisa al jugador (como mucho cada 3 s).
+     */
+    public static boolean throneSeals(ServerLevel level, BlockPos pos, net.minecraft.world.entity.Entity entity) {
+        Faction f = nearest(level, pos);
+        if (f == null || !f.active || f.center.distSqr(pos) > 80 * 80) return false;
+        Faction.RankRecord king = null;
+        for (Faction.RankRecord r : f.ranks) if (r.rank == InvasionRank.KING && r.alive) king = r;
+        if (king == null) return false;
+        if (entity instanceof ServerPlayer sp) {
+            long now = level.getGameTime();
+            long last = sp.getPersistentData().getLong("bloodmoon_throne_msg");
+            if (now - last > 60) {
+                sp.getPersistentData().putLong("bloodmoon_throne_msg", now);
+                sp.displayClientMessage(Component.translatable("bloodmoon.invasion.throne_sealed", king.name).withStyle(ChatFormatting.GOLD), true);
+                sp.playNotifySound(SoundEvents.BEACON_DEACTIVATE, SoundSource.BLOCKS, 1F, 0.6F);
+            }
+        }
+        return true;
+    }
+
+    // ------------------------------------------------------------------ faros
+
+    /** Faros encendidos cerca de los jugadores: centro y radio de efecto (10 por nivel de pirámide + 10). */
+    private static List<int[]> activeBeacons(ServerLevel level) {
+        List<int[]> out = new ArrayList<>();
+        Set<Long> seen = new HashSet<>();
+        for (ServerPlayer p : level.players()) {
+            ChunkPos pc = p.chunkPosition();
+            for (int ox = -6; ox <= 6; ox++) for (int oz = -6; oz <= 6; oz++) {
+                long k = ChunkPos.asLong(pc.x + ox, pc.z + oz);
+                if (!seen.add(k)) continue;
+                net.minecraft.world.level.chunk.LevelChunk ch = level.getChunkSource().getChunkNow(pc.x + ox, pc.z + oz);
+                if (ch == null) continue;
+                for (net.minecraft.world.level.block.entity.BlockEntity be : ch.getBlockEntities().values()) {
+                    if (!(be instanceof net.minecraft.world.level.block.entity.BeaconBlockEntity b) || b.getBeamSections().isEmpty()) continue;
+                    int lv = pyramid(level, be.getBlockPos());
+                    if (lv > 0) out.add(new int[]{be.getBlockPos().getX(), be.getBlockPos().getZ(), lv * 10 + 10});
+                }
+            }
+        }
+        return out;
+    }
+
+    private static int pyramid(ServerLevel level, BlockPos pos) {
+        int lv = 0;
+        for (int i = 1; i <= 4; i++) {
+            int y = pos.getY() - i;
+            for (int x = pos.getX() - i; x <= pos.getX() + i; x++) for (int z = pos.getZ() - i; z <= pos.getZ() + i; z++) {
+                if (!level.getBlockState(new BlockPos(x, y, z)).is(net.minecraft.tags.BlockTags.BEACON_BASE_BLOCKS)) return lv;
+            }
+            lv = i;
+        }
+        return lv;
+    }
+
+    /** Chunks bajo la protección de un faro (su centro dentro del radio de efecto). */
+    private static Set<Long> beaconShield(ServerLevel level) {
+        Set<Long> out = new HashSet<>();
+        for (int[] b : activeBeacons(level)) {
+            int r = b[2], c0x = (b[0] - r) >> 4, c1x = (b[0] + r) >> 4, c0z = (b[1] - r) >> 4, c1z = (b[1] + r) >> 4;
+            for (int cx = c0x; cx <= c1x; cx++) for (int cz = c0z; cz <= c1z; cz++) {
+                double dx = (cx << 4) + 8 - b[0], dz = (cz << 4) + 8 - b[1];
+                if (dx * dx + dz * dz <= (double) r * r) out.add(ChunkPos.asLong(cx, cz));
+            }
+        }
+        return out;
+    }
 
     public static Faction nearest(ServerLevel level, BlockPos pos) {
         Faction best = null;

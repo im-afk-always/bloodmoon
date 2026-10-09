@@ -122,6 +122,9 @@ public final class VoidPortals {
         ResourceKey<Level> key = level.dimension() == ModDimensions.VOID_LABYRINTH ? Level.OVERWORLD : ModDimensions.VOID_LABYRINTH;
         ServerLevel target = level.getServer().getLevel(key);
         if (target == null) return null;
+        if (level.dimension() == Level.OVERWORLD && com.agustin.bloodmoon.invasion.InvasionManager.throneSeals(level, pos, entity)) {
+            return null;   // el Trono: mientras el Rey vive, su portal no se abre
+        }
         if (level.dimension() == Level.OVERWORLD && entity instanceof net.minecraft.server.level.ServerPlayer sp) {
             com.agustin.bloodmoon.invasion.InvasionManager.linkPlayer(sp, pos);
         }
