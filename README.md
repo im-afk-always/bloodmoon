@@ -203,9 +203,27 @@ oscureciendo; al tocar el suelo, en la negrura brota de golpe la luz y estalla c
 Tras el Ojo Colosal y las Fauces baja exhausto hasta el piso (vulnerable). Al morir, todos vuelven al Santuario con el botín.
 Morir en el Más Allá no hace perder el inventario. Si pierden, el Santuario se reabre en 5 minutos.
 
+## Invasión del Vacío (etapa 1)
+Encender el portal del zigurat de un **Coliseo del Vacío** despierta un **Dominio** con eje en ese portal. El Dominio
+crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarlos), hasta **1000 bloques** del portal
+(`invasionRadius`); avanzar le cuesta más cuanto más lejos y sobre el agua. Cuando un chunk se carga, se aplica:
+- **Marchito:** la mitad del césped muere, plantas secas, hojas que caen.
+- **Muerto:** **Tierra Muerta**, Tierra Yerma, Hierba Muerta, Troncos Calcinados, manchas de Roca Negra y **todo bloque de
+  jugador o de aldea en la superficie se reemplaza** por ladrillos de roca negra (lo subterráneo no se toca). El
+  contenido de cofres y barriles va al **Relicario**. El coliseo no se toca.
+- **Obeliscos del Dominio:** anclas de roca negra con un **Núcleo** (pico de diamante); romperlo hace retroceder la influencia.
+- **Fases:** Despertar, Arraigo, Conquista y Dominio (con los valores por defecto: ~día 7, ~18 y ~33).
+- **Final:** entrar por el portal de ese coliseo y vencer al **Observador Desatado**. El Dominio se quiebra, el Relicario
+  aparece en cofres junto al portal y la tierra sana de afuera hacia adentro.
+- **Mapa del Dominio:** botón con un mapa en el inventario (junto al encapuchado). Muestra el terreno que ya viste y el
+  Dominio completo aunque no esté cargado; arrastrar para mover, rueda para zoom. El **ojo** del margen muestra la
+  jerarquía: Rey del Vacío, Generales, Capitanes, Forjadores y tropas.
+- Config: `invasionRadius` (1000), `invasionCycleSeconds` (20), `invasionSpeed` (1.0), `invasionReplacePlayerBlocks` (true).
+
 ## Comandos (OP)
 - `/bloodmoon force [super|golden|moonless]`
 - `/bloodmoon cancel`
+- `/bloodmoon invasion start|grow <ciclos>|end|status` (Invasión del Vacío: despertar el coliseo más cercano, adelantar ciclos, vencerla, estado)
 - `/bloodmoon devotion offer [harvest|providence]|add <n>|reset|status|complete` (pruebas del culto; `status` muestra tu devoción y el pedido en curso; `complete` completa el pedido de esta noche)
 - `/bloodmoon status`
 - `/bloodmoon summon rider`

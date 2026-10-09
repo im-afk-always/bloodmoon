@@ -53,7 +53,7 @@ import java.util.Set;
  */
 public final class InvasionManager {
     public static final String LINK_KEY = "bloodmoon_invasion_link";
-    private static final double[] PHASE_AT = {0, 400, 1800, 6000};
+    private static final double[] PHASE_AT = {0, 4000, 25000, 90000};
     private static final int[] MAX_GRANTS = {4, 8, 14, 20};
     private static final int OBELISK_COST = 25, OBELISK_AURA = 3;
     private static int cycleTimer;
@@ -256,7 +256,32 @@ public final class InvasionManager {
             }
         }
 
-        // 3) frontera
+        // 3) obeliscos nuevos (antes que la frontera, para que la esencia no se vaya toda en avanzar): 1 cada 100 chunks muertos
+        if (dead.size() / 100 > obelisks.size() && f.essence >= OBELISK_COST) {
+            Long best = null;
+            double bestD = -1;
+            int col = coliseumChunks() + 2;
+            for (long k : dead) {
+                ChunkPos cp = new ChunkPos(k);
+                ChunkPos cc = new ChunkPos(f.center);
+                if (d2(cp, cc) <= (long) col * col) continue;
+                boolean near = false;
+                for (long ob : obelisks) if (d2(new ChunkPos(ob), cp) < 49) { near = true; break; }
+                if (near) continue;
+                double d = distance(f, k) + r.nextDouble() * 48;
+                if (d > bestD) { bestD = d; best = k; }
+            }
+            if (best != null) {
+                InvasionData.Cell c = data.cells.get(best);
+                c.obelisk = true;
+                c.obeliskBuilt = false;
+                f.essence -= OBELISK_COST;
+                obelisks.add(best);
+                changed.add(best);
+            }
+        }
+
+        // 4) frontera
         Map<Long, Integer> cand = new HashMap<>();
         for (long k : dead) {
             ChunkPos cp = new ChunkPos(k);
@@ -289,31 +314,6 @@ public final class InvasionManager {
             cell.influence = Math.min(100, cell.influence + 34);
             changed.add(e.getKey());
             grants--;
-        }
-
-        // 4) obeliscos nuevos: anclas cerca de la frontera
-        if (dead.size() / 40 > obelisks.size() && f.essence >= OBELISK_COST) {
-            Long best = null;
-            double bestD = -1;
-            int col = coliseumChunks() + 2;
-            for (long k : dead) {
-                ChunkPos cp = new ChunkPos(k);
-                ChunkPos cc = new ChunkPos(f.center);
-                if (d2(cp, cc) <= (long) col * col) continue;
-                boolean near = false;
-                for (long ob : obelisks) if (d2(new ChunkPos(ob), cp) < 25) { near = true; break; }
-                if (near) continue;
-                double d = distance(f, k) + r.nextDouble() * 48;
-                if (d > bestD) { bestD = d; best = k; }
-            }
-            if (best != null) {
-                InvasionData.Cell c = data.cells.get(best);
-                c.obelisk = true;
-                c.obeliskBuilt = false;
-                f.essence -= OBELISK_COST;
-                obelisks.add(best);
-                changed.add(best);
-            }
         }
 
         // 5) jerarquía
