@@ -110,8 +110,9 @@ public final class EclipseSkyRenderer {
         // 2) resplandor: proporcional a lo que queda descubierto (la luna lo tapa y se ve su silueta)
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         float glow = clear * (float) Math.pow(1F - c, 0.8) * (float) Math.sqrt(b);
-        fan(m, 0F, 0F, SR * 7F, 1F, 0.88F, 0.66F, 0.2F * glow);
-        fan(m, 0F, 0F, SR * 2.4F, 1F, 0.96F, 0.84F, 0.32F * glow);
+        fan(m, 0F, 0F, SR * 9F, 1F, 0.88F, 0.66F, 0.28F * glow);
+        fan(m, 0F, 0F, SR * 4F, 1F, 0.94F, 0.8F, 0.3F * glow);
+        fan(m, 0F, 0F, SR * 2F, 1F, 0.98F, 0.9F, 0.45F * glow);
 
         // 3) la corona: un halo que contornea el disco lunar
         float cor = st == null ? 0F : st.corona();
@@ -133,17 +134,21 @@ public final class EclipseSkyRenderer {
                     .rotateZ(-across * Mth.DEG_TO_RAD).transformDirection(new Vector3f(0F, 1F, 0F));
             float rise = smooth((up.y() + 0.03F) / 0.08F);                      // asoma por el horizonte
             if (rise > 0.003F) {
+                // colores neutros: la luna de día es un disco blanquecino y translúcido; junto al sol, una silueta gris
+                // oscura (siempre más oscura que el cielo, incluso en la totalidad)
                 Vec3 sky = level.getSkyColor(mc.gameRenderer.getMainCamera().getPosition(), pt);
+                float skyLum = (float) (0.3 * sky.x + 0.59 * sky.y + 0.11 * sky.z);
                 float near = 1F - smooth((d - 0.8F) / 1.6F);
-                float pr = (float) sky.x * 0.72F + 0.26F, pg = (float) sky.y * 0.72F + 0.27F, pb = (float) sky.z * 0.72F + 0.3F;
-                float sr = (float) sky.x * 0.35F, sg = (float) sky.y * 0.35F, sb = (float) sky.z * 0.35F;
+                float pr = 0.86F, pg = 0.87F, pb = 0.9F;
+                float sil = Math.min(0.14F, skyLum * 0.45F);
+                float sr = sil, sg = sil * 1.02F, sb = sil * 1.08F;
                 RenderSystem.defaultBlendFunc();
                 RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
                 RenderSystem.setShaderTexture(0, MOON);
                 Minecraft.getInstance().getTextureManager().getTexture(MOON).setFilter(true, false);
                 float mr = SR * Eclipse.MOON_R;
                 quad(mm, 0F, 0F, mr, Mth.lerp(near, pr, sr), Mth.lerp(near, pg, sg), Mth.lerp(near, pb, sb),
-                        rise * clear * Mth.lerp(near, 0.8F, 1F));
+                        rise * clear * Mth.lerp(near, 0.55F, 1F));
             }
         }
 
