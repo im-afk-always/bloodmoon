@@ -2,6 +2,7 @@ package com.agustin.bloodmoon.client;
 
 import com.agustin.bloodmoon.ClientDevotion;
 import com.agustin.bloodmoon.registry.ModParticles;
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -28,7 +29,7 @@ import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
 /**
  * Aura de los devotos de la Luna de la Cosecha: llamas translúcidas color sangre que nacen en los pies y suben.
  * En rangos bajos solo lamen los pies; con cada rango suben más alto hasta envolver a la persona entera (y un poco más).
- * Desde Creyente (III) las recorren rayos de estática anaranjado oscuro, cada vez más largos y frecuentes.
+ * Desde Creyente (III) las recorren rayos de estática rojos; con el rango ganan formas, ramas, largo y frecuencia.
  * En primera persona las propias llamas quedan bajas y más ralas, para no tapar la vista.
  */
 public final class DevotionAura {
@@ -36,6 +37,23 @@ public final class DevotionAura {
     private static SpriteSet boltSprites, flameSprites;
 
     /** Como PARTICLE_SHEET_TRANSLUCENT pero sin escribir profundidad: las llamas superpuestas no se recortan entre sí. */
+    /** Aditivo y sin profundidad: los rayos suman luz roja sobre lo que tengan detrás. */
+    static final ParticleRenderType GLOW = new ParticleRenderType() {
+        @Override
+        public BufferBuilder begin(Tesselator tesselator, TextureManager textureManager) {
+            RenderSystem.depthMask(false);
+            RenderSystem.setShaderTexture(0, TextureAtlas.LOCATION_PARTICLES);
+            RenderSystem.enableBlend();
+            RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+            return tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+        }
+
+        @Override
+        public String toString() {
+            return "bloodmoon:devotion_glow";
+        }
+    };
+
     static final ParticleRenderType SOFT = new ParticleRenderType() {
         @Override
         public BufferBuilder begin(Tesselator tesselator, TextureManager textureManager) {
@@ -95,11 +113,10 @@ public final class DevotionAura {
             for (int i = 0; i < n; i++) mc.particleEngine.add(new Flame(level, p, height, t, flameSprites));
         }
         if (rank >= 3 && boltSprites != null) {
-            float radius = 0.45F + 0.5F * t;
-            float yMax = self ? 0.9F : Math.min(p.getBbHeight() * 1.05F, height + 0.2F);
-            float chance = (0.03F + 0.22F * (rank - 3) / 8F) * (self ? 0.5F : 1F);
+            float yMax = self ? 0.9F : Math.min(p.getBbHeight() * 1.05F, height + 0.3F);
+            float chance = (0.04F + 0.26F * (rank - 3) / 8F) * (self ? 0.5F : 1F);
             int bolts = count(r, chance * (1F + t));
-            for (int i = 0; i < bolts; i++) mc.particleEngine.add(new Bolt(level, p, radius, yMax, t, boltSprites));
+            for (int i = 0; i < bolts; i++) mc.particleEngine.add(new Bolt(level, p, rank, yMax, self, boltSprites));
         }
     }
 
@@ -203,49 +220,193 @@ public final class DevotionAura {
 
     // ------------------------------------------------------------------ rayo de estática
 
+    /**
+     * Rayo de estática rojo. Cuatro formas, que se van habilitando con el rango:
+     * <ul>
+     *   <li>ARCO (III+): salta entre dos puntos del cuerpo, curvado hacia afuera.</li>
+     *   <li>DESCARGA (V+): sale del cuerpo hacia afuera y se bifurca en la punta.</li>
+     *   <li>REPTANTE (VII+): corre por el suelo desde los pies, muy ramificado.</li>
+     *   <li>ESPIRAL (IX+): se enrosca alrededor del cuerpo, subiendo.</li>
+     * </ul>
+     * El trazo es un fractal (desplazamiento de punto medio) con ramas y sub-ramas; cada tick puede volver a
+     * quebrarse manteniendo los extremos, titila y a veces se apaga un instante. Se dibuja en tres capas aditivas:
+     * bruma granate, resplandor rojo y núcleo rojo claro.
+     */
     static final class Bolt extends TextureSheetParticle {
         private static final int LIGHT = 15728880;
+        private static final int ARC = 0, SPIKE = 1, CRAWL = 2, COIL = 3;
         private final Player owner;
-        private final float radius, yMax, t;
-        private final int segs;
-        private final float[] pts;
+        private final int kind, levels;
+        private final float t, yMax, body;
+        /** Puntos de control fijos del rayo (relativos a los pies del jugador). */
+        private final float[] anchors;
+        private final java.util.List<Strand> strands = new java.util.ArrayList<>();
+        private boolean dark;
 
-        Bolt(ClientLevel level, Player owner, float radius, float yMax, float t, SpriteSet sprites) {
+        private record Strand(float[] pts, float width, float bright) {}
+
+        Bolt(ClientLevel level, Player owner, int rank, float yMax, boolean self, SpriteSet sprites) {
             super(level, owner.getX(), owner.getY(), owner.getZ());
             this.owner = owner;
-            this.radius = radius;
+            this.t = Mth.clamp((rank - 1) / 10F, 0F, 1F);
             this.yMax = yMax;
-            this.t = t;
+            this.body = 0.36F + 0.22F * t;
+            int kinds = rank >= 9 ? 4 : rank >= 7 ? 3 : rank >= 5 ? 2 : 1;
+            int k = this.random.nextInt(kinds);
+            if (self && k == COIL) k = ARC;
+            this.kind = k;
+            this.levels = 3 + (rank >= 6 ? 1 : 0) + (this.random.nextFloat() < t ? 1 : 0);
             this.hasPhysics = false;
             this.gravity = 0F;
-            this.lifetime = 3 + this.random.nextInt(4);
-            this.segs = 4 + this.random.nextInt(4);
-            this.pts = new float[(segs + 1) * 3];
+            this.lifetime = 4 + this.random.nextInt(4 + (int) (4 * t));
             this.pickSprite(sprites);
-            this.setSize(4F, 4F);
+            this.setSize(5F, 4F);
+            this.anchors = makeAnchors();
             regen();
         }
 
-        /** Nueva forma quebrada (la estática salta de lugar). */
-        private void regen() {
-            double a = random.nextDouble() * Math.PI * 2, d = radius * (0.4 + 0.6 * random.nextDouble());
-            float x = (float) (Math.cos(a) * d), z = (float) (Math.sin(a) * d);
-            float y = 0.1F + random.nextFloat() * Math.max(0.1F, yMax - 0.2F);
-            // dirección: alrededor del cuerpo y algo vertical
-            float dx = -z, dz = x, dy = (random.nextFloat() - 0.5F) * 1.6F * Math.max(0.3F, (float) d);
-            float len = (0.45F + 1.1F * t) * (0.5F + 0.5F * random.nextFloat());
-            float norm = Mth.sqrt(dx * dx + dy * dy + dz * dz);
-            if (norm < 1e-4F) norm = 1F;
-            dx = dx / norm * len / segs; dy = dy / norm * len / segs; dz = dz / norm * len / segs;
-            if (random.nextBoolean()) { dx = -dx; dz = -dz; }
-            float jit = 0.10F * (1F + t);
-            for (int i = 0; i <= segs; i++) {
-                float j = (i == 0 || i == segs) ? 0F : 1F;
-                pts[i * 3] = x + dx * i + (random.nextFloat() - 0.5F) * jit * j;
-                pts[i * 3 + 1] = y + dy * i + (random.nextFloat() - 0.5F) * jit * j;
-                pts[i * 3 + 2] = z + dz * i + (random.nextFloat() - 0.5F) * jit * j;
+        // ---------------------------------------------------------- forma
+
+        private float rnd(float a, float b) { return a + (b - a) * random.nextFloat(); }
+
+        private float[] onBody(double ang, float y, float rad) {
+            return new float[]{(float) Math.cos(ang) * rad, y, (float) Math.sin(ang) * rad};
+        }
+
+        /** Puntos de control: para ARCO/DESCARGA/REPTANTE, inicio-medio-fin; para ESPIRAL, la hélice entera. */
+        private float[] makeAnchors() {
+            double a0 = random.nextDouble() * Math.PI * 2;
+            float hi = Math.max(0.3F, yMax);
+            switch (kind) {
+                case SPIKE -> {
+                    float y = rnd(0.2F, hi * 0.9F);
+                    float[] s = onBody(a0, y, body * 0.8F);
+                    float len = rnd(0.6F, 1.0F) * (0.7F + 1.1F * t);
+                    double out = a0 + rnd(-0.5F, 0.5F);
+                    float[] e = onBody(out, y + rnd(-0.2F, 0.6F) * len, body + len);
+                    float[] m = mid(s, e, 0F);
+                    return cat(s, m, e);
+                }
+                case CRAWL -> {
+                    float[] s = onBody(a0, 0.05F, body * 0.7F);
+                    float len = rnd(0.7F, 1.1F) * (0.5F + 0.9F * t);
+                    double out = a0 + rnd(-0.7F, 0.7F);
+                    float[] e = onBody(out, 0.03F, body + len);
+                    float[] m = onBody((a0 + out) / 2 + rnd(-0.3F, 0.3F), 0.05F, body + len * 0.5F);
+                    return cat(s, m, e);
+                }
+                case COIL -> {
+                    int n = 7;
+                    float turns = rnd(0.6F, 1.1F) * (random.nextBoolean() ? 1 : -1);
+                    float y0 = rnd(0.05F, hi * 0.3F), y1 = Math.min(hi, y0 + rnd(0.6F, 1.3F) * (0.6F + 0.6F * t));
+                    float[] pts = new float[n * 3];
+                    for (int i = 0; i < n; i++) {
+                        float f = i / (float) (n - 1);
+                        float[] q = onBody(a0 + f * turns * Math.PI * 2, Mth.lerp(f, y0, y1), body * rnd(0.95F, 1.15F));
+                        System.arraycopy(q, 0, pts, i * 3, 3);
+                    }
+                    return pts;
+                }
+                default -> { // ARC
+                    float y1 = rnd(0.1F, hi), y2 = rnd(0.1F, hi);
+                    double a1 = a0 + rnd(0.7F, 2.6F) * (random.nextBoolean() ? 1 : -1);
+                    float[] s = onBody(a0, y1, body * 0.9F), e = onBody(a1, y2, body * 0.9F);
+                    // el medio se curva hacia afuera
+                    float[] m = onBody((a0 + a1) / 2, (y1 + y2) / 2 + rnd(-0.1F, 0.25F), body + rnd(0.1F, 0.3F) * (0.6F + 0.6F * t));
+                    return cat(s, m, e);
+                }
             }
         }
+
+        /** Vuelve a quebrar el trazo (los puntos de control quedan). */
+        private void regen() {
+            strands.clear();
+            float rough = kind == COIL ? 0.16F : 0.28F;
+            float[] main = fractal(anchors, levels, rough);
+            float w = 1F + 0.5F * t;
+            strands.add(new Strand(main, w, 1F));
+            // ramas y sub-ramas
+            float expected = (1.5F + 2.5F * t) * (kind == CRAWL ? 1.4F : 1F);
+            branches(main, w * 0.6F, 0.75F, expected, 2);
+        }
+
+        /** {@code expected}: cantidad media de ramas que salen de este trazo. */
+        private void branches(float[] pts, float w, float bright, float expected, int depth) {
+            int n = pts.length / 3;
+            float prob = expected / Math.max(1, n - 2);
+            float total = length(pts);
+            for (int i = 1; i < n - 1; i++) {
+                if (random.nextFloat() >= prob) continue;
+                float dx = pts[i * 3 + 3] - pts[i * 3], dy = pts[i * 3 + 4] - pts[i * 3 + 1], dz = pts[i * 3 + 5] - pts[i * 3 + 2];
+                float dl = Mth.sqrt(dx * dx + dy * dy + dz * dz);
+                if (dl < 1e-4F) continue;
+                float len = total * rnd(0.18F, 0.42F);
+                // dirección: la del trazo, desviada
+                float bx = dx / dl + rnd(-0.9F, 0.9F), by = dy / dl + rnd(-0.6F, 0.6F), bz = dz / dl + rnd(-0.9F, 0.9F);
+                if (kind == CRAWL) by = rnd(-0.05F, 0.1F);
+                float bl = Mth.sqrt(bx * bx + by * by + bz * bz);
+                if (bl < 1e-4F) continue;
+                float[] s = {pts[i * 3], pts[i * 3 + 1], pts[i * 3 + 2]};
+                float[] e = {s[0] + bx / bl * len, Math.max(0.01F, s[1] + by / bl * len), s[2] + bz / bl * len};
+                float[] b = fractal(cat(s, e), Math.max(1, levels - 2), 0.3F);
+                strands.add(new Strand(b, w, bright));
+                if (depth > 1) branches(b, w * 0.6F, bright * 0.75F, 0.6F, depth - 1);
+            }
+        }
+
+        /** Desplazamiento de punto medio entre puntos de control consecutivos. */
+        private float[] fractal(float[] ctrl, int lv, float rough) {
+            float[] pts = ctrl;
+            for (int l = 0; l < lv; l++) {
+                int n = pts.length / 3;
+                float[] out = new float[(n * 2 - 1) * 3];
+                for (int i = 0; i < n - 1; i++) {
+                    float ax = pts[i * 3], ay = pts[i * 3 + 1], az = pts[i * 3 + 2];
+                    float bx = pts[i * 3 + 3], by = pts[i * 3 + 4], bz = pts[i * 3 + 5];
+                    float dx = bx - ax, dy = by - ay, dz = bz - az;
+                    float len = Mth.sqrt(dx * dx + dy * dy + dz * dz);
+                    // desvío perpendicular aleatorio
+                    float rx = random.nextFloat() - 0.5F, ry = random.nextFloat() - 0.5F, rz = random.nextFloat() - 0.5F;
+                    if (len > 1e-4F) {
+                        float dot = (rx * dx + ry * dy + rz * dz) / (len * len);
+                        rx -= dx * dot; ry -= dy * dot; rz -= dz * dot;
+                    }
+                    float rl = Mth.sqrt(rx * rx + ry * ry + rz * rz);
+                    float k = rl < 1e-4F ? 0F : len * rough * rnd(0.3F, 1F) / rl;
+                    out[i * 6] = ax; out[i * 6 + 1] = ay; out[i * 6 + 2] = az;
+                    out[i * 6 + 3] = (ax + bx) * 0.5F + rx * k;
+                    out[i * 6 + 4] = Math.max(0.01F, (ay + by) * 0.5F + ry * k * (kind == CRAWL ? 0.25F : 1F));
+                    out[i * 6 + 5] = (az + bz) * 0.5F + rz * k;
+                }
+                System.arraycopy(pts, (n - 1) * 3, out, (n * 2 - 2) * 3, 3);
+                pts = out;
+            }
+            return pts;
+        }
+
+        private static float length(float[] pts) {
+            float s = 0;
+            for (int i = 0; i + 5 < pts.length; i += 3) {
+                float dx = pts[i + 3] - pts[i], dy = pts[i + 4] - pts[i + 1], dz = pts[i + 5] - pts[i + 2];
+                s += Mth.sqrt(dx * dx + dy * dy + dz * dz);
+            }
+            return s;
+        }
+
+        private static float[] mid(float[] a, float[] b, float lift) {
+            return new float[]{(a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + lift, (a[2] + b[2]) / 2};
+        }
+
+        private static float[] cat(float[]... parts) {
+            int n = 0;
+            for (float[] p : parts) n += p.length;
+            float[] out = new float[n];
+            int o = 0;
+            for (float[] p : parts) { System.arraycopy(p, 0, out, o, p.length); o += p.length; }
+            return out;
+        }
+
+        // ---------------------------------------------------------- vida
 
         @Override
         public void tick() {
@@ -255,23 +416,33 @@ public final class DevotionAura {
                 return;
             }
             this.setPos(owner.getX(), owner.getY(), owner.getZ());
-            if (random.nextInt(3) == 0) regen();
+            if (random.nextFloat() < 0.55F) regen();
+            dark = age > 1 && random.nextFloat() < 0.15F;   // se apaga un instante
         }
 
         @Override
         public void render(VertexConsumer buf, Camera camera, float pt) {
+            if (dark) return;
             Vec3 cam = camera.getPosition();
             float ox = (float) (Mth.lerp(pt, owner.xo, owner.getX()) - cam.x);
             float oy = (float) (Mth.lerp(pt, owner.yo, owner.getY()) - cam.y);
             float oz = (float) (Mth.lerp(pt, owner.zo, owner.getZ()) - cam.z);
-            float fade = 1F - 0.5F * (age + pt) / lifetime;
-            float flick = 0.55F + 0.45F * random.nextFloat();
-            float glowW = 0.12F * (1F + 0.6F * t), coreW = 0.035F;
-            for (int i = 0; i < segs; i++) {
-                float ax = ox + pts[i * 3], ay = oy + pts[i * 3 + 1], az = oz + pts[i * 3 + 2];
-                float bx = ox + pts[i * 3 + 3], by = oy + pts[i * 3 + 4], bz = oz + pts[i * 3 + 5];
-                ribbon(buf, ax, ay, az, bx, by, bz, glowW, 0.62F, 0.22F, 0.02F, 0.45F * fade * flick);
-                ribbon(buf, ax, ay, az, bx, by, bz, coreW, 0.98F, 0.52F, 0.14F, 0.95F * fade);
+            float life = (age + pt) / lifetime;
+            float fade = life < 0.15F ? life / 0.15F : 1F - 0.6F * Math.max(0F, life - 0.4F) / 0.6F;
+            float flick = 0.5F + 0.5F * random.nextFloat();
+            for (Strand st : strands) {
+                float[] p = st.pts();
+                int n = p.length / 3;
+                float b = st.bright() * fade;
+                for (int i = 0; i < n - 1; i++) {
+                    float taper = 1F - 0.55F * i / (float) (n - 1);
+                    float w = st.width() * taper;
+                    float ax = ox + p[i * 3], ay = oy + p[i * 3 + 1], az = oz + p[i * 3 + 2];
+                    float bx = ox + p[i * 3 + 3], by = oy + p[i * 3 + 4], bz = oz + p[i * 3 + 5];
+                    ribbon(buf, ax, ay, az, bx, by, bz, 0.26F * w, 0.45F, 0.0F, 0.02F, 0.22F * b * flick);   // bruma granate
+                    ribbon(buf, ax, ay, az, bx, by, bz, 0.10F * w, 0.95F, 0.05F, 0.04F, 0.60F * b * flick);  // resplandor rojo
+                    ribbon(buf, ax, ay, az, bx, by, bz, 0.03F * w, 1.0F, 0.50F, 0.45F, 0.95F * b);            // núcleo
+                }
             }
         }
 
@@ -280,12 +451,18 @@ public final class DevotionAura {
                             float w, float r, float g, float b, float alpha) {
             float dx = bx - ax, dy = by - ay, dz = bz - az;
             float mx = (ax + bx) * 0.5F, my = (ay + by) * 0.5F, mz = (az + bz) * 0.5F;
-            // lado = d x vista
             float sx = dy * mz - dz * my, sy = dz * mx - dx * mz, sz = dx * my - dy * mx;
             float sl = Mth.sqrt(sx * sx + sy * sy + sz * sz);
             if (sl < 1e-6F) return;
             float h = w * 0.5F / sl;
             sx *= h; sy *= h; sz *= h;
+            // alargar un poco cada tramo para tapar las juntas
+            float dl = Mth.sqrt(dx * dx + dy * dy + dz * dz);
+            if (dl > 1e-5F) {
+                float e = w * 0.35F / dl;
+                ax -= dx * e; ay -= dy * e; az -= dz * e;
+                bx += dx * e; by += dy * e; bz += dz * e;
+            }
             float u0 = getU0(), u1 = getU1(), v0 = getV0(), v1 = getV1();
             vert(buf, ax - sx, ay - sy, az - sz, u0, v1, r, g, b, alpha);
             vert(buf, ax + sx, ay + sy, az + sz, u1, v1, r, g, b, alpha);
@@ -303,7 +480,7 @@ public final class DevotionAura {
 
         @Override
         public ParticleRenderType getRenderType() {
-            return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT;
+            return GLOW;
         }
 
         @Override

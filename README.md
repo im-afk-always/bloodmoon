@@ -62,7 +62,9 @@ para la Luna de la Cosecha). Al hacer clic muestra deidad, rango, nivel de adora
 
 **Aura de sangre:** los devotos de la Luna de la Cosecha arden en llamas translúcidas color sangre que nacen en los pies
 y suben (todos las ven). En Iniciado solo lamen los pies; con cada rango suben más hasta envolver a la persona entera
-en Elegido. Desde Creyente las recorren rayos de estática anaranjado oscuro, cada vez más largos y frecuentes. En primera
+en Elegido. Desde Creyente las recorren rayos de estática rojos, fractales y ramificados, en cuatro formas que se
+suman con el rango: arcos sobre el cuerpo (III), descargas hacia afuera (V), rayos que reptan por el suelo (VII) y
+espirales que se enroscan subiendo (IX). En primera
 persona las propias llamas quedan bajas y ralas.
 
 **Prefijo:** el nombre del devoto lleva su rango delante, con el color de la facción: `[Apóstol] Jugador` en el chat,
