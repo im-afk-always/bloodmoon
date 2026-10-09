@@ -25,7 +25,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /bloodmoon summon unbound              -> el Observador Desatado emerge donde estás (prueba de la fase final)
  * /bloodmoon locate sanctum              -> Santuario del Ojo más cercano (en el Laberinto del Vacío)
  * /bloodmoon eclipse [cancel]            -> Eclipse Solar ahora (lleva la hora al amanecer) / cancelarlo
- * /bloodmoon devotion offer|add <n>|reset -> pruebas del culto: propuesta, sumar reputación, borrar devoción
+ * /bloodmoon devotion offer [harvest|providence]|add <n>|reset -> pruebas del culto: propuesta, sumar reputación, borrar devoción
  * /bloodmoon eclipse permanent           -> congela el eclipse en el instante actual (otra vez: sigue su curso)
  * Requiere permiso 2 (OP / trucos activados).
  */
@@ -47,7 +47,7 @@ public final class BloodMoonCommand {
                 .then(force)
                 .then(Commands.literal("cancel").executes(BloodMoonCommand::cancel))
                 .then(Commands.literal("devotion")
-                        .then(Commands.literal("offer").executes(ctx -> DevotionManager.debugOffer(ctx.getSource().getPlayerOrException())))
+                        .then(devotionOffer())
                         .then(Commands.literal("add").then(Commands.argument("amount", IntegerArgumentType.integer(-100000, 100000))
                                 .executes(ctx -> DevotionManager.debugAdd(ctx.getSource().getPlayerOrException(), IntegerArgumentType.getInteger(ctx, "amount")))))
                         .then(Commands.literal("reset").executes(ctx -> DevotionManager.debugReset(ctx.getSource().getPlayerOrException()))))
@@ -104,6 +104,15 @@ public final class BloodMoonCommand {
         String key = tonight ? "bloodmoon.command.force.tonight" : "bloodmoon.command.force.tomorrow";
         ctx.getSource().sendSuccess(() -> Component.translatable(key, moonName(type)), true);
         return 1;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> devotionOffer() {
+        LiteralArgumentBuilder<CommandSourceStack> offer = Commands.literal("offer")
+                .executes(ctx -> DevotionManager.debugOffer(ctx.getSource().getPlayerOrException(), Deity.HARVEST));
+        for (Deity d : Deity.values()) {
+            offer.then(Commands.literal(d.id()).executes(ctx -> DevotionManager.debugOffer(ctx.getSource().getPlayerOrException(), d)));
+        }
+        return offer;
     }
 
     private static int cancel(CommandContext<CommandSourceStack> ctx) {

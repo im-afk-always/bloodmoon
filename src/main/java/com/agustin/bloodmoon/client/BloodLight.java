@@ -17,6 +17,8 @@ public final class BloodLight {
     //                                      dim    torchTint  torch R/G/B
     private static final float[] HARVEST = {0.85F, 0.85F, 1F, 0.3F, 0.15F};
     private static final float[] MOONLESS = {0.72F, 0.6F, 0.85F, 0.55F, 1F};
+    // Providencia: casi sin oscurecer, luz dorada cálida; las antorchas a medias hacia un ámbar.
+    private static final float[] PROVIDENCE = {0.97F, 0.55F, 1F, 0.78F, 0.42F};
 
     private BloodLight() {}
 
@@ -63,7 +65,7 @@ public final class BloodLight {
         float pt = mc.getTimer().getGameTimeDeltaPartialTick(false);
         float k = ClientMoonState.intensity(pt);
         if (k <= 0F) return abgr;
-        float[] q = type == MoonType.MOONLESS ? MOONLESS : HARVEST;
+        float[] q = type == MoonType.MOONLESS ? MOONLESS : type == MoonType.GOLDEN ? PROVIDENCE : HARVEST;
         float DIM = q[0], TORCH_TINT = q[1], TORCH_R = q[2], TORCH_G = q[3], TORCH_B = q[4];
         // sin luna, la única luz del cielo es la que irradian la grieta y el ojo
         float floor = type.lightFloor * (type == MoonType.MOONLESS ? MoonlessSkyRenderer.riftLight(mc.level, pt) : 1F);

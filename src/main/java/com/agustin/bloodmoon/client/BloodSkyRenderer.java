@@ -23,7 +23,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 /**
- * Cielo de la Luna de la Cosecha: una luna realista (mares, cráteres, oscurecimiento del borde) teñida de carmesí, con
+ * Cielo de la Luna de la Cosecha y de la Luna de la Providencia (en dorado, con corona en vez de halo): una luna realista (mares, cráteres, oscurecimiento del borde) teñida de carmesí, con
  * un resplandor suave y un único halo tenue; y una capa de nubes suaves (en vez de las cúbicas
  * vanilla) que se curva hacia el horizonte, deriva con el viento y se enciende de rojo cerca de la luna.
  * Se dibuja después del cielo vanilla y antes del terreno.
@@ -31,6 +31,7 @@ import org.joml.Vector3f;
 public final class BloodSkyRenderer {
     private static final ResourceLocation MOON = ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/environment/blood_moon.png");
     private static final ResourceLocation CLOUDS = ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/environment/blood_clouds.png");
+    private static final ResourceLocation CORONA = ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "textures/environment/eclipse_corona.png");
 
     /** Domo de nubes: alto en el cenit, radio horizontal, celdas de la grilla, repeticiones de la textura. */
     private static final float CLOUD_H = 70F, CLOUD_E = 380F, CLOUD_TILES = 1.4F;
@@ -91,7 +92,7 @@ public final class BloodSkyRenderer {
 
         float mk = k * (0.35F + 0.65F * clear);
         drawMoon(celestial, type, mk, time);
-        drawClouds(mv, moonDir, k * (0.55F + 0.45F * clear), time, mc.gameRenderer.getMainCamera().getPosition());
+        drawClouds(mv, moonDir, type, k * (0.55F + 0.45F * clear), time, mc.gameRenderer.getMainCamera().getPosition());
 
         RenderSystem.defaultBlendFunc();
         RenderSystem.depthMask(true);
@@ -109,10 +110,17 @@ public final class BloodSkyRenderer {
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
+        boolean gold = type == MoonType.GOLDEN;
         // resplandor suave que tiñe el cielo alrededor
-        fan(m, y, R * 6F * breathe, 0.95F, 0.12F, 0.07F, 0.3F * k);
-        fan(m, y, R * 2.2F, 1F, 0.16F, 0.1F, 0.3F * k);
-        // un único halo, tenue
+        if (gold) {
+            fan(m, y, R * 6F * breathe, 1F, 0.66F, 0.24F, 0.22F * k);
+            fan(m, y, R * 2.2F, 1F, 0.8F, 0.45F, 0.26F * k);
+            corona(m, y, R, k, time);
+        } else {
+            fan(m, y, R * 6F * breathe, 0.95F, 0.12F, 0.07F, 0.3F * k);
+            fan(m, y, R * 2.2F, 1F, 0.16F, 0.1F, 0.3F * k);
+        }
+        // un único halo, tenue (solo si el tipo lo tiene)
         ring(m, y, R * 3.6F, R * 3.95F, R * 4.4F, 1F, 0.26F, 0.16F, 0.15F * type.halo * k);
 
         // el disco: textura realista teñida (mezcla normal: tapa el cielo de atrás)
@@ -121,7 +129,7 @@ public final class BloodSkyRenderer {
         RenderSystem.setShaderTexture(0, MOON);
         Minecraft.getInstance().getTextureManager().getTexture(MOON).setFilter(true, false);
         BufferBuilder bb = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-        float cr = 1F, cg = 0.24F, cb = 0.17F;
+        float cr = 1F, cg = gold ? 0.88F : 0.24F, cb = gold ? 0.6F : 0.17F;
         bb.addVertex(m, -R, y, -R).setUv(0F, 0F).setColor(cr, cg, cb, k);
         bb.addVertex(m, R, y, -R).setUv(1F, 0F).setColor(cr, cg, cb, k);
         bb.addVertex(m, R, y, R).setUv(1F, 1F).setColor(cr, cg, cb, k);
@@ -130,13 +138,36 @@ public final class BloodSkyRenderer {
         // brillo propio encima del disco (aditivo): la luna "arde"
         RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
         bb = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-        float g = 0.4F * k;
-        bb.addVertex(m, -R, y, -R).setUv(0F, 0F).setColor(1F, 0.35F, 0.25F, g);
-        bb.addVertex(m, R, y, -R).setUv(1F, 0F).setColor(1F, 0.35F, 0.25F, g);
-        bb.addVertex(m, R, y, R).setUv(1F, 1F).setColor(1F, 0.35F, 0.25F, g);
-        bb.addVertex(m, -R, y, R).setUv(0F, 1F).setColor(1F, 0.35F, 0.25F, g);
+        float g = (gold ? 0.3F : 0.4F) * k;
+        float gr = 1F, gg = gold ? 0.82F : 0.35F, gb = gold ? 0.5F : 0.25F;
+        bb.addVertex(m, -R, y, -R).setUv(0F, 0F).setColor(gr, gg, gb, g);
+        bb.addVertex(m, R, y, -R).setUv(1F, 0F).setColor(gr, gg, gb, g);
+        bb.addVertex(m, R, y, R).setUv(1F, 1F).setColor(gr, gg, gb, g);
+        bb.addVertex(m, -R, y, R).setUv(0F, 1F).setColor(gr, gg, gb, g);
         draw(bb);
         RenderSystem.defaultBlendFunc();
+    }
+
+    /**
+     * Corona de la Providencia: una aureola luminosa y tenue pegada al disco (la textura de la corona del eclipse,
+     * teñida de oro), en dos capas que giran despacio en sentidos opuestos para que sus filamentos respiren.
+     */
+    private static void corona(Matrix4f m, float y, float R, float k, float time) {
+        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+        RenderSystem.setShaderTexture(0, CORONA);
+        Minecraft.getInstance().getTextureManager().getTexture(CORONA).setFilter(true, false);
+        float[][] layers = {{2.4F, 0.0011F, 0.30F}, {2.65F, -0.0007F, 0.16F}};
+        for (float[] l : layers) {
+            float s = R * l[0], ang = time * l[1], a = l[2] * k * (0.9F + 0.1F * Mth.sin(time * 0.03F));
+            float c = Mth.cos(ang) * s, sn = Mth.sin(ang) * s;
+            BufferBuilder bb = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+            bb.addVertex(m, -c + sn, y, -sn - c).setUv(0F, 0F).setColor(1F, 0.84F, 0.5F, a);
+            bb.addVertex(m, c + sn, y, sn - c).setUv(1F, 0F).setColor(1F, 0.84F, 0.5F, a);
+            bb.addVertex(m, c - sn, y, sn + c).setUv(1F, 1F).setColor(1F, 0.84F, 0.5F, a);
+            bb.addVertex(m, -c - sn, y, -sn + c).setUv(0F, 1F).setColor(1F, 0.84F, 0.5F, a);
+            draw(bb);
+        }
+        RenderSystem.setShader(GameRenderer::getPositionColorShader);
     }
 
     /** Disco radial sobre el plano y: color pleno en el centro y transparente en el borde. */
@@ -177,7 +208,8 @@ public final class BloodSkyRenderer {
 
     // ------------------------------------------------------------------ nubes
 
-    private static void drawClouds(Matrix4f mv, Vector3f moonDir, float k, float time, Vec3 cam) {
+    private static void drawClouds(Matrix4f mv, Vector3f moonDir, MoonType type, float k, float time, Vec3 cam) {
+        gold = type == MoonType.GOLDEN;
         if (k <= 0.004F) return;
         RenderSystem.defaultBlendFunc();
         net.minecraft.client.renderer.ShaderInstance proc = cloudShader;
@@ -215,6 +247,9 @@ public final class BloodSkyRenderer {
         draw(bb);
     }
 
+    /** Nubes doradas (Providencia) en vez de carmesí. */
+    private static boolean gold;
+
     private static void cloudVertex(BufferBuilder bb, Matrix4f mv, Vector3f moonDir, int i, int j, int n, float su, float sv, float tiles, float k) {
         float fx = 2F * i / n - 1F, fz = 2F * j / n - 1F;
         float x = fx * CLOUD_E, z = fz * CLOUD_E;
@@ -226,9 +261,16 @@ public final class BloodSkyRenderer {
         float d = Math.max(0F, (x * moonDir.x() + y * moonDir.y() + z * moonDir.z()) / len);
         float lit = d * d * d * d;
         float glow = (float) Math.pow(d, 18);
-        float r = Math.min(1F, 0.5F + 0.45F * lit + 0.35F * glow);
-        float g = Math.min(1F, 0.06F + 0.12F * lit + 0.22F * glow);
-        float b = Math.min(1F, 0.05F + 0.08F * lit + 0.15F * glow);
+        float r, g, b;
+        if (gold) {
+            r = Math.min(1F, 0.52F + 0.42F * lit + 0.3F * glow);
+            g = Math.min(1F, 0.34F + 0.34F * lit + 0.3F * glow);
+            b = Math.min(1F, 0.10F + 0.14F * lit + 0.22F * glow);
+        } else {
+            r = Math.min(1F, 0.5F + 0.45F * lit + 0.35F * glow);
+            g = Math.min(1F, 0.06F + 0.12F * lit + 0.22F * glow);
+            b = Math.min(1F, 0.05F + 0.08F * lit + 0.15F * glow);
+        }
         float sc = 0.25F;   // misma dirección, más cerca: no lo recorta el plano lejano con poca distancia de render
         bb.addVertex(mv, x * sc, y * sc, z * sc).setUv(fx * tiles + su, fz * tiles + sv).setColor(r, g, b, 0.93F * k * fade);
     }

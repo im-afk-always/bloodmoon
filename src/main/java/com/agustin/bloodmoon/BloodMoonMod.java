@@ -59,6 +59,9 @@ public class BloodMoonMod {
         NeoForge.EVENT_BUS.addListener(OfferingManager::onLivingDeath);
         NeoForge.EVENT_BUS.addListener(OfferingManager::onCanSleep);
         NeoForge.EVENT_BUS.addListener(OfferingManager::onSleepFinished);
+        NeoForge.EVENT_BUS.addListener(OfferingManager::onBlockPlace);
+        NeoForge.EVENT_BUS.addListener(OfferingManager::onBlockBreak);
+        NeoForge.EVENT_BUS.addListener(OfferingManager::onBabySpawn);
         NeoForge.EVENT_BUS.addListener(OfferingManager::onPlayerLogin);
         NeoForge.EVENT_BUS.addListener(OfferingManager::onPlayerChangeDimension);
         NeoForge.EVENT_BUS.addListener(DevotionManager::onPlayerLogin);

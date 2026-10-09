@@ -34,7 +34,9 @@ import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
  */
 public final class DevotionAura {
     private static final int RANGE = 64;
-    private static SpriteSet boltSprites, flameSprites;
+    private static SpriteSet boltSprites, flameSprites, moteSprites;
+    /** Un anillo dorado persistente por devoto de la Providencia. */
+    private static final java.util.Map<java.util.UUID, Halo> HALOS = new java.util.HashMap<>();
 
     /** Como PARTICLE_SHEET_TRANSLUCENT pero sin escribir profundidad: las llamas superpuestas no se recortan entre sí. */
     /** Aditivo y sin profundidad: los rayos suman luz roja sobre lo que tengan detrás. */
@@ -77,6 +79,10 @@ public final class DevotionAura {
             boltSprites = set;
             return (type, level, x, y, z, dx, dy, dz) -> null;
         });
+        event.registerSpriteSet(ModParticles.DEVOTION_MOTE.get(), set -> {
+            moteSprites = set;
+            return (type, level, x, y, z, dx, dy, dz) -> null;
+        });
         event.registerSpriteSet(ModParticles.DEVOTION_FLAME.get(), set -> {
             flameSprites = set;
             return (type, level, x, y, z, dx, dy, dz) -> null;
@@ -93,7 +99,8 @@ public final class DevotionAura {
             if (aura == null || p.isSpectator() || p.isInvisible() || !p.isAlive()) continue;
             if (cam != null && p.distanceToSqr(cam) > RANGE * RANGE) continue;
             boolean self = p == cam && mc.options.getCameraType().isFirstPerson();
-            emit(mc, level, p, aura.level(), self);
+            if (aura.deity() == com.agustin.bloodmoon.Deity.PROVIDENCE) emitProvidence(mc, level, p, aura.level(), self);
+            else emit(mc, level, p, aura.level(), self);
         }
     }
 
@@ -117,6 +124,226 @@ public final class DevotionAura {
             float chance = (0.04F + 0.26F * (rank - 3) / 8F) * (self ? 0.5F : 1F);
             int bolts = count(r, chance * (1F + t));
             for (int i = 0; i < bolts; i++) mc.particleEngine.add(new Bolt(level, p, rank, yMax, self, boltSprites));
+        }
+    }
+
+    // ------------------------------------------------------------------ Providencia
+
+    private static void emitProvidence(Minecraft mc, ClientLevel level, Player p, int rank, boolean self) {
+        if (boltSprites == null) return;
+        Halo h = HALOS.get(p.getUUID());
+        if (h == null || !h.alive(level)) {
+            h = new Halo(level, p, boltSprites);
+            HALOS.put(p.getUUID(), h);
+            mc.particleEngine.add(h);
+        }
+        if (rank >= 3 && moteSprites != null) {
+            RandomSource r = level.random;
+            float t = Mth.clamp((rank - 1) / 10F, 0F, 1F);
+            float radius = Halo.radius(t);
+            int n = count(r, (0.25F + 1.6F * t) * (self ? 0.4F : 1F));
+            for (int i = 0; i < n; i++) {
+                double a = r.nextDouble() * Math.PI * 2, d = radius * (0.3 + 0.7 * r.nextDouble());
+                mc.particleEngine.add(new Mote(level, p.getX() + Math.cos(a) * d, p.getY() + 0.1 + r.nextFloat() * p.getBbHeight(),
+                        p.getZ() + Math.sin(a) * d, moteSprites, t));
+            }
+        }
+    }
+
+    /** Cinta de a hacia b mirando a la cámara (coordenadas relativas a ella), de ambos lados. */
+    static void ribbon(VertexConsumer buf, float ax, float ay, float az, float bx, float by, float bz, float w,
+                       float r, float g, float b, float alpha, float u0, float u1, float v0, float v1) {
+        if (alpha <= 0.003F) return;
+        float dx = bx - ax, dy = by - ay, dz = bz - az;
+        float mx = (ax + bx) * 0.5F, my = (ay + by) * 0.5F, mz = (az + bz) * 0.5F;
+        float sx = dy * mz - dz * my, sy = dz * mx - dx * mz, sz = dx * my - dy * mx;
+        float sl = Mth.sqrt(sx * sx + sy * sy + sz * sz);
+        if (sl < 1e-6F) return;
+        float h = w * 0.5F / sl;
+        sx *= h; sy *= h; sz *= h;
+        int L = 15728880;
+        buf.addVertex(ax - sx, ay - sy, az - sz).setUv(u0, v1).setColor(r, g, b, alpha).setLight(L);
+        buf.addVertex(ax + sx, ay + sy, az + sz).setUv(u1, v1).setColor(r, g, b, alpha).setLight(L);
+        buf.addVertex(bx + sx, by + sy, bz + sz).setUv(u1, v0).setColor(r, g, b, alpha).setLight(L);
+        buf.addVertex(bx - sx, by - sy, bz - sz).setUv(u0, v0).setColor(r, g, b, alpha).setLight(L);
+        buf.addVertex(bx - sx, by - sy, bz - sz).setUv(u0, v0).setColor(r, g, b, alpha).setLight(L);
+        buf.addVertex(bx + sx, by + sy, bz + sz).setUv(u1, v0).setColor(r, g, b, alpha).setLight(L);
+        buf.addVertex(ax + sx, ay + sy, az + sz).setUv(u1, v1).setColor(r, g, b, alpha).setLight(L);
+        buf.addVertex(ax - sx, ay - sy, az - sz).setUv(u0, v1).setColor(r, g, b, alpha).setLight(L);
+    }
+
+    /**
+     * Halo de la Providencia: un anillo de luz dorada que rodea al jugador a la altura de la cintura, gira despacio y lo
+     * recorren tres cuentas brillantes. Crece con el rango:
+     * <ul>
+     *   <li>I: un anillo fino y tenue.</li>
+     *   <li>III: más brillo; motas de luz que suben alrededor.</li>
+     *   <li>V: aparece una aureola sobre la cabeza.</li>
+     *   <li>VII: un segundo anillo, inclinado, que gira al revés (giroscopio).</li>
+     *   <li>IX: un anillo de luz en el suelo y columnas de luz que suben desde él.</li>
+     *   <li>XI: un tercer anillo, inclinado hacia el otro lado.</li>
+     * </ul>
+     */
+    static final class Halo extends TextureSheetParticle {
+        private final Player owner;
+        private final ClientLevel lvl;
+        private int rank = 1;
+        private long lastTick;
+
+        Halo(ClientLevel level, Player owner, SpriteSet sprites) {
+            super(level, owner.getX(), owner.getY(), owner.getZ());
+            this.owner = owner;
+            this.lvl = level;
+            this.hasPhysics = false;
+            this.gravity = 0F;
+            this.lifetime = Integer.MAX_VALUE;
+            this.pickSprite(sprites);
+            this.setSize(3.5F, 3.5F);
+            this.lastTick = level.getGameTime();
+        }
+
+        static float radius(float t) {
+            return 0.5F + 0.25F * t;
+        }
+
+        /** Sigue vivo en este mundo (si el motor de partículas lo descartó, deja de recibir ticks). */
+        boolean alive(ClientLevel level) {
+            return isAlive() && lvl == level && level.getGameTime() - lastTick <= 3;
+        }
+
+        @Override
+        public void tick() {
+            this.xo = this.x; this.yo = this.y; this.zo = this.z;
+            lastTick = lvl.getGameTime();
+            ClientDevotion.Aura a = ClientDevotion.AURAS.get(owner.getUUID());
+            Entity cam = Minecraft.getInstance().getCameraEntity();
+            if (owner.isRemoved() || a == null || a.deity() != com.agustin.bloodmoon.Deity.PROVIDENCE || owner.isInvisible()
+                    || owner.isSpectator() || (cam != null && owner.distanceToSqr(cam) > (RANGE + 8) * (RANGE + 8))) {
+                this.remove();
+                return;
+            }
+            rank = a.level();
+            this.setPos(owner.getX(), owner.getY(), owner.getZ());
+        }
+
+        @Override
+        public void render(VertexConsumer buf, Camera camera, float pt) {
+            Minecraft mc = Minecraft.getInstance();
+            boolean self = owner == mc.getCameraEntity() && mc.options.getCameraType().isFirstPerson();
+            Vec3 cam = camera.getPosition();
+            float ox = (float) (Mth.lerp(pt, owner.xo, owner.getX()) - cam.x);
+            float oy = (float) (Mth.lerp(pt, owner.yo, owner.getY()) - cam.y);
+            float oz = (float) (Mth.lerp(pt, owner.zo, owner.getZ()) - cam.z);
+            float time = lvl.getGameTime() + pt;
+            float t = Mth.clamp((rank - 1) / 10F, 0F, 1F);
+            float R = radius(t), h = owner.getBbHeight();
+            float w = 1F + 0.8F * t, a = 0.45F + 0.55F * t;
+            float pulse = 0.9F + 0.1F * Mth.sin(time * 0.06F);
+            float yRing = h * 0.52F + 0.04F * Mth.sin(time * 0.05F);
+
+            ring(buf, ox, oy + yRing, oz, R, 0F, 0F, time * 0.03F, time, w, a * pulse);
+            if (rank >= 5 && !self) ring(buf, ox, oy + h + 0.16F + 0.02F * Mth.sin(time * 0.07F), oz, 0.26F, 0F, 0F, -time * 0.05F, time, 0.8F, a);
+            if (rank >= 7) ring(buf, ox, oy + yRing, oz, R * 1.08F, 0.5F, time * 0.012F, -time * 0.04F, time, w * 0.8F, a * 0.7F);
+            if (rank >= 11) ring(buf, ox, oy + yRing, oz, R * 1.16F, -0.55F, -time * 0.009F, time * 0.035F, time, w * 0.7F, a * 0.6F);
+            if (rank >= 9) {
+                float gR = 0.85F + 0.2F * t;
+                ring(buf, ox, oy + 0.04F, oz, gR, 0F, 0F, time * 0.02F, time, w * 0.9F, a * 0.6F);
+                if (!self) pillars(buf, ox, oy, oz, gR * 0.85F, h + 0.5F, time, a);
+            }
+        }
+
+        /** Anillo inclinado {@code tilt} (eje X) y girado {@code yaw} (eje Y); {@code spin} hace correr las cuentas. */
+        private void ring(VertexConsumer buf, float cx, float cy, float cz, float R, float tilt, float yaw, float spin,
+                          float time, float w, float a) {
+            int n = 40;
+            float ct = Mth.cos(tilt), st = Mth.sin(tilt), cy0 = Mth.cos(yaw), sy0 = Mth.sin(yaw);
+            float[] px = new float[n + 1], py = new float[n + 1], pz = new float[n + 1];
+            for (int i = 0; i <= n; i++) {
+                float th = Mth.TWO_PI * i / n;
+                float x = Mth.cos(th) * R, z = Mth.sin(th) * R;
+                float y = -z * st;
+                z = z * ct;
+                px[i] = cx + x * cy0 - z * sy0;
+                py[i] = cy + y;
+                pz[i] = cz + x * sy0 + z * cy0;
+            }
+            float u0 = getU0(), u1 = getU1(), v0 = getV0(), v1 = getV1();
+            for (int i = 0; i < n; i++) {
+                float th = Mth.TWO_PI * (i + 0.5F) / n;
+                float bead = (float) Math.pow(0.5F + 0.5F * Mth.cos(3F * th - spin * 2.2F), 6);
+                float b = 0.55F + 0.45F * bead;
+                ribbon(buf, px[i], py[i], pz[i], px[i + 1], py[i + 1], pz[i + 1], 0.22F * w, 1F, 0.62F, 0.16F, 0.16F * a, u0, u1, v0, v1);
+                ribbon(buf, px[i], py[i], pz[i], px[i + 1], py[i + 1], pz[i + 1], 0.09F * w, 1F, 0.78F, 0.3F, 0.45F * a * b, u0, u1, v0, v1);
+                ribbon(buf, px[i], py[i], pz[i], px[i + 1], py[i + 1], pz[i + 1], 0.028F * w, 1F, 0.96F, 0.78F, 0.9F * a * b, u0, u1, v0, v1);
+            }
+        }
+
+        /** Columnas de luz que suben desde el anillo del suelo y se desvanecen hacia arriba. */
+        private void pillars(VertexConsumer buf, float cx, float cy, float cz, float R, float top, float time, float a) {
+            float u0 = getU0(), u1 = getU1(), v0 = getV0(), v1 = getV1();
+            int n = 6, seg = 5;
+            for (int i = 0; i < n; i++) {
+                float th = Mth.TWO_PI * i / n + time * 0.01F;
+                float x = cx + Mth.cos(th) * R, z = cz + Mth.sin(th) * R;
+                float flick = 0.7F + 0.3F * Mth.sin(time * 0.11F + i * 1.7F);
+                for (int s = 0; s < seg; s++) {
+                    float y0 = cy + top * s / seg, y1 = cy + top * (s + 1) / seg;
+                    float fade = 1F - (s + 0.5F) / seg;
+                    ribbon(buf, x, y0, z, x, y1, z, 0.18F, 1F, 0.75F, 0.3F, 0.14F * a * fade * flick, u0, u1, v0, v1);
+                }
+            }
+        }
+
+        @Override
+        public ParticleRenderType getRenderType() {
+            return GLOW;
+        }
+
+        @Override
+        protected int getLightColor(float partialTick) {
+            return 15728880;
+        }
+    }
+
+    /** Mota de luz dorada que sube despacio, titila y se apaga. */
+    static final class Mote extends TextureSheetParticle {
+        private final float baseSize, phase;
+
+        Mote(ClientLevel level, double x, double y, double z, SpriteSet sprites, float t) {
+            super(level, x, y, z);
+            this.hasPhysics = false;
+            this.gravity = 0F;
+            this.friction = 0.96F;
+            this.xd = (this.random.nextFloat() - 0.5F) * 0.01F;
+            this.zd = (this.random.nextFloat() - 0.5F) * 0.01F;
+            this.yd = 0.008F + 0.014F * this.random.nextFloat();
+            this.lifetime = 25 + this.random.nextInt(25);
+            this.baseSize = (0.035F + 0.04F * this.random.nextFloat()) * (1F + 0.4F * t);
+            this.phase = this.random.nextFloat() * 6.28F;
+            this.quadSize = baseSize;
+            this.pickSprite(sprites);
+            float w = this.random.nextFloat();
+            this.setColor(1F, Mth.lerp(w, 0.7F, 0.92F), Mth.lerp(w, 0.25F, 0.6F));
+            this.setAlpha(0F);
+        }
+
+        @Override
+        public void tick() {
+            super.tick();
+            float life = age / (float) lifetime;
+            float in = Mth.clamp(life / 0.2F, 0F, 1F), out = Mth.clamp((1F - life) / 0.4F, 0F, 1F);
+            this.setAlpha(0.9F * in * out * (0.7F + 0.3F * Mth.sin(age * 0.5F + phase)));
+            this.quadSize = baseSize * (0.8F + 0.2F * Mth.sin(age * 0.3F + phase));
+        }
+
+        @Override
+        public ParticleRenderType getRenderType() {
+            return GLOW;
+        }
+
+        @Override
+        protected int getLightColor(float partialTick) {
+            return 15728880;
         }
     }
 

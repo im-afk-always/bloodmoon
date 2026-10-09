@@ -14,6 +14,8 @@ public final class BloodMoonConfig {
     public static final ModConfigSpec.DoubleValue OFFERING_PER_DAY;
     public static final ModConfigSpec.IntValue OFFERING_CAP;
     public static final ModConfigSpec.DoubleValue OFFERING_BLESSING_CHANCE;
+    public static final ModConfigSpec.DoubleValue PROVIDENCE_PER_DAY;
+    public static final ModConfigSpec.IntValue PROVIDENCE_CAP;
     public static final ModConfigSpec.BooleanValue ECLIPSE_MOBS;
 
     public static final ModConfigSpec.IntValue CREEPER_EXPLOSION_MULT;
@@ -49,6 +51,9 @@ public final class BloodMoonConfig {
         OFFERING_CAP = b.comment("Máximo de ofrendas exigidas por luna (0 = sin tope).").defineInRange("offeringCap", 0, 0, 100000);
         OFFERING_BLESSING_CHANCE = b.comment("Probabilidad de recibir una bendición (Fuerza, Resistencia, Velocidad o Regeneración I-III, 20 s) por ofrenda.")
                 .defineInRange("offeringBlessingChance", 0.3, 0.0, 1.0);
+        PROVIDENCE_PER_DAY = b.comment("Tributos (cultivos maduros cosechados + minerales extraídos) exigidos en cada Luna de la Providencia = días x este valor.")
+                .defineInRange("providenceTributePerDay", 5.0, 0.0, 1000.0);
+        PROVIDENCE_CAP = b.comment("Máximo de tributos exigidos por Luna de la Providencia (0 = sin tope).").defineInRange("providenceTributeCap", 150, 0, 100000);
         ECLIPSE_INTERVAL = b.comment("Cada cuántos días ocurre un Eclipse Solar (0 = solo con /bloodmoon eclipse).")
                 .defineInRange("solarEclipseEveryDays", 0, 0, 1000);
         ECLIPSE_MOBS = b.comment("Durante la totalidad despiertan criaturas de la noche alrededor de cada jugador a cielo abierto,",

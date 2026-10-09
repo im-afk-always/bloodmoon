@@ -9,11 +9,11 @@ Una vez por jugador y por mundo; `/bloodmoon intro` lo repite.
 | Luna | Frecuencia (default) | Visual |
 |---|---|---|
 | Luna de la Cosecha | cada 13 noches | Cielo carmesí, luna realista con halo, todo teñido de rojo |
-| Luna Dorada | cada 7 noches | Luna vanilla dorada, cielo oscuro con brillo dorado (sin efectos de juego) |
+| Luna de la Providencia | cada 7 noches | Cielo ámbar, luna realista dorada con corona tenue, todo bañado en luz dorada |
 | Eclipse Solar | por comando (o cada N días) | Ver "Eclipse Solar" |
 | Noche sin Luna | cada 50 noches | La noche cae lento hasta negro total; una ruptura nace en el cenit, se propaga a los horizontes y se abre en una grieta; dentro, un ojo púrpura de pupila felina que frunce la mirada. La grieta y el ojo irradian una luz violeta difusa: el mundo se ilumina tenuemente de púrpura a medida que se abre (las antorchas viran a lavanda), con resplandor, contraste y viñeta violeta. Toda la noche surgen hordas de **Centinelas** (espada) y **Arqueros del Vacío** (arco): esqueletos de hueso negro con armadura del Vacío encantada; se desvanecen al amanecer. A medianoche cae del cielo como un bólido negro el **Emisario Desconocido** o **El Ejecutor**, dejando un cráter |
 
-Prioridad si coinciden: Sin Luna > Cosecha > Dorada. Las lunas ya no cambian la dificultad: no hay más mobs, buffs ni
+Prioridad si coinciden: Sin Luna > Cosecha > Providencia. Las lunas ya no cambian la dificultad: no hay más mobs, buffs ni
 criaturas especiales (los Cursed Creepers y el Jinete del Apocalipsis siguen existiendo solo por comando).
 
 ## Luna de la Cosecha
@@ -67,8 +67,25 @@ suman con el rango: arcos sobre el cuerpo (III), descargas hacia afuera (V), ray
 espirales que se enroscan subiendo (IX). En primera
 persona las propias llamas quedan bajas y ralas.
 
+**Halo dorado (Providencia):** un anillo de luz dorada rodea al devoto a la altura de la cintura, gira despacio y lo
+recorren cuentas brillantes. Con el rango crece y se le suman: motas de luz que suben (III), una aureola sobre la cabeza
+(V), un segundo anillo inclinado que gira al revés (VII), un anillo en el suelo con columnas de luz (IX) y un tercer
+anillo (XI).
+
 **Prefijo:** el nombre del devoto lleva su rango delante, con el color de la facción: `[Apóstol] Jugador` en el chat,
 en la lista de jugadores (Tab) y sobre la cabeza.
+
+## Luna de la Providencia
+**Ambiente:** el mundo se baña en una luz dorada cálida (casi sin oscurecer; las antorchas viran a ámbar), cielo y
+horizonte ámbar, una luna realista dorada sin halo pero con una **corona** luminosa y tenue pegada al disco, nubes
+doradas que se encienden cerca de ella y un posprocesado cálido. Sin música propia.
+
+**Tributos:** la deidad pide días x 5 tributos (tope 150): cada **cultivo maduro cosechado** (trigo, zanahoria, papa,
+remolacha, verruga del Nether, cacao, calabaza, sandía...) y cada **mineral extraído** cuenta uno. Lo que un jugador
+coloca durante la noche no cuenta (no se puede poner y romper). Arriba a la derecha: «Tributos restantes X/Y».
+No hay ofensas: si no se cumple, la Providencia solo lo recuerda. Cumplirlo da reputación y la propuesta de devoción.
+**Criar animales** da reputación a sus devotos: +1 por cría, +2 durante su luna.
+Config: `providenceTributePerDay` (5), `providenceTributeCap` (150).
 
 ## Eclipse Solar
 `/bloodmoon eclipse` lleva la hora al amanecer y arranca uno (o cada N días con `solarEclipseEveryDays`; 0 = solo por
@@ -188,7 +205,7 @@ Morir en el Más Allá no hace perder el inventario. Si pierden, el Santuario se
 ## Comandos (OP)
 - `/bloodmoon force [super|golden|moonless]`
 - `/bloodmoon cancel`
-- `/bloodmoon devotion offer|add <n>|reset` (pruebas del culto)
+- `/bloodmoon devotion offer [harvest|providence]|add <n>|reset` (pruebas del culto)
 - `/bloodmoon status`
 - `/bloodmoon summon rider`
 - `/bloodmoon summon emissary`

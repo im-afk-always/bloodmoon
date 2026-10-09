@@ -71,6 +71,13 @@ public final class DevotionManager {
 
     // ---------------------------------------------------------------- reputación y rangos
 
+    /** Criar animales: reputación para los devotos de la Providencia. */
+    public static void onBreed(ServerLevel overworld, ServerPlayer player, int amount) {
+        if (DevotionData.get(overworld).entry(player.getUUID()).deity == Deity.PROVIDENCE) {
+            addReputation(overworld, player.getUUID(), player, amount, true);
+        }
+    }
+
     /** Kill por encima de la cuota de la noche: +1 de reputación (aviso discreto en la barra de acción). */
     public static void onSurplusKill(ServerLevel overworld, ServerPlayer killer, Deity deity) {
         if (DevotionData.get(overworld).entry(killer.getUUID()).deity == deity) {
@@ -176,8 +183,8 @@ public final class DevotionManager {
         }
         e.pendingOffer = null;
         data.setDirty();
-        player.sendSystemMessage(Component.translatable("bloodmoon.devotion.decline.1", deity.inSentence()).withStyle(ChatFormatting.DARK_RED, ChatFormatting.ITALIC));
-        player.sendSystemMessage(Component.translatable("bloodmoon.devotion.decline.2").withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD));
+        player.sendSystemMessage(Component.translatable("bloodmoon.devotion.decline." + deity.id() + ".1", deity.inSentence()).withStyle(ChatFormatting.DARK_RED, ChatFormatting.ITALIC));
+        player.sendSystemMessage(Component.translatable("bloodmoon.devotion.decline." + deity.id() + ".2").withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD));
         player.playNotifySound(SoundEvents.AMBIENT_CAVE.value(), SoundSource.AMBIENT, 1F, 0.5F);
         player.playNotifySound(SoundEvents.WARDEN_HEARTBEAT, SoundSource.AMBIENT, 1F, 0.6F);
         return 1;
@@ -206,9 +213,9 @@ public final class DevotionManager {
         dispatcher.register(Commands.literal(ROOT).then(accept).then(decline));
     }
 
-    /** Para pruebas (OP): /bloodmoon devotion offer | add <n> | reset. */
-    public static int debugOffer(ServerPlayer player) {
-        offer(player.server.overworld(), player, Deity.HARVEST);
+    /** Para pruebas (OP): /bloodmoon devotion offer [deidad] | add <n> | reset. */
+    public static int debugOffer(ServerPlayer player, Deity deity) {
+        offer(player.server.overworld(), player, deity);
         return 1;
     }
 

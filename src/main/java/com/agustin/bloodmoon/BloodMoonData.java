@@ -22,6 +22,8 @@ public class BloodMoonData extends SavedData {
     private int offenses;
     private boolean offeringActive, offeringUnskippable, offeringSettled;
     private int offeringRequired, offeringDone;
+    /** Deidad dueña del pedido en curso (Cosecha o Providencia). */
+    private String offeringDeity = "harvest";
 
     public static BloodMoonData get(ServerLevel overworld) {
         return overworld.getDataStorage().computeIfAbsent(
@@ -45,6 +47,7 @@ public class BloodMoonData extends SavedData {
         data.offeringSettled = tag.getBoolean("offeringSettled");
         data.offeringRequired = tag.getInt("offeringRequired");
         data.offeringDone = tag.getInt("offeringDone");
+        if (tag.contains("offeringDeity")) data.offeringDeity = tag.getString("offeringDeity");
         data.savedDaylight = !tag.contains("savedDaylight") || tag.getBoolean("savedDaylight");
         return data;
     }
@@ -62,6 +65,7 @@ public class BloodMoonData extends SavedData {
         tag.putBoolean("offeringSettled", offeringSettled);
         tag.putInt("offeringRequired", offeringRequired);
         tag.putInt("offeringDone", offeringDone);
+        tag.putString("offeringDeity", offeringDeity);
         tag.putBoolean("savedDaylight", savedDaylight);
         return tag;
     }
@@ -92,7 +96,13 @@ public class BloodMoonData extends SavedData {
     public int getOfferingDone() { return offeringDone; }
     public boolean isOfferingComplete() { return offeringDone >= offeringRequired; }
 
-    public void startOffering(int required, boolean unskippable) {
+    public Deity getOfferingDeity() {
+        Deity d = Deity.byId(offeringDeity);
+        return d == null ? Deity.HARVEST : d;
+    }
+
+    public void startOffering(Deity deity, int required, boolean unskippable) {
+        offeringDeity = deity.id();
         offeringActive = true; offeringUnskippable = unskippable; offeringSettled = false;
         offeringRequired = required; offeringDone = 0; setDirty();
     }

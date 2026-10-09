@@ -4,7 +4,8 @@ import net.minecraft.network.chat.Component;
 
 /** Deidades a las que un jugador puede rendir culto. Por ahora solo la de la cosecha. */
 public enum Deity {
-    HARVEST("harvest", 0xFFD01818, 0xB0FF2020);
+    HARVEST("harvest", 0xFFD01818, 0xB0FF2020),
+    PROVIDENCE("providence", 0xFFFFC23A, 0xB0FFD060);
 
     private final String id;
     /** Color de los ojos del encapuchado (ARGB) y de su resplandor. */

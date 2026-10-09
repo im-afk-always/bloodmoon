@@ -25,5 +25,9 @@ public final class ModParticles {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> DEVOTION_FLAME =
             PARTICLES.register("devotion_flame", () -> new SimpleParticleType(true));
 
+    /** Motas de luz dorada del aura de la Providencia. */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> DEVOTION_MOTE =
+            PARTICLES.register("devotion_mote", () -> new SimpleParticleType(true));
+
     private ModParticles() {}
 }

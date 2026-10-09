@@ -9,7 +9,8 @@ public enum MoonType {
     BLOOD  (0.015F, 0F, 0F,          0.03F, 0F, 0F,         0F,    255, 38, 28,     0F, 0F, 0F,         0F,    0F,   0F),
     /** Luna de la Cosecha (internamente SUPER): cielo carmesí, luna realista con halo y todo el mundo teñido de rojo. */
     SUPER  (0.30F, 0.022F, 0.018F,   0.42F, 0.05F, 0.035F,  0F,    255, 22, 16,     1F, 0.17F, 0.15F,   0.5F,  16F,  1F),
-    GOLDEN (0.02F, 0.015F, 0.003F,   0.11F, 0.075F, 0.015F, 0.3F,  255, 205, 80,    0F, 0F, 0F,         0F,    0F,   0F),
+    /** Luna de la Providencia (internamente GOLDEN): cielo ámbar, luna realista dorada con corona tenue (sin halo), luz dorada. */
+    GOLDEN (0.22F, 0.14F, 0.035F,    0.34F, 0.22F, 0.06F,   0.25F, 255, 205, 80,    1F, 0.80F, 0.42F,   0.55F, 14F,  0F),
     /** Sin luna: cielo negro, luna invisible (tinte 0). La grieta y el ojo: MoonlessSkyRenderer. */
     MOONLESS (0.004F, 0F, 0.007F,    0.006F, 0F, 0.01F,     0F,    0, 0, 0,         0.55F, 0.32F, 1F,   0.3F,  0F,   0F);
 

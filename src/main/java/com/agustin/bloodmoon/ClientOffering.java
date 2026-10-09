@@ -4,14 +4,16 @@ package com.agustin.bloodmoon;
 public final class ClientOffering {
     public static volatile boolean active, unskippable;
     public static volatile int done, required;
+    /** Deidad del pedido: "harvest" (ofrendas) o "providence" (tributos). */
+    public static volatile String deity = "harvest";
 
     private ClientOffering() {}
 
-    public static void set(boolean a, int d, int r, boolean u) {
-        active = a; done = d; required = r; unskippable = u;
+    public static void set(boolean a, int d, int r, boolean u, String deityId) {
+        active = a; done = d; required = r; unskippable = u; deity = deityId;
     }
 
     public static void reset() {
-        set(false, 0, 0, false);
+        set(false, 0, 0, false, "harvest");
     }
 }

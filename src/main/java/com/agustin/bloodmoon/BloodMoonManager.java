@@ -181,8 +181,10 @@ public final class BloodMoonManager {
             player.sendSystemMessage(msg);
         }
         PacketDistributor.sendToPlayersInDimension(overworld, new BloodMoonPayload(type.ordinal()));
-        if (type == MoonType.SUPER) OfferingManager.begin(overworld);
-        else if (previous == MoonType.SUPER) OfferingManager.end(overworld);
+        boolean hadRequest = previous == MoonType.SUPER || previous == MoonType.GOLDEN;
+        if (hadRequest && type != previous) OfferingManager.end(overworld);
+        if (type == MoonType.SUPER && previous != MoonType.SUPER) OfferingManager.begin(overworld, Deity.HARVEST);
+        else if (type == MoonType.GOLDEN && previous != MoonType.GOLDEN) OfferingManager.begin(overworld, Deity.PROVIDENCE);
     }
 
     // ---------------------------------------------------------------- Súper Luna de Sangre

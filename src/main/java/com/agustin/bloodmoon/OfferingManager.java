@@ -24,6 +24,9 @@ import net.neoforged.neoforge.event.level.SleepFinishedTimeEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
+ * Los pedidos de las deidades. En la Luna de la Providencia se piden tributos: cultivos maduros cosechados y minerales
+ * extraídos (días x 5, con tope); no hay ofensas. Criar animales da reputación a sus devotos.
+ * <p>
  * La ofrenda a la deidad de la cosecha. En cada Luna de la Cosecha hay que matar mobs hostiles: días transcurridos x 1,5
  * (redondeo hacia arriba). La cuenta es compartida por todos los jugadores.
  * <ul>
@@ -39,21 +42,38 @@ public final class OfferingManager {
 
     private OfferingManager() {}
 
+    /** Bloques colocados por jugadores durante el pedido (no cuentan como tributo: no se puede poner y romper). */
+    private static final java.util.Set<net.minecraft.core.BlockPos> PLACED = new java.util.HashSet<>();
+
     private static int requiredFor(ServerLevel overworld) {
+        return requiredFor(overworld, BloodMoonData.get(overworld).getOfferingDeity());
+    }
+
+    private static int requiredFor(ServerLevel overworld, Deity deity) {
         long days = overworld.getDayTime() / 24000L;
-        int req = (int) Math.ceil(days * BloodMoonConfig.OFFERING_PER_DAY.get());
-        int cap = BloodMoonConfig.OFFERING_CAP.get();
+        boolean prov = deity == Deity.PROVIDENCE;
+        int req = (int) Math.ceil(days * (prov ? BloodMoonConfig.PROVIDENCE_PER_DAY.get() : BloodMoonConfig.OFFERING_PER_DAY.get()));
+        int cap = prov ? BloodMoonConfig.PROVIDENCE_CAP.get() : BloodMoonConfig.OFFERING_CAP.get();
         if (cap > 0) req = Math.min(req, cap);
         return Math.max(1, req);
     }
 
     // ---------------------------------------------------------------- inicio y fin de la luna
 
-    public static void begin(ServerLevel overworld) {
+    public static void begin(ServerLevel overworld, Deity deity) {
         BloodMoonData data = BloodMoonData.get(overworld);
+        PLACED.clear();
+        int required = requiredFor(overworld, deity);
+        if (deity == Deity.PROVIDENCE) {
+            data.startOffering(deity, required, false);
+            DevotionManager.onOfferingBegin(overworld);
+            tell(overworld, Component.translatable("bloodmoon.providence.start", required).withStyle(ChatFormatting.GOLD));
+            for (ServerPlayer p : overworld.players()) p.playNotifySound(SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.AMBIENT, 1F, 1.2F);
+            broadcast(overworld);
+            return;
+        }
         boolean unskippable = data.getOffenses() >= MAX_OFFENSES;
-        int required = requiredFor(overworld);
-        data.startOffering(required, unskippable);
+        data.startOffering(deity, required, unskippable);
         DevotionManager.onOfferingBegin(overworld);
         tell(overworld, Component.translatable("bloodmoon.offering.start", required).withStyle(ChatFormatting.GOLD));
         if (unskippable) {
@@ -67,6 +87,15 @@ public final class OfferingManager {
     public static void end(ServerLevel overworld) {
         BloodMoonData data = BloodMoonData.get(overworld);
         if (!data.isOfferingActive()) return;
+        PLACED.clear();
+        if (data.getOfferingDeity() == Deity.PROVIDENCE) {
+            if (!data.isOfferingComplete()) {
+                tell(overworld, Component.translatable("bloodmoon.providence.incomplete").withStyle(ChatFormatting.GOLD, ChatFormatting.ITALIC));
+            }
+            data.stopOffering();
+            broadcast(overworld);
+            return;
+        }
         boolean wasUnskippable = data.isOfferingUnskippable();
         if (!data.isOfferingSettled() && !data.isOfferingComplete()) {
             offend(overworld, data, "bloodmoon.offering.incomplete");
@@ -100,7 +129,7 @@ public final class OfferingManager {
         if (!(event.getSource().getEntity() instanceof ServerPlayer killer)) return;
         if (victim instanceof Player) return;
         BloodMoonData data = BloodMoonData.get(level);
-        if (!data.isOfferingActive()) return;
+        if (!data.isOfferingActive() || data.getOfferingDeity() != Deity.HARVEST) return;
         if (data.isOfferingComplete()) {
             // cuota cumplida: cada criatura hostil extra da +1 de reputación a sus devotos
             if (victim instanceof Enemy) DevotionManager.onSurplusKill(level, killer, Deity.HARVEST);
@@ -144,6 +173,54 @@ public final class OfferingManager {
         return new Holder[]{MobEffects.DAMAGE_BOOST, MobEffects.DAMAGE_RESISTANCE, MobEffects.MOVEMENT_SPEED, MobEffects.REGENERATION};
     }
 
+    // ---------------------------------------------------------------- tributos de la Providencia
+
+    /** Cultivo maduro o mineral: lo que la Providencia acepta como tributo. */
+    private static boolean isTribute(net.minecraft.world.level.block.state.BlockState state) {
+        net.minecraft.world.level.block.Block b = state.getBlock();
+        if (b instanceof net.minecraft.world.level.block.CropBlock crop) return crop.isMaxAge(state);
+        if (b instanceof net.minecraft.world.level.block.NetherWartBlock) return state.getValue(net.minecraft.world.level.block.NetherWartBlock.AGE) >= 3;
+        if (b instanceof net.minecraft.world.level.block.CocoaBlock) return state.getValue(net.minecraft.world.level.block.CocoaBlock.AGE) >= 2;
+        if (b == net.minecraft.world.level.block.Blocks.PUMPKIN || b == net.minecraft.world.level.block.Blocks.MELON) return true;
+        return state.is(net.neoforged.neoforge.common.Tags.Blocks.ORES);
+    }
+
+    private static boolean providenceActive(ServerLevel level) {
+        BloodMoonData data = BloodMoonData.get(level);
+        return data.isOfferingActive() && data.getOfferingDeity() == Deity.PROVIDENCE;
+    }
+
+    public static void onBlockPlace(net.neoforged.neoforge.event.level.BlockEvent.EntityPlaceEvent event) {
+        if (!(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
+        if (!(event.getEntity() instanceof Player) || !providenceActive(level)) return;
+        if (isTribute(event.getPlacedBlock())) PLACED.add(event.getPos().immutable());
+    }
+
+    public static void onBlockBreak(net.neoforged.neoforge.event.level.BlockEvent.BreakEvent event) {
+        if (!(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
+        if (!(event.getPlayer() instanceof ServerPlayer player) || player.isCreative() || player.isSpectator()) return;
+        if (!providenceActive(level) || !isTribute(event.getState())) return;
+        if (PLACED.remove(event.getPos())) return;
+        BloodMoonData data = BloodMoonData.get(level);
+        if (data.isOfferingComplete()) return;
+        data.addOfferingDone(1);
+        DevotionManager.onOfferingKill(level, player);
+        if (data.isOfferingComplete()) {
+            data.setOfferingSettled();
+            tell(level, Component.translatable("bloodmoon.providence.complete").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+            for (ServerPlayer p : level.players()) p.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.MASTER, 0.8F, 1.2F);
+            DevotionManager.onRequestComplete(level, Deity.PROVIDENCE, requiredFor(level, Deity.PROVIDENCE));
+        }
+        broadcast(level);
+    }
+
+    /** Criar animales: reputación con la Providencia (doble durante su luna). */
+    public static void onBabySpawn(net.neoforged.neoforge.event.entity.living.BabyEntitySpawnEvent event) {
+        if (!(event.getCausedByPlayer() instanceof ServerPlayer player)) return;
+        ServerLevel overworld = player.server.overworld();
+        DevotionManager.onBreed(overworld, player, providenceActive(overworld) ? 2 : 1);
+    }
+
     // ---------------------------------------------------------------- dormir
 
     /** La luna sin descanso no deja dormir. */
@@ -151,7 +228,7 @@ public final class OfferingManager {
         ServerPlayer player = event.getEntity();
         if (!(player.level() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
         BloodMoonData data = BloodMoonData.get(level);
-        if (data.isOfferingActive() && data.isOfferingUnskippable()) {
+        if (data.isOfferingActive() && data.getOfferingDeity() == Deity.HARVEST && data.isOfferingUnskippable()) {
             event.setProblem(Player.BedSleepingProblem.OTHER_PROBLEM);
             player.displayClientMessage(Component.translatable("bloodmoon.offering.nosleep").withStyle(ChatFormatting.DARK_RED), true);
         }
@@ -161,7 +238,7 @@ public final class OfferingManager {
     public static void onSleepFinished(SleepFinishedTimeEvent event) {
         if (!(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
         BloodMoonData data = BloodMoonData.get(level);
-        if (!data.isOfferingActive() || data.isOfferingSettled() || data.isOfferingComplete()) return;
+        if (!data.isOfferingActive() || data.getOfferingDeity() != Deity.HARVEST || data.isOfferingSettled() || data.isOfferingComplete()) return;
         offend(level, data, "bloodmoon.offering.skipped");
     }
 
@@ -176,12 +253,13 @@ public final class OfferingManager {
     }
 
     private static OfferingPayload payload(BloodMoonData data) {
-        return new OfferingPayload(data.isOfferingActive(), data.getOfferingDone(), data.getOfferingRequired(), data.isOfferingUnskippable());
+        return new OfferingPayload(data.isOfferingActive(), data.getOfferingDone(), data.getOfferingRequired(), data.isOfferingUnskippable(),
+                data.getOfferingDeity().id());
     }
 
     private static void sync(ServerPlayer player, boolean inOverworld) {
         BloodMoonData data = BloodMoonData.get(player.server.overworld());
-        PacketDistributor.sendToPlayer(player, inOverworld ? payload(data) : new OfferingPayload(false, 0, 0, false));
+        PacketDistributor.sendToPlayer(player, inOverworld ? payload(data) : new OfferingPayload(false, 0, 0, false, ""));
     }
 
     public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {

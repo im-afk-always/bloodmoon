@@ -197,7 +197,7 @@ public class BloodMoonClient {
         if (!type.customSky()) return;
         float k = ClientMoonState.intensity((float) event.getPartialTick());
         if (k <= 0F) return;
-        float near = lerp(event.getNearPlaneDistance(), event.getFarPlaneDistance() * 0.3F, k);
+        float near = lerp(event.getNearPlaneDistance(), event.getFarPlaneDistance() * (type == MoonType.GOLDEN ? 0.5F : 0.3F), k);
         if (near >= event.getNearPlaneDistance()) return;
         event.setNearPlaneDistance(near);
         event.setCanceled(true);
@@ -208,7 +208,7 @@ public class BloodMoonClient {
 
     private static boolean harvestNight(Minecraft mc) {
         return mc.level != null && mc.level.dimension() == net.minecraft.world.level.Level.OVERWORLD
-                && ClientMoonState.visual().customSky() && ClientMoonState.intensity(1F) > 0.05F;
+                && ClientMoonState.visual() == MoonType.SUPER && ClientMoonState.intensity(1F) > 0.05F;
     }
 
     /**
