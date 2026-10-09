@@ -194,7 +194,7 @@ public final class DominionStructures {
         }
         for (int[] d : new int[][]{{6, 6}, {-6, 6}, {6, -6}, {-6, -6}}) b.set(d[0], 13, d[1], lantern());
         b.set(0, 13, 0, lantern());
-        b.set(0, 5, 8, lantern());
+        b.set(0, 5, 7, lantern());   // sobre la puerta (dentro del chunk)
         b.set(0, 1, 0, core());
         return b.build(1);
     }

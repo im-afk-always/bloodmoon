@@ -203,7 +203,7 @@ oscureciendo; al tocar el suelo, en la negrura brota de golpe la luz y estalla c
 Tras el Ojo Colosal y las Fauces baja exhausto hasta el piso (vulnerable). Al morir, todos vuelven al Santuario con el botín.
 Morir en el Más Allá no hace perder el inventario. Si pierden, el Santuario se reabre en 5 minutos.
 
-## Invasión del Vacío (etapas 1 y 2)
+## Invasión del Vacío (etapas 1 a 3)
 Encender el portal del zigurat de un **Coliseo del Vacío** despierta un **Dominio** con eje en ese portal. El Dominio
 crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarlos), hasta **1000 bloques** del portal
 (`invasionRadius`); avanzar le cuesta más cuanto más lejos y sobre el agua. Cuando un chunk se carga, se aplica:
@@ -220,6 +220,15 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
 - **Guarniciones:** cada obelisco cercano a un jugador tiene de 2 a 5 Centinelas y Arqueros.
 - **Forjadores del Vacío:** con un jugador cerca, los obeliscos se levantan bloque a bloque; matarlos detiene la obra
   (vuelven en 30 s si el Dominio tiene). Con un jugador a menos de 64 bloques, la corrupción avanza columna a columna.
+- **Estructuras mayores** (cada una con su Núcleo; romperlo la deja en ruinas): **Nido de Ceniza** (fosa con fuego de
+  almas, muchas tropas), **Atalaya** (torre de 20 bloques con arqueros y un Capitán en la plataforma) y **Fortaleza**
+  (muralla de 15×15 con torres y torreón; un General frente a la puerta). Nidos y atalayas desde Arraigo; fortalezas
+  desde Conquista.
+- **Caminos de roca negra** de 3 de ancho, con faroles, unen cada estructura con la siguiente hacia el coliseo.
+- **Asaltos** (desde Conquista, cada uno o dos días si estás dentro del radio): se abre una **Puerta de Guerra** a ~26
+  bloques y salen oleadas que te buscan y rompen bloques para llegar (si mobGriefing está activo). Si las rechazás, el
+  Dominio pierde esencia; si pasan 5 minutos o morís, clava una **cabeza de playa**: 3×3 chunks muertos y un obelisco.
+- El mapa muestra caminos, nidos, atalayas, fortalezas y los asaltos en curso.
 - **Final:** entrar por el portal de ese coliseo y vencer al **Observador Desatado**. El Dominio se quiebra, el Relicario
   aparece en cofres junto al portal y la tierra sana de afuera hacia adentro.
 - **Mapa del Dominio:** botón con un mapa en el inventario (junto al encapuchado). Muestra el terreno que ya viste y el
