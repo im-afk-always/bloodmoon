@@ -110,5 +110,13 @@
         "volume": 0.7
       }
     ]
+  },
+  "music_harvest": {
+    "sounds": [
+      {
+        "name": "bloodmoon:music_harvest",
+        "stream": true
+      }
+    ]
   }
 }

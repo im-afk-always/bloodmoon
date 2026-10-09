@@ -28,6 +28,8 @@ public final class ModSounds {
 
     /** Música de la batalla final: suena en el Más Allá de la Grieta en lugar de la música normal. */
     public static final DeferredHolder<SoundEvent, SoundEvent> MUSIC_BEYOND = register("music_beyond");
+    /** Música de la Luna de la Cosecha (Lacrimosa, Mozart). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> MUSIC_HARVEST = register("music_harvest");
 
     private static DeferredHolder<SoundEvent, SoundEvent> register(String name) {
         return SOUNDS.register(name, () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, name)));

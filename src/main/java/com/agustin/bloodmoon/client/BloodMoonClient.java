@@ -144,6 +144,7 @@ public class BloodMoonClient {
     private static void onClientTick(ClientTickEvent.Post event) {
         if (Minecraft.getInstance().isPaused()) return;
         ClientMoonState.tick();
+        tickHarvestMusic();
         ClientAstralState.tick();
         NukeClouds.tick();
         SupernovaFx.tick();
@@ -177,20 +178,45 @@ public class BloodMoonClient {
         event.setCanceled(true);
     }
 
-    private static net.minecraft.sounds.Music beyondMusic;
-    private static boolean wasInBeyond;
+    private static net.minecraft.sounds.Music beyondMusic, harvestMusic;
+    private static boolean wasInBeyond, wasHarvest;
 
-    /** En el Más Allá de la Grieta suena la música de la batalla final, en bucle, en lugar de la normal. */
+    private static boolean harvestNight(Minecraft mc) {
+        return mc.level != null && mc.level.dimension() == net.minecraft.world.level.Level.OVERWORLD
+                && ClientMoonState.visual().customSky() && ClientMoonState.intensity(1F) > 0.05F;
+    }
+
+    /**
+     * En el Más Allá de la Grieta suena la música de la batalla final, en bucle. Durante la Luna de la Cosecha suena
+     * el Lacrimosa, con una pausa de 30-60 s entre repeticiones; al amanecer termina de sonar sola.
+     */
     private static void onSelectMusic(net.neoforged.neoforge.client.event.SelectMusicEvent event) {
         Minecraft mc = Minecraft.getInstance();
         boolean inBeyond = mc.level != null && mc.level.dimension() == com.agustin.bloodmoon.registry.ModDimensions.BEYOND;
         if (inBeyond) {
             if (beyondMusic == null) beyondMusic = new net.minecraft.sounds.Music(com.agustin.bloodmoon.registry.ModSounds.MUSIC_BEYOND, 0, 0, true);
             event.setMusic(beyondMusic);
-        } else if (wasInBeyond) {
-            mc.getMusicManager().stopPlaying();   // al volver, la pista de la batalla no sigue sonando en el mundo normal
+        } else {
+            if (wasInBeyond) mc.getMusicManager().stopPlaying();   // al volver, la pista de la batalla no sigue sonando en el mundo normal
+            if (harvestNight(mc)) event.setMusic(harvestMusic());
         }
         wasInBeyond = inBeyond;
+    }
+
+    private static net.minecraft.sounds.Music harvestMusic() {
+        if (harvestMusic == null) harvestMusic = new net.minecraft.sounds.Music(com.agustin.bloodmoon.registry.ModSounds.MUSIC_HARVEST, 600, 1200, true);
+        return harvestMusic;
+    }
+
+    /** Cuando sale la Luna de la Cosecha, el Lacrimosa empieza enseguida (sin esperar el turno normal de la música). */
+    private static void tickHarvestMusic() {
+        Minecraft mc = Minecraft.getInstance();
+        boolean harvest = harvestNight(mc);
+        if (harvest && !wasHarvest && !mc.getMusicManager().isPlayingMusic(harvestMusic())) {
+            mc.getMusicManager().stopPlaying();
+            mc.getMusicManager().startPlaying(harvestMusic());
+        }
+        wasHarvest = harvest;
     }
 
     private static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
