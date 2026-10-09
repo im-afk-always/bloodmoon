@@ -239,7 +239,7 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
 ## Comandos (OP)
 - `/bloodmoon force [super|golden|moonless]`
 - `/bloodmoon cancel`
-- `/bloodmoon invasion start|grow <ciclos>|end|status` (Invasión del Vacío: despertar el coliseo más cercano, adelantar ciclos, vencerla, estado)
+- `/bloodmoon invasion start|grow <ciclos>|end|status|raid` (Invasión del Vacío: despertar el coliseo más cercano, adelantar ciclos, vencerla, estado, forzar un asalto contra vos)
 - `/bloodmoon devotion offer [harvest|providence]|add <n>|reset|status|complete` (pruebas del culto; `status` muestra tu devoción y el pedido en curso; `complete` completa el pedido de esta noche)
 - `/bloodmoon status`
 - `/bloodmoon summon rider`

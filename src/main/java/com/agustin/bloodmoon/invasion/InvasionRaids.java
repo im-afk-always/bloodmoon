@@ -100,6 +100,15 @@ public final class InvasionRaids {
         }
     }
 
+    /** Para pruebas (OP): asalto ya contra este jugador, del Dominio activo más cercano. */
+    public static boolean force(ServerLevel level, ServerPlayer p) {
+        if (RAIDS.containsKey(p.getUUID())) return false;
+        Faction f = InvasionManager.nearest(level, p.blockPosition());
+        if (f == null || !f.active) return false;
+        start(level, f, p);
+        return RAIDS.containsKey(p.getUUID());
+    }
+
     private static void start(ServerLevel level, Faction f, ServerPlayer p) {
         double dx = f.center.getX() - p.getX(), dz = f.center.getZ() - p.getZ();
         double len = Math.max(1, Math.sqrt(dx * dx + dz * dz));

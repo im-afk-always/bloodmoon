@@ -25,7 +25,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /bloodmoon summon unbound              -> el Observador Desatado emerge donde estás (prueba de la fase final)
  * /bloodmoon locate sanctum              -> Santuario del Ojo más cercano (en el Laberinto del Vacío)
  * /bloodmoon eclipse [cancel]            -> Eclipse Solar ahora (lleva la hora al amanecer) / cancelarlo
- * /bloodmoon invasion start|grow <ciclos>|end|status -> Invasión del Vacío (pruebas)
+ * /bloodmoon invasion start|grow <ciclos>|end|status|raid -> Invasión del Vacío (pruebas)
  * /bloodmoon devotion offer [harvest|providence]|add <n>|reset|status|complete -> pruebas del culto: propuesta, sumar reputación, borrar devoción
  * /bloodmoon eclipse permanent           -> congela el eclipse en el instante actual (otra vez: sigue su curso)
  * Requiere permiso 2 (OP / trucos activados).
@@ -52,6 +52,8 @@ public final class BloodMoonCommand {
                         .then(Commands.literal("grow").then(Commands.argument("cycles", IntegerArgumentType.integer(1, 5000))
                                 .executes(ctx -> invasionGrow(ctx, IntegerArgumentType.getInteger(ctx, "cycles")))))
                         .then(Commands.literal("end").executes(BloodMoonCommand::invasionEnd))
+                        .then(Commands.literal("raid").executes(ctx -> com.agustin.bloodmoon.invasion.InvasionRaids.force(
+                                ctx.getSource().getServer().overworld(), ctx.getSource().getPlayerOrException()) ? 1 : 0))
                         .then(Commands.literal("status").executes(ctx -> {
                             String st = com.agustin.bloodmoon.invasion.InvasionManager.status(ctx.getSource().getServer().overworld());
                             ctx.getSource().sendSuccess(() -> Component.literal(st), false);
