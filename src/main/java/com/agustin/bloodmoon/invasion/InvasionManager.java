@@ -89,11 +89,20 @@ public final class InvasionManager {
         long key = chunk.getPos().toLong();
         InvasionData.Cell c = data.cells.get(key);
         if (c != null && DominionTerraform.needsWork(data, c)) DominionTerraform.enqueue(key);
+        // una estructura mayor espera a que carguen todos sus chunks: avisar a los vecinos
+        ChunkPos cp = chunk.getPos();
+        for (int ox = -1; ox <= 1; ox++) for (int oz = -1; oz <= 1; oz++) {
+            if (ox == 0 && oz == 0) continue;
+            long k = ChunkPos.asLong(cp.x + ox, cp.z + oz);
+            InvasionData.Cell n = data.cells.get(k);
+            if (n != null && n.structure != DominionStructures.NONE && !n.structureBuilt && DominionTerraform.needsWork(data, n)) DominionTerraform.enqueue(k);
+        }
     }
 
     public static void onServerStopped(ServerStoppedEvent event) {
         DominionTerraform.clear();
         ConstructionSites.clear();
+        DominionTemplates.clear();
         DominionPresence.clear();
         InvasionRaids.clear();
         cycleTimer = 0;
@@ -280,6 +289,7 @@ public final class InvasionManager {
                 if (d2(cp, cc) <= (long) col * col) continue;
                 boolean near = false;
                 for (long ob : obelisks) if (d2(new ChunkPos(ob), cp) < 49) { near = true; break; }
+                for (long st : anchors(f, List.of(), nests, towers, fortresses)) if (d2(new ChunkPos(st), cp) < 9) { near = true; break; }
                 if (near) continue;
                 double d = distance(f, k) + r.nextDouble() * 48;
                 if (d > bestD) { bestD = d; best = k; }
@@ -364,7 +374,7 @@ public final class InvasionManager {
             type = DominionStructures.NEST; cost = 40; minD = radius() * 0.15; maxD = radius(); spacing = 8; far = false;
         } else return;
         List<Long> occupied = anchors(f, obelisks, nests, towers, fortresses);
-        int col = coliseumChunks() + 2;
+        int col = coliseumChunks() + 3;   // la huella de 3×3 no toca el coliseo
         ChunkPos cc = new ChunkPos(f.center);
         Long best = null;
         double bestScore = -1;
@@ -374,6 +384,7 @@ public final class InvasionManager {
             if (d2(cp, cc) <= (long) col * col) continue;
             double d = distance(f, k);
             if (d < minD || d > maxD || water(level, f, k)) continue;
+            if (!footprintFree(data, f, cp)) continue;
             boolean crowded = false;
             for (long o : occupied) if (d2(new ChunkPos(o), cp) < (long) spacing * spacing) { crowded = true; break; }
             if (crowded) continue;
@@ -392,6 +403,15 @@ public final class InvasionManager {
         }
         changed.add(best);
         buildRoad(data, f, best, anchors(f, obelisks, nests, towers, fortresses), changed);
+    }
+
+    /** Una estructura mayor ocupa 3×3 chunks: todos de tierra muerta propia, sin obeliscos ni otras estructuras. */
+    private static boolean footprintFree(InvasionData data, Faction f, ChunkPos cp) {
+        for (int ox = -1; ox <= 1; ox++) for (int oz = -1; oz <= 1; oz++) {
+            InvasionData.Cell c = data.cells.get(ChunkPos.asLong(cp.x + ox, cp.z + oz));
+            if (c == null || c.faction != f.id || c.influence < 100 || c.obelisk || c.structure != DominionStructures.NONE) return false;
+        }
+        return true;
     }
 
     /** Camino de roca negra desde una estructura hasta la más cercana que esté más cerca del eje (o el eje). */

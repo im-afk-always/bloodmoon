@@ -41,12 +41,37 @@ public final class SmokeTest {
             ok &= coliseum(server);
             ok &= sanctum(server);
             ok &= beyond(server);
+            ok &= dominion(server);
         } catch (Throwable t) {
             BloodMoonMod.LOGGER.error("SMOKETEST FAIL exception", t);
             ok = false;
         }
         BloodMoonMod.LOGGER.info(ok ? "SMOKETEST PASS" : "SMOKETEST FAIL");
         server.halt(false);
+    }
+
+    /** Plantillas del Dominio: se leen sin estados inválidos y una Fortaleza se levanta entera con su núcleo. */
+    private static boolean dominion(MinecraftServer server) {
+        ServerLevel level = server.overworld();
+        boolean ok = true;
+        for (String n : new String[]{"obelisk", "nest", "tower", "fortress", "gate"}) {
+            var t = com.agustin.bloodmoon.invasion.DominionTemplates.get(level, n);
+            BloodMoonMod.LOGGER.info("SMOKETEST dominion template {} blocks={}", n, t.blocks().size());
+            if (t.blocks().isEmpty()) ok = false;
+        }
+        int bad = com.agustin.bloodmoon.invasion.DominionTemplates.badStates();
+        if (bad > 0) { BloodMoonMod.LOGGER.error("SMOKETEST FAIL dominion bad states {}", bad); ok = false; }
+        long t0 = System.nanoTime();
+        int cx = 2000, cz = 2000;
+        for (int ox = -2; ox <= 2; ox++) for (int oz = -2; oz <= 2; oz++) level.getChunk((cx >> 4) + ox, (cz >> 4) + oz);
+        var plan = com.agustin.bloodmoon.invasion.DominionTemplates.plan(level,
+                com.agustin.bloodmoon.invasion.DominionTemplates.get(level, "fortress"), cx, cz, net.minecraft.world.level.block.Rotation.CLOCKWISE_90);
+        for (var p : plan.placements()) level.setBlock(p.pos(), p.state(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+        BlockState core = level.getBlockState(new BlockPos(cx, plan.coreY(), cz));
+        BloodMoonMod.LOGGER.info("SMOKETEST dominion fortress placements={} in {} ms core={}", plan.placements().size(),
+                (System.nanoTime() - t0) / 1_000_000, core);
+        if (!core.is(ModBlocks.OBELISK_CORE.get())) { BloodMoonMod.LOGGER.error("SMOKETEST FAIL dominion core missing"); ok = false; }
+        return ok;
     }
 
     private static boolean labyrinth(MinecraftServer server) {

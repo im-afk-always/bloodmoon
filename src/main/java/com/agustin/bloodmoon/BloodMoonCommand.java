@@ -53,7 +53,10 @@ public final class BloodMoonCommand {
                                 .executes(ctx -> invasionGrow(ctx, IntegerArgumentType.getInteger(ctx, "cycles")))))
                         .then(Commands.literal("end").executes(BloodMoonCommand::invasionEnd))
                         .then(Commands.literal("build").executes(ctx -> com.agustin.bloodmoon.invasion.ConstructionSites.forceHere(
-                                ctx.getSource().getServer().overworld(), ctx.getSource().getPlayerOrException()) ? 1 : 0))
+                                ctx.getSource().getServer().overworld(), ctx.getSource().getPlayerOrException()) ? 1 : 0)
+                                .then(Commands.literal("nest").executes(ctx -> buildHere(ctx, com.agustin.bloodmoon.invasion.DominionStructures.NEST)))
+                                .then(Commands.literal("tower").executes(ctx -> buildHere(ctx, com.agustin.bloodmoon.invasion.DominionStructures.TOWER)))
+                                .then(Commands.literal("fortress").executes(ctx -> buildHere(ctx, com.agustin.bloodmoon.invasion.DominionStructures.FORTRESS))))
                         .then(Commands.literal("raid").executes(ctx -> com.agustin.bloodmoon.invasion.InvasionRaids.force(
                                 ctx.getSource().getServer().overworld(), ctx.getSource().getPlayerOrException()) ? 1 : 0))
                         .then(Commands.literal("status").executes(ctx -> {
@@ -284,6 +287,15 @@ public final class BloodMoonCommand {
         CommandSourceStack src = ctx.getSource();
         boolean ok = ApocalypseRider.spawnWithMount(src.getLevel(), BlockPos.containing(src.getPosition()));
         src.sendSuccess(() -> Component.translatable(ok ? "bloodmoon.command.summon.ok" : "bloodmoon.command.summon.fail"), true);
+        return ok ? 1 : 0;
+    }
+
+    /** Para pruebas: levanta una estructura mayor del Dominio (con Forjadores) centrada en tu chunk. */
+    private static int buildHere(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> ctx, int type)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        boolean ok = com.agustin.bloodmoon.invasion.ConstructionSites.forceStructureHere(ctx.getSource().getServer().overworld(),
+                ctx.getSource().getPlayerOrException(), type);
+        ctx.getSource().sendSuccess(() -> Component.literal(ok ? "Obra iniciada" : "Fuera de un Dominio activo o ya hay una obra aquí"), false);
         return ok ? 1 : 0;
     }
 }

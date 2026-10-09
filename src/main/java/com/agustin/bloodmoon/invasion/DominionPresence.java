@@ -93,11 +93,15 @@ public final class DominionPresence {
                 ChunkPos cp = new ChunkPos(r.seat);
                 InvasionData.Cell seatCell = data.cells.get(r.seat);
                 int st = seatCell == null ? DominionStructures.NONE : seatCell.structure;
-                int x = cp.getMiddleBlockX(), z = cp.getMiddleBlockZ();
+                int x = cp.getMinBlockX() + 8, z = cp.getMinBlockZ() + 8;
                 if (r.rank == InvasionRank.KING) { x = f.center.getX(); z = f.center.getZ() + 14; }   // en la arena, frente al portal
-                else if (st == DominionStructures.TOWER) { x += 2; z += 2; }     // arriba de la atalaya
-                else if (st == DominionStructures.FORTRESS) z += 11;            // frente a la puerta de la fortaleza
-                else if (r.rank == InvasionRank.CAPTAIN) x += 4;                // al pie del obelisco
+                else if (st == DominionStructures.TOWER) {                       // en la corona de la atalaya
+                    int[] o = DominionStructures.offset(cp, f, 2, 2);
+                    x += o[0]; z += o[1];
+                } else if (st == DominionStructures.FORTRESS) {                  // en el patio, entre la puerta y el torreón
+                    int[] o = DominionStructures.offset(cp, f, 0, 11);
+                    x += o[0]; z += o[1];
+                } else if (r.rank == InvasionRank.CAPTAIN) x += 4;               // en el basamento del obelisco
                 if (!loaded(level, x, z) || nearestPlayer(level, x, z) > RANK_SPAWN) continue;
                 Entity e = spawnRank(level, f, r, x, z);
                 if (e != null) BODIES.put(key, e);
@@ -154,7 +158,7 @@ public final class DominionPresence {
             if (c.faction != f.id || !ob && !struct) continue;
             long key = e.getKey();
             ChunkPos cp = new ChunkPos(key);
-            int x = cp.getMiddleBlockX(), z = cp.getMiddleBlockZ();
+            int x = cp.getMinBlockX() + 8, z = cp.getMinBlockZ() + 8;
             double near = nearestPlayer(level, x, z);
             List<UUID> troops = GARRISONS.computeIfAbsent(key, k -> new ArrayList<>());
             troops.removeIf(u -> {
@@ -183,15 +187,15 @@ public final class DominionPresence {
             VoidSkeleton s = (archer ? ModEntities.VOID_ARCHER.get() : ModEntities.VOID_SENTINEL.get()).create(level);
             if (s == null) continue;
             int sx, sz;
-            if (type == DominionStructures.TOWER) {          // en la plataforma
+            if (type == DominionStructures.TOWER) {          // en la corona (diagonales libres de la trampilla)
                 sx = x + (level.random.nextBoolean() ? 2 : -2);
                 sz = z + (level.random.nextBoolean() ? 2 : -2);
-            } else if (type == DominionStructures.FORTRESS) { // en el patio
-                sx = x + (level.random.nextBoolean() ? 5 : -5);
-                sz = z + (level.random.nextBoolean() ? 5 : -5);
+            } else if (type == DominionStructures.FORTRESS) { // en las esquinas del patio
+                sx = x + (level.random.nextBoolean() ? 11 : -11);
+                sz = z + (level.random.nextBoolean() ? 11 : -11);
             } else {
                 double a = level.random.nextDouble() * Math.PI * 2;
-                double rr = type == DominionStructures.NEST ? 6 : 4;
+                double rr = type == DominionStructures.NEST ? 16 : 4;   // nido: afuera del borde de la fosa
                 sx = x + (int) Math.round(Math.cos(a) * rr);
                 sz = z + (int) Math.round(Math.sin(a) * rr);
             }

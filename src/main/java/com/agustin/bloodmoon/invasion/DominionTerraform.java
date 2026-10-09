@@ -119,21 +119,17 @@ public final class DominionTerraform {
         boolean live = f != null && f.active && !ConstructionSites.building(key);
         if (c.obelisk && target == 3 && !c.obeliskBuilt && live) {
             if (playerNear(level, chunk.getPos(), ConstructionSites.WATCH)) {
-                ConstructionSites.start(level, key, f, obeliskPlan(level, chunk.getPos()), false);   // los Forjadores lo levantan a la vista
+                ConstructionSites.start(level, key, f, obeliskPlan(level, chunk.getPos()), false, false);   // los Forjadores lo levantan a la vista
             } else {
                 c.coreY = buildObelisk(level, chunk.getPos());
                 c.obeliskBuilt = true;
             }
         }
-        if (c.structure != DominionStructures.NONE && target == 3 && !c.structureBuilt && live) {
-            Plan plan = DominionStructures.plan(level, chunk.getPos(), c.structure);
-            if (playerNear(level, chunk.getPos(), ConstructionSites.WATCH)) {
-                ConstructionSites.start(level, key, f, plan, true);
-            } else {
-                for (Placement p : plan.placements()) level.setBlock(p.pos(), p.state(), FLAGS);
-                c.coreY = plan.coreY();
-                c.structureBuilt = true;
-            }
+        if (c.structure != DominionStructures.NONE && target == 3 && !c.structureBuilt && live
+                && DominionStructures.footprintLoaded(level, chunk.getPos())) {   // si no, se reintenta al cargar un vecino
+            Plan plan = DominionStructures.plan(level, chunk.getPos(), c.structure, f);
+            // a la vista: los Forjadores la levantan; si no, se termina sola con un presupuesto por tick (sin tirones)
+            ConstructionSites.start(level, key, f, plan, true, !playerNear(level, chunk.getPos(), ConstructionSites.WATCH));
         }
         if (c.roadMask != 0 && target == 3 && !c.roadBuilt && !isProtected(level, chunk.getPos())
                 && (c.structure == DominionStructures.NONE || c.structureBuilt) && (!c.obelisk || c.obeliskBuilt)) {
@@ -323,60 +319,10 @@ public final class DominionTerraform {
 
     public record Plan(java.util.List<Placement> placements, int coreY) {}
 
-    /** Obelisco del Dominio en el centro del chunk, como lista ordenada de bloques (cimientos, despeje, de abajo hacia arriba). */
+    /** Obelisco del Dominio en el centro del chunk (plantilla de 13×13 y ~29 de alto, núcleo enjaulado en vidrio). */
     static Plan obeliskPlan(ServerLevel level, ChunkPos cp) {
-        java.util.List<Placement> out = new java.util.ArrayList<>();
-        int cx = cp.getMinBlockX() + 8, cz = cp.getMinBlockZ() + 8;
-        int y0 = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cx, cz);
-        int height = 13 + (int) (hash(cx, cz, 7) * 6);
-        BlockState rock = ModBlocks.BLACK_ROCK.get().defaultBlockState();
-        BlockState bricks = ModBlocks.BLACK_ROCK_BRICKS.get().defaultBlockState();
-        BlockState cracked = ModBlocks.CRACKED_BLACK_ROCK_BRICKS.get().defaultBlockState();
-        BlockState air = Blocks.AIR.defaultBlockState();
-        // despejar
-        for (int dy = height + 1; dy >= 1; dy--) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
-            BlockPos q = new BlockPos(cx + dx, y0 + dy, cz + dz);
-            if (!level.getBlockState(q).isAir()) out.add(new Placement(q, air));
-        }
-        // cimientos hasta el suelo firme
-        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
-            java.util.List<Placement> col = new java.util.ArrayList<>();
-            for (int d = 1; d <= 12; d++) {
-                BlockPos q = new BlockPos(cx + dx, y0 - d, cz + dz);
-                BlockState st = level.getBlockState(q);
-                if (!st.isAir() && st.getFluidState().isEmpty() && !isPlant(st) && !st.is(BlockTags.LEAVES)) break;
-                col.add(0, new Placement(q, rock));
-            }
-            out.addAll(col);
-        }
-        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
-            boolean edge = Math.abs(dx) == 2 || Math.abs(dz) == 2;
-            out.add(new Placement(new BlockPos(cx + dx, y0, cz + dz), edge ? rock : bricks));
-        }
-        int coreY = y0 + 3;
-        for (int dy = 1; dy <= 7; dy++) {
-            for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
-                boolean corner = Math.abs(dx) == 1 && Math.abs(dz) == 1;
-                boolean center = dx == 0 && dz == 0;
-                BlockPos q = new BlockPos(cx + dx, y0 + dy, cz + dz);
-                BlockState st;
-                if (dy == 3) {
-                    if (!center && !corner) continue;   // ventanas al núcleo
-                    st = center ? ModBlocks.OBELISK_CORE.get().defaultBlockState() : bricks;
-                } else if (corner && dy <= 2) st = rock;
-                else st = hash(q.getX(), q.getZ(), q.getY()) < 0.3 ? cracked : bricks;
-                out.add(new Placement(q, st));
-            }
-        }
-        for (int dy = 8; dy <= height - 2; dy++) {
-            out.add(new Placement(new BlockPos(cx, y0 + dy, cz), hash(cx, dy, cz) < 0.25 ? cracked : bricks));
-            if (dy == 8) {
-                for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) out.add(new Placement(new BlockPos(cx + d[0], y0 + dy, cz + d[1]), rock));
-            }
-        }
-        out.add(new Placement(new BlockPos(cx, y0 + height - 1, cz), ModBlocks.VOID_LANTERN.get().defaultBlockState()));
-        out.add(new Placement(new BlockPos(cx, y0 + height, cz), rock));
-        return new Plan(out, coreY);
+        return DominionTemplates.plan(level, DominionTemplates.get(level, "obelisk"), cp.getMinBlockX() + 8, cp.getMinBlockZ() + 8,
+                net.minecraft.world.level.block.Rotation.NONE);
     }
 
     /** Obelisco instantáneo (sin nadie mirando). Devuelve la altura del núcleo. */

@@ -40,6 +40,8 @@ public final class ConstructionSites {
         final List<DominionTerraform.Placement> plan;
         final int coreY;
         final boolean structure;
+        /** Sin nadie a la vista: sin Forjadores, se completa sola con un presupuesto de tiempo por tick. */
+        boolean silent;
         final BlockPos center;
         final List<UUID> forgers = new ArrayList<>();
         int index;
@@ -77,27 +79,52 @@ public final class ConstructionSites {
         c.obelisk = true;
         c.obeliskBuilt = false;
         data.setDirty();
-        start(level, key, f, DominionTerraform.obeliskPlan(level, new ChunkPos(key)), false);
+        start(level, key, f, DominionTerraform.obeliskPlan(level, new ChunkPos(key)), false, false);
         return true;
     }
 
-    static void start(ServerLevel level, long key, Faction f, DominionTerraform.Plan plan, boolean structure) {
+    /** Para pruebas: estructura mayor en obra centrada en el chunk del jugador (sus 3×3 chunks pasan a ser del Dominio). */
+    public static boolean forceStructureHere(ServerLevel level, net.minecraft.server.level.ServerPlayer p, int type) {
+        InvasionData data = InvasionData.get(level);
+        Faction f = InvasionManager.nearest(level, p.blockPosition());
+        if (f == null || !f.active) return false;
+        ChunkPos cp = new ChunkPos(p.blockPosition());
+        long key = cp.toLong();
+        if (SITES.containsKey(key)) return false;
+        for (int ox = -1; ox <= 1; ox++) for (int oz = -1; oz <= 1; oz++) {
+            InvasionData.Cell n = InvasionManager.claim(data, ChunkPos.asLong(cp.x + ox, cp.z + oz), f);
+            if (n == null) return false;
+            n.influence = 100;
+            n.applied = 3;
+        }
+        InvasionData.Cell c = data.cells.get(key);
+        c.obelisk = false;
+        c.structure = type;
+        c.structureBuilt = false;
+        data.setDirty();
+        start(level, key, f, DominionStructures.plan(level, cp, type, f), true, false);
+        return true;
+    }
+
+    static void start(ServerLevel level, long key, Faction f, DominionTerraform.Plan plan, boolean structure, boolean silent) {
         if (SITES.containsKey(key)) return;
         ChunkPos cp = new ChunkPos(key);
         int baseY = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cp.getMiddleBlockX(), cp.getMiddleBlockZ());
         BlockPos center = new BlockPos(cp.getMiddleBlockX(), baseY, cp.getMiddleBlockZ());
         Site s = new Site(key, f.id, plan, center, structure);
+        s.silent = silent;
         SITES.put(key, s);
-        spawnForgers(level, s, f);
+        if (!silent) spawnForgers(level, s, f);
     }
 
     private static void spawnForgers(ServerLevel level, Site s, Faction f) {
-        int n = Math.min(3, Math.max(1, f.forgers / 3));
+        int n = s.structure ? Math.min(6, Math.max(3, f.forgers / 2)) : Math.min(3, Math.max(1, f.forgers / 3));
         for (int i = 0; i < n; i++) {
             VoidForger fo = ModEntities.VOID_FORGER.get().create(level);
             if (fo == null) continue;
             double a = level.random.nextDouble() * Math.PI * 2;
-            int x = s.center.getX() + (int) Math.round(Math.cos(a) * 5), z = s.center.getZ() + (int) Math.round(Math.sin(a) * 5);
+            double rr = s.structure ? 12 + level.random.nextDouble() * 8 : 5;
+            int x = s.center.getX() + (int) Math.round(Math.cos(a) * rr), z = s.center.getZ() + (int) Math.round(Math.sin(a) * rr);
             int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
             fo.moveTo(x + 0.5, y, z + 0.5, level.random.nextFloat() * 360F, 0F);
             fo.finalizeSpawn(level, level.getCurrentDifficultyAt(new BlockPos(x, y, z)), MobSpawnType.EVENT, null);
@@ -110,8 +137,13 @@ public final class ConstructionSites {
         s.lastForgers = level.getGameTime();
     }
 
+    /** Presupuesto de las obras sin espectadores, por tick (todas juntas). */
+    private static final long SILENT_BUDGET_NS = 2_000_000L;
+
     public static void tick(ServerLevel level) {
-        if (SITES.isEmpty() || level.getGameTime() % 5 != 0) return;
+        if (SITES.isEmpty()) return;
+        boolean step = level.getGameTime() % 5 == 0;
+        long t0 = System.nanoTime();
         InvasionData data = InvasionData.get(level);
         for (Iterator<Site> it = SITES.values().iterator(); it.hasNext(); ) {
             Site s = it.next();
@@ -124,28 +156,42 @@ public final class ConstructionSites {
                 it.remove();
                 continue;
             }
-            double near = Double.MAX_VALUE;
-            for (ServerPlayer p : level.players()) near = Math.min(near, p.distanceToSqr(s.center.getX(), p.getY(), s.center.getZ()));
-            if (near > (double) ABANDON * ABANDON) {   // nadie mira: se termina de golpe
-                while (s.index < s.plan.size()) place(level, s.plan.get(s.index++), false);
-            } else {
+            if (step && !s.silent) {
+                double near = Double.MAX_VALUE;
+                for (ServerPlayer p : level.players()) near = Math.min(near, p.distanceToSqr(s.center.getX(), p.getY(), s.center.getZ()));
+                if (near > (double) ABANDON * ABANDON) {   // nadie mira: los Forjadores se van y la obra sigue sola
+                    dismiss(level, s);
+                    s.forgers.clear();
+                    s.silent = true;
+                }
+            }
+            if (s.silent) {
+                while (s.index < s.plan.size() && System.nanoTime() - t0 < SILENT_BUDGET_NS) {
+                    if (!place(level, s.plan.get(s.index), false)) break;   // un chunk de la huella se descargó: esperar
+                    s.index++;
+                }
+            } else if (step) {
                 List<VoidForger> workers = new ArrayList<>();
+                double reach = s.structure ? 40 : 24;
                 for (UUID u : s.forgers) {
                     Entity e = level.getEntity(u);
-                    if (e instanceof VoidForger fo && fo.isAlive() && fo.distanceToSqr(s.center.getX(), s.center.getY(), s.center.getZ()) < 24 * 24) workers.add(fo);
+                    if (e instanceof VoidForger fo && fo.isAlive() && fo.distanceToSqr(s.center.getX(), s.center.getY(), s.center.getZ()) < reach * reach) workers.add(fo);
                 }
                 if (workers.isEmpty()) {
                     if (f.forgers > 0 && level.getGameTime() - s.lastForgers > 600) spawnForgers(level, s, f);
                     continue;   // obra detenida
                 }
-                // el aire (despejar) va rápido; cada Forjador coloca uno o más bloques por paso según el tamaño de la obra
-                int perWorker = Math.max(1, Math.min(6, s.plan.size() / 300));
+                // el aire (despejar) va rápido; cada Forjador coloca más bloques cuanto más grande la obra
+                int perWorker = Math.max(1, Math.min(24, s.plan.size() / 1000));
                 int solid = workers.size() * perWorker;
-                while (s.index < s.plan.size() && solid > 0) {
-                    DominionTerraform.Placement p = s.plan.get(s.index++);
+                int airBudget = 400;
+                while (s.index < s.plan.size() && solid > 0 && airBudget > 0) {
+                    DominionTerraform.Placement p = s.plan.get(s.index);
                     boolean isAir = p.state().isAir();
-                    place(level, p, !isAir);
-                    if (!isAir) {
+                    if (!place(level, p, !isAir && solid % 3 == 0)) break;
+                    s.index++;
+                    if (isAir) airBudget--;
+                    else {
                         workers.get((solid - 1) % workers.size()).hammer(p.pos());
                         solid--;
                     }
@@ -161,20 +207,23 @@ public final class ConstructionSites {
                     Entity e = level.getEntity(u);
                     if (e instanceof VoidForger fo) fo.setWorkSite(null);
                 }
-                level.playSound(null, s.center, net.minecraft.sounds.SoundEvents.BEACON_ACTIVATE, SoundSource.HOSTILE, 2F, 0.5F);
+                if (!s.silent) level.playSound(null, s.center, net.minecraft.sounds.SoundEvents.BEACON_ACTIVATE, SoundSource.HOSTILE, 2F, 0.5F);
                 it.remove();
             }
         }
     }
 
-    private static void place(ServerLevel level, DominionTerraform.Placement p, boolean fx) {
-        level.setBlock(p.pos(), p.state(), Block.UPDATE_ALL);
-        if (!fx) return;
+    /** Coloca un bloque de la obra; {@code false} si su chunk no está cargado (no se fuerza la carga). */
+    private static boolean place(ServerLevel level, DominionTerraform.Placement p, boolean fx) {
+        if (level.getChunkSource().getChunkNow(p.pos().getX() >> 4, p.pos().getZ() >> 4) == null) return false;
+        level.setBlock(p.pos(), p.state(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);   // formas ya resueltas en la plantilla
+        if (!fx) return true;
         BlockState st = p.state();
         level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, st), p.pos().getX() + 0.5, p.pos().getY() + 0.5, p.pos().getZ() + 0.5,
                 8, 0.3, 0.3, 0.3, 0.05);
         level.sendParticles(ParticleTypes.REVERSE_PORTAL, p.pos().getX() + 0.5, p.pos().getY() + 0.5, p.pos().getZ() + 0.5, 4, 0.3, 0.3, 0.3, 0.02);
         level.playSound(null, p.pos(), st.getSoundType().getPlaceSound(), SoundSource.BLOCKS, 0.8F, 0.7F);
+        return true;
     }
 
     private static void dismiss(ServerLevel level, Site s) {
