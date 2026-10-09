@@ -115,7 +115,8 @@
     "sounds": [
       {
         "name": "bloodmoon:music_harvest",
-        "stream": true
+        "stream": true,
+        "volume": 0.75
       }
     ]
   }
