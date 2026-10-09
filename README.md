@@ -11,7 +11,7 @@ Una vez por jugador y por mundo; `/bloodmoon intro` lo repite.
 | Luna de Sangre | cada 3 noches | Luna vanilla teñida de rojo, cielo negro sin estrellas |
 | Luna de la Cosecha | cada 13 noches | Cielo carmesí, luna realista con halo, todo teñido de rojo |
 | Luna Dorada | cada 7 noches | Luna vanilla dorada, cielo oscuro con brillo dorado (sin efectos de juego) |
-| Noche sin Luna | cada 50 noches | La noche cae lento hasta negro total; una ruptura nace en el cenit, se propaga a los horizontes y se abre en una grieta; dentro, un ojo púrpura de pupila felina que frunce la mirada. Toda la noche surgen hordas de **Centinelas** (espada) y **Arqueros del Vacío** (arco): esqueletos de hueso negro con armadura del Vacío encantada; se desvanecen al amanecer. A medianoche cae del cielo como un bólido negro el **Emisario Desconocido** o **El Ejecutor**, dejando un cráter |
+| Noche sin Luna | cada 50 noches | La noche cae lento hasta negro total; una ruptura nace en el cenit, se propaga a los horizontes y se abre en una grieta; dentro, un ojo púrpura de pupila felina que frunce la mirada. La grieta y el ojo irradian una luz violeta difusa: el mundo se ilumina tenuemente de púrpura a medida que se abre (las antorchas viran a lavanda), con resplandor, contraste y viñeta violeta. Toda la noche surgen hordas de **Centinelas** (espada) y **Arqueros del Vacío** (arco): esqueletos de hueso negro con armadura del Vacío encantada; se desvanecen al amanecer. A medianoche cae del cielo como un bólido negro el **Emisario Desconocido** o **El Ejecutor**, dejando un cráter |
 
 Prioridad si coinciden: Sin Luna > Súper > Sangre > Dorada.
 
@@ -26,7 +26,7 @@ una luna realista con un halo tenue y nubes generadas en tiempo real (nunca se r
 pausa de 30-60 s entre repeticiones; al amanecer termina de sonar sola.
 Encima, un posprocesado propio (tono carmesí, contraste, resplandor de la luna y las luces, viñeta) que entra y sale
 solo con la luna; la mano y la interfaz no se tiñen. Se puede apagar en `config/bloodmoon-client.toml`
-(`harvestMoonPostEffect`) y se desactiva solo si está Iris. Con paquetes de shaders el tinte de la luz puede perderse en parte.
+(`harvestMoonPostEffect`, también apaga el de la Noche sin Luna) y se desactiva solo si está Iris. Con paquetes de shaders el tinte de la luz puede perderse en parte.
 
 - Creepers: Velocidad I, explosión x10.
 - **Cursed Creeper** (10% de los creepers naturales): cargado con aura roja, explosión x20, deja fuego, barra de jefe roja.

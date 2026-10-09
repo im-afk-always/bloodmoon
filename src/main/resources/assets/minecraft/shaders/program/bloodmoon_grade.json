@@ -66,6 +66,118 @@
       "values": [
         0.0
       ]
+    },
+    {
+      "name": "MulR",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.05
+      ]
+    },
+    {
+      "name": "MulG",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.72
+      ]
+    },
+    {
+      "name": "MulB",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.74
+      ]
+    },
+    {
+      "name": "TintR",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.2
+      ]
+    },
+    {
+      "name": "TintG",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.32
+      ]
+    },
+    {
+      "name": "TintB",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.28
+      ]
+    },
+    {
+      "name": "TintMix",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.25
+      ]
+    },
+    {
+      "name": "BloomR",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "BloomG",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.42
+      ]
+    },
+    {
+      "name": "BloomB",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.36
+      ]
+    },
+    {
+      "name": "BloomGain",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.85
+      ]
+    },
+    {
+      "name": "VigR",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "VigG",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.55
+      ]
+    },
+    {
+      "name": "VigB",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.55
+      ]
     }
   ]
 }

@@ -64,7 +64,7 @@ public class BloodMoonClient {
         NeoForge.EVENT_BUS.addListener(BloodSkyRenderer::onRenderStage);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onRenderFog);
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onSelectMusic);
-        NeoForge.EVENT_BUS.addListener(HarvestPostEffect::onRenderStage);
+        NeoForge.EVENT_BUS.addListener(MoonPostEffect::onRenderStage);
         NeoForge.EVENT_BUS.addListener(ModBossBars::onBossBar);
         NeoForge.EVENT_BUS.addListener(AstralFlameRenderer::onRenderLiving);
         NeoForge.EVENT_BUS.addListener(NukeClouds::onFogColor);
@@ -137,7 +137,7 @@ public class BloodMoonClient {
         event.registerReloadListener((ResourceManagerReloadListener) manager -> {
             TintedTextures.invalidate();
             VoidArmorModels.invalidate();
-            HarvestPostEffect.invalidate();
+            MoonPostEffect.invalidate();
         });
     }
 

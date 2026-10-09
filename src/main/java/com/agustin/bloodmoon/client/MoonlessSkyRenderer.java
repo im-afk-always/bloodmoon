@@ -71,6 +71,14 @@ public final class MoonlessSkyRenderer {
         return new Stage(crack, open, eyeOpen, squint);
     }
 
+    /** Cuánta luz irradian la grieta y el ojo (0 = cielo negro, 1 = grieta abierta y ojo mirando). */
+    public static float riftLight(ClientLevel level, float pt) {
+        if (level == null) return 0F;
+        float tod = (level.getDayTime() % 24000L) + pt;
+        Stage st = stage(tod, level.getGameTime() + pt);
+        return Math.max(0.35F * st.crack(), st.open()) * (0.75F + 0.25F * st.eyeOpen());
+    }
+
     public static void onRenderStage(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY) return;
         if (ClientMoonState.visual() != MoonType.MOONLESS) return;
@@ -93,6 +101,12 @@ public final class MoonlessSkyRenderer {
         RenderSystem.disableCull();
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
+        RenderSystem.defaultBlendFunc();
+
+        // luz difusa: un resplandor violeta amplio alrededor de la grieta y del ojo (aditivo, detrás del interior)
+        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+        drawRiftGlow(mv, st, k, time);
+        drawEyeGlow(mv, eye, k * smooth((st.open() - 0.3F) / 0.4F) * (0.35F + 0.65F * st.eyeOpen()), time);
         RenderSystem.defaultBlendFunc();
 
         drawRiftInterior(mv, eye, st, k, time);
@@ -177,6 +191,51 @@ public final class MoonlessSkyRenderer {
                 riftVertex(bb, mv, eye, t1, across(i + 1, a1) * f1, Math.abs(a1), k, lipGain, eyeGain);
                 riftVertex(bb, mv, eye, t0, across(i, a1) * f0, Math.abs(a1), k, lipGain, eyeGain);
             }
+        }
+        draw(bb);
+    }
+
+    /** Banda de luz difusa a lo largo de la grieta: varias veces más ancha que la abertura, se apaga hacia los lados. */
+    private static void drawRiftGlow(Matrix4f mv, Stage st, float k, float time) {
+        float base = k * (0.18F + 0.32F * st.open()) * (0.92F + 0.08F * Mth.sin(time * 0.05F));
+        if (base <= 0.003F) return;
+        BufferBuilder bb = begin();
+        int strips = 10;
+        for (int i = 0; i < SEG; i++) {
+            float f0 = widthFactor(i, st), f1 = widthFactor(i + 1, st);
+            if (f0 <= 0F && f1 <= 0F) continue;
+            float t0 = theta(i), t1 = theta(i + 1);
+            float w0 = (halfWidth(i, 1) + halfWidth(i, -1)) * 0.5F * f0 * 3.2F + 7F * f0;
+            float w1 = (halfWidth(i + 1, 1) + halfWidth(i + 1, -1)) * 0.5F * f1 * 3.2F + 7F * f1;
+            for (int j = 0; j < strips; j++) {
+                float a0 = -1F + 2F * j / strips, a1 = -1F + 2F * (j + 1) / strips;
+                float g0 = base * (1F - Math.abs(a0)) * (1F - Math.abs(a0)), g1 = base * (1F - Math.abs(a1)) * (1F - Math.abs(a1));
+                vertex(bb, mv, riftPoint(t0, a0 * w0), PR, PG, PB, g0);
+                vertex(bb, mv, riftPoint(t1, a0 * w1), PR, PG, PB, g0);
+                vertex(bb, mv, riftPoint(t1, a1 * w1), PR, PG, PB, g1);
+                vertex(bb, mv, riftPoint(t0, a1 * w0), PR, PG, PB, g1);
+            }
+        }
+        draw(bb);
+    }
+
+    /** Halo difuso alrededor del ojo, más intenso cuanto más abierto está. */
+    private static void drawEyeGlow(Matrix4f mv, Eye eye, float a, float time) {
+        if (a <= 0.003F) return;
+        float pulse = 0.9F + 0.1F * Mth.sin(time * 0.08F);
+        BufferBuilder bb = begin();
+        int n = 64;
+        float r0 = EYE_L * 0.6F, r1 = EYE_L * 2.6F * pulse;
+        for (int i = 0; i < n; i++) {
+            float b0 = Mth.TWO_PI * i / n, b1 = Mth.TWO_PI * (i + 1) / n;
+            vertex(bb, mv, eye.point(0F, 0F), PR, PG, PB, 0.55F * a);
+            vertex(bb, mv, eye.point(r0 * Mth.cos(b0), r0 * 0.75F * Mth.sin(b0)), PR, PG, PB, 0.45F * a);
+            vertex(bb, mv, eye.point(r0 * Mth.cos(b1), r0 * 0.75F * Mth.sin(b1)), PR, PG, PB, 0.45F * a);
+            vertex(bb, mv, eye.point(0F, 0F), PR, PG, PB, 0.55F * a);
+            vertex(bb, mv, eye.point(r0 * Mth.cos(b0), r0 * 0.75F * Mth.sin(b0)), PR, PG, PB, 0.45F * a);
+            vertex(bb, mv, eye.point(r1 * Mth.cos(b0), r1 * 0.75F * Mth.sin(b0)), PR, PG, PB, 0F);
+            vertex(bb, mv, eye.point(r1 * Mth.cos(b1), r1 * 0.75F * Mth.sin(b1)), PR, PG, PB, 0F);
+            vertex(bb, mv, eye.point(r0 * Mth.cos(b1), r0 * 0.75F * Mth.sin(b1)), PR, PG, PB, 0.45F * a);
         }
         draw(bb);
     }

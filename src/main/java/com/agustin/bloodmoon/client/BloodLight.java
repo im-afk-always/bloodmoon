@@ -11,10 +11,11 @@ import net.minecraft.world.level.Level;
  * antorchas se vuelve rojo brasa. Todo queda más oscuro y con más contraste.
  */
 public final class BloodLight {
-    /** Oscurecimiento general del mundo teñido (con más contraste en las sombras). */
-    private static final float DIM = 0.85F;
-    /** Las antorchas también se tiñen (casi del todo), hacia un rojo brasa. */
-    private static final float TORCH_TINT = 0.85F, TORCH_R = 1F, TORCH_G = 0.3F, TORCH_B = 0.15F;
+    // Cosecha: todo más oscuro y las antorchas casi del todo hacia un rojo brasa.
+    // Sin Luna: más oscuro todavía, y las antorchas a medias hacia un lavanda frío.
+    //                                      dim    torchTint  torch R/G/B
+    private static final float[] HARVEST = {0.85F, 0.85F, 1F, 0.3F, 0.15F};
+    private static final float[] MOONLESS = {0.72F, 0.6F, 0.85F, 0.55F, 1F};
 
     private BloodLight() {}
 
@@ -28,8 +29,13 @@ public final class BloodLight {
         if (!type.tintsLight()) return abgr;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.level.dimension() != Level.OVERWORLD) return abgr;
-        float k = ClientMoonState.intensity(mc.getTimer().getGameTimeDeltaPartialTick(false));
+        float pt = mc.getTimer().getGameTimeDeltaPartialTick(false);
+        float k = ClientMoonState.intensity(pt);
         if (k <= 0F) return abgr;
+        float[] q = type == MoonType.MOONLESS ? MOONLESS : HARVEST;
+        float DIM = q[0], TORCH_TINT = q[1], TORCH_R = q[2], TORCH_G = q[3], TORCH_B = q[4];
+        // sin luna, la única luz del cielo es la que irradian la grieta y el ojo
+        float floor = type.lightFloor * (type == MoonType.MOONLESS ? MoonlessSkyRenderer.riftLight(mc.level, pt) : 1F);
 
         float r = (abgr & 0xFF) / 255F, g = (abgr >>> 8 & 0xFF) / 255F, b = (abgr >>> 16 & 0xFF) / 255F;
         float s = sky / 15F, bl = block / 15F;
@@ -37,7 +43,7 @@ public final class BloodLight {
         float dom = s * s / (s * s + 1.4F * bl * bl + 0.001F);
         float lum = 0.2126F * r + 0.7152F * g + 0.0722F * b;
         // a cielo abierto la luna aporta un mínimo de luz; después todo se oscurece y gana contraste
-        float light = lum + (Math.max(lum, type.lightFloor * (float) Math.pow(s, 1.6)) - lum) * dom;
+        float light = lum + (Math.max(lum, floor * (float) Math.pow(s, 1.6)) - lum) * dom;
         light = DIM * (float) Math.pow(light, 1.2);
         // la luz del cielo es carmesí; la de las antorchas, rojo brasa
         float cr = type.lightR + (TORCH_R - type.lightR) * (1F - dom);

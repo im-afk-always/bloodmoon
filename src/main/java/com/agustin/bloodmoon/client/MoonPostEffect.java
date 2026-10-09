@@ -14,18 +14,19 @@ import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 /**
- * Posprocesado de la Luna de la Cosecha: corrección de color carmesí, contraste, resplandor de lo brillante y viñeta.
+ * Posprocesado de las lunas especiales: corrección de color, contraste, resplandor de lo brillante y viñeta. Carmesí
+ * en la Luna de la Cosecha, violeta en la Noche sin Luna (la grieta y el ojo irradian su luz).
  * Se aplica al terminar de dibujar el mundo (la mano y la interfaz quedan intactas), sube y baja con el mismo fundido
  * que el resto del cielo y no cuesta nada cuando no hay luna. Si los shaders no cargan, se desactiva y se registra.
  */
-public final class HarvestPostEffect {
+public final class MoonPostEffect {
     private static final ResourceLocation CHAIN = ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "shaders/post/harvest_moon.json");
     private static PostChain chain;
     private static boolean failed;
     private static int width = -1, height = -1;
     private static final boolean IRIS = ModList.get().isLoaded("iris") || ModList.get().isLoaded("oculus");
 
-    private HarvestPostEffect() {}
+    private MoonPostEffect() {}
 
     /** Tras una recarga de recursos (F3+T) se reconstruye. */
     public static void invalidate() {
@@ -41,7 +42,7 @@ public final class HarvestPostEffect {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.level.dimension() != Level.OVERWORLD) return;
         MoonType type = ClientMoonState.visual();
-        if (!type.customSky()) return;
+        if (type != MoonType.SUPER && type != MoonType.MOONLESS) return;
         float pt = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         float k = ClientMoonState.intensity(pt);
         if (k <= 0.01F) return;
@@ -62,6 +63,14 @@ public final class HarvestPostEffect {
             chain.resize(width, height);
         }
         chain.setUniform("Intensity", k);
+        boolean violet = type == MoonType.MOONLESS;
+        //                        mul R/G/B                 tint R/G/B, mix              bloom R/G/B, gain           viñeta R/G/B
+        float[] p = violet
+                ? new float[]{0.86F, 0.72F, 1.08F, 0.75F, 0.45F, 1.25F, 0.3F, 0.75F, 0.45F, 1F, 1.05F, 0.7F, 0.5F, 1F}
+                : new float[]{1.05F, 0.72F, 0.74F, 1.2F, 0.32F, 0.28F, 0.25F, 1F, 0.42F, 0.36F, 0.85F, 1F, 0.55F, 0.55F};
+        String[] names = {"MulR", "MulG", "MulB", "TintR", "TintG", "TintB", "TintMix", "BloomR", "BloomG", "BloomB", "BloomGain", "VigR", "VigG", "VigB"};
+        for (int i = 0; i < names.length; i++) chain.setUniform(names[i], p[i]);
+        chain.setUniform("Threshold", violet ? 0.42F : 0.5F);
         RenderSystem.disableBlend();
         RenderSystem.disableDepthTest();
         RenderSystem.resetTextureMatrix();
