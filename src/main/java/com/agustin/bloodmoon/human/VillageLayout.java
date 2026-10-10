@@ -33,7 +33,30 @@ public final class VillageLayout {
     public enum Kind { WELL, STALL, WORK, HOUSE, FARM, TOWER, HALL, MARKET, CASTLE }
 
     /** Plantilla con su huella por columna (para despejar y cimentar). */
-    public record VTemplate(DominionTemplates.Template t, int minX, int maxX, int minZ, int maxZ, Map<Long, int[]> columns) {}
+    public record VTemplate(DominionTemplates.Template t, int minX, int maxX, int minZ, int maxZ, Map<Long, int[]> columns,
+                            java.util.Set<Long> ground) {
+        /** ¿La columna (en coordenadas de la plantilla) tiene algo sólido a la altura de la calle? Los voladizos no cuentan. */
+        public boolean onGround(int tx, int tz) {
+            return ground.contains((long) tx << 32 | (tz & 0xFFFFFFFFL));
+        }
+    }
+
+    /** Pasa de coordenadas del mundo a las de la plantilla del edificio. */
+    public static int[] local(Building b, int wx, int wz) {
+        Rotation inv = switch (b.rot()) {
+            case CLOCKWISE_90 -> Rotation.COUNTERCLOCKWISE_90;
+            case COUNTERCLOCKWISE_90 -> Rotation.CLOCKWISE_90;
+            default -> b.rot();
+        };
+        return DominionTemplates.rotate(wx - b.x(), wz - b.z(), inv);
+    }
+
+    /** ¿El edificio ocupa el suelo en esa columna? (bajo un alero o un voladizo se puede pasar y pavimentar) */
+    public static boolean footprint(ServerLevel level, Building b, int wx, int wz) {
+        if (!b.contains(wx, wz, 0)) return false;
+        int[] l = local(b, wx, wz);
+        return template(level, b.template()).onGround(l[0], l[1]);
+    }
 
     public record Building(String template, Kind kind, HumanJob job, int residents, int x, int z, Rotation rot, int floorY,
                            int minX, int minZ, int maxX, int maxZ, int coreX, int coreZ) {
@@ -111,7 +134,9 @@ public final class VillageLayout {
             DominionTemplates.Template t = DominionTemplates.loadPath(level, "human/" + n);
             int minX = 0, maxX = 0, minZ = 0, maxZ = 0;
             Map<Long, int[]> cols = new HashMap<>();
+            java.util.Set<Long> ground = new java.util.HashSet<>();
             for (DominionTemplates.Entry e : t.blocks()) {
+                if (e.y() <= 2 && !e.state().isAir()) ground.add((long) e.x() << 32 | (e.z() & 0xFFFFFFFFL));
                 minX = Math.min(minX, e.x()); maxX = Math.max(maxX, e.x());
                 minZ = Math.min(minZ, e.z()); maxZ = Math.max(maxZ, e.z());
                 long k = (long) e.x() << 32 | (e.z() & 0xFFFFFFFFL);
@@ -119,7 +144,7 @@ public final class VillageLayout {
                 mm[0] = Math.min(mm[0], e.y());
                 mm[1] = Math.max(mm[1], e.y());
             }
-            return new VTemplate(t, minX, maxX, minZ, maxZ, cols);
+            return new VTemplate(t, minX, maxX, minZ, maxZ, cols, ground);
         });
     }
 
@@ -383,11 +408,27 @@ public final class VillageLayout {
                     || maxZ < Math.min(r.z0(), r.z1()) - pad || minZ > Math.max(r.z0(), r.z1()) + pad) continue;
             for (int x = minX; x <= maxX; x++) {
                 for (int z = minZ; z <= maxZ; z++) {
-                    if (r.dist(x, z) < r.half() + 0.4) return null;
+                    if (r.dist(x, z) >= r.half() + 0.4) continue;
+                    int[] tl = invRotate(x - bx, z - bz, rot);
+                    if (vt.onGround(tl[0], tl[1])) return null;
                 }
             }
         }
         return new Building(name, kind, job, residents, bx, bz, rot, floorY, minX, minZ, maxX, maxZ, coreX, coreZ);
+    }
+
+    private static int[] invRotate(int dx, int dz, Rotation rot) {
+        Rotation inv = switch (rot) {
+            case CLOCKWISE_90 -> Rotation.COUNTERCLOCKWISE_90;
+            case COUNTERCLOCKWISE_90 -> Rotation.CLOCKWISE_90;
+            default -> rot;
+        };
+        return DominionTemplates.rotate(dx, dz, inv);
+    }
+
+    private static boolean onGroundWorld(VTemplate vt, int dx, int dz, Rotation rot) {
+        int[] l = invRotate(dx, dz, rot);
+        return vt.onGround(l[0], l[1]);
     }
 
     /** Intenta ubicar un edificio: sin pisar otros ni las calles, en seco y sin pendiente excesiva. */
@@ -420,7 +461,8 @@ public final class VillageLayout {
                         || maxZ < Math.min(r.z0(), r.z1()) - pad || minZ > Math.max(r.z0(), r.z1()) + pad) continue;
                 for (int x = minX; x <= maxX; x++) {
                     for (int z = minZ; z <= maxZ; z++) {
-                        if ((x == minX || x == maxX || z == minZ || z == maxZ || (x + z) % 3 == 0) && r.dist(x, z) < r.half() + 0.4) {
+                        if ((x == minX || x == maxX || z == minZ || z == maxZ || (x + z) % 3 == 0) && r.dist(x, z) < r.half() + 0.4
+                                && onGroundWorld(vt, x - bx, z - bz, rot)) {
                             REJ[3]++;
                             return null;
                         }

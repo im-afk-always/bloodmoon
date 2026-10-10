@@ -128,7 +128,7 @@ public final class VillageBuilder {
                 boolean inside = false;
                 for (VillageLayout.Building b : buildings) {
                     // el umbral de la puerta queda bajo el alero pero es calle: se pavimenta
-                    if (b.contains(x, z, 0) && !(x == b.coreX() && z == b.coreZ())) {
+                    if (b.contains(x, z, 0) && !(x == b.coreX() && z == b.coreZ()) && VillageLayout.footprint(level.getLevel(), b, x, z)) {
                         inside = true;
                         break;
                     }
