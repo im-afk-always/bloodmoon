@@ -69,10 +69,12 @@ public final class SmokeTest {
             minFood = Math.min(minFood, s.food);
         }
         double msPerCycle = (System.nanoTime() - t0) / 1e6 / cycles;
+        BloodMoonMod.LOGGER.info("SMOKETEST humanity cycles done in {} ms", (System.nanoTime() - t0) / 1_000_000);
         int works = s.works.size();
         long t1 = System.nanoTime();
         int placed = com.agustin.bloodmoon.human.HumanityManager.placeAll(level, data, s);
         long placeMs = (System.nanoTime() - t1) / 1_000_000;
+        BloodMoonMod.LOGGER.info("SMOKETEST humanity placed {} in {} ms", placed, placeMs);
         // los bloques de la primera obra en pie
         int total = 0, match = 0;
         for (var w : s.works) {

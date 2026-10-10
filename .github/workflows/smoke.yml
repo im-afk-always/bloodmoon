@@ -20,7 +20,7 @@ jobs:
         run: |
           mkdir -p run
           echo "eula=true" > run/eula.txt
-          printf "level-seed=12345\nview-distance=4\nsimulation-distance=4\nonline-mode=false\nspawn-protection=0\n" > run/server.properties
+          printf "level-seed=12345\nview-distance=4\nsimulation-distance=4\nonline-mode=false\nspawn-protection=0\nmax-tick-time=-1\n" > run/server.properties
       - name: Correr servidor con la prueba de humo
         shell: bash
         env:
