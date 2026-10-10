@@ -143,6 +143,7 @@ public final class HumanityManager {
         for (Settlement s : data.settlements.values()) {
             if (s.streetTier >= 1) upgradeStreets(level, data, s);
             if (!s.wall.isEmpty()) buildWall(level, data, s);
+            if (s.portPiers > 0) Port.build(level, data, s);
             for (Settlement.Work w : new ArrayList<>(s.works)) {
                 if (w.state < 2 && budget > 0) budget -= build(level, data, s, w, budget);
             }
@@ -261,7 +262,13 @@ public final class HumanityManager {
         int housing = 0;
         for (VillageLayout.Building b : bs) housing += capacity(b);
         Market.cycle(s, bs);
-        double prod = production(bs, s.pop) * Market.toolFactor(s, bs), cons = s.pop;
+        // puerto: se busca agua una vez; los muelles crecen con el nivel mientras el agua lo permita
+        if (!s.portChecked) Port.plan(level, s);
+        if (Port.has(s) && s.portPiers < Port.wantPiers(s) && s.treasury >= 250) {
+            s.treasury -= 250;
+            s.portPiers++;
+        }
+        double prod = (production(bs, s.pop) + s.portPiers * 6.0) * Market.toolFactor(s, bs), cons = s.pop;
         s.food += (prod - cons) / CYCLES_PER_DAY;
         if (s.food < 0) {
             // hambre: algunos se van
@@ -1068,6 +1075,8 @@ public final class HumanityManager {
                 + "\n edificios " + bs.size() + " · obras: " + (cur.isEmpty() ? "ninguna" : cur.stream().map(w -> w.b.template().substring(w.b.template().indexOf('/') + 1)
                         + " " + (int) (w.progress * 100) + "%").collect(java.util.stream.Collectors.joining(", ")))
                 + " · pendientes de colocar " + s.works.stream().filter(w -> w.state == 1).count()
+                + (Port.has(s) ? "\n puerto: " + s.portPiers + "/" + Port.maxPiers(s) + " muelles (agua " + s.portSize + " celdas)"
+                        + (s.portLighthouse ? " · faro" : "") : "")
                 + "\n mercado:" + Market.report(s) + "\n tratos con jugadores " + s.playerTrades
                 + (s.level >= Settlement.CITY ? "\n piedra: " + renewed + " edificios · muralla " + (s.wall.isEmpty() ? "sin empezar" : (int) (s.wallProgress * 100) + "%") : "");
     }

@@ -129,6 +129,24 @@ public final class SmokeTest {
         }
         int cityPlaced = com.agustin.bloodmoon.human.HumanityManager.placeAll(level, data, s);
         int[] fin = com.agustin.bloodmoon.human.HumanityManager.finishCity(level, data, s);
+        int piers = com.agustin.bloodmoon.human.Port.finish(level, data, s);
+        int deck = 0;
+        if (com.agustin.bloodmoon.human.Port.has(s)) {
+            for (int d = 0; d < 6; d++) {
+                BlockPos dp = new BlockPos(s.portX + s.portDX * (d + 2), s.portY + 1, s.portZ + s.portDZ * (d + 2));
+                for (int dy = -2; dy <= 2; dy++) {
+                    Block bl = level.getBlockState(dp.above(dy)).getBlock();
+                    if (bl == net.minecraft.world.level.block.Blocks.SPRUCE_PLANKS || bl == net.minecraft.world.level.block.Blocks.STONE_BRICKS
+                            || bl == net.minecraft.world.level.block.Blocks.ACACIA_PLANKS) {
+                        deck++;
+                        break;
+                    }
+                }
+            }
+        }
+        BloodMoonMod.LOGGER.info("SMOKETEST humanity port {} water={} piers={}/{} built={} deck={}/6 lighthouse={} at {} {} dir {} {}",
+                s.name, s.portSize, s.portPiers, com.agustin.bloodmoon.human.Port.maxPiers(s), piers, deck, s.portLighthouse,
+                s.portX, s.portZ, s.portDX, s.portDZ);
         int stoneBuildings = 0;
         for (var b : com.agustin.bloodmoon.human.HumanityManager.built(level, s)) if (b.template().contains("/city_") || b.template().endsWith("/hall") || b.template().endsWith("/market")) stoneBuildings++;
         BloodMoonMod.LOGGER.info("SMOKETEST humanity city {} level={} day={} pop={} stone={} streets={} wall={}/{} works={} placed={} in {} ms",

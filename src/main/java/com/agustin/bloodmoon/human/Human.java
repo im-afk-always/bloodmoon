@@ -79,6 +79,9 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
     private long settlement;
     /** Obrero temporal de una obra del asentamiento: se va cuando termina. */
     private boolean builder;
+    /** Pescador de muelle: el punto del agua donde tira la línea (null si no pesca). */
+    @Nullable
+    private net.minecraft.core.BlockPos fishingSpot;
     /** Valor en cobre de cada oferta a precio de referencia (para reajustarla al precio del pueblo). */
     private int[] baseValues = new int[0];
 
@@ -341,6 +344,10 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         this.settlement = key;
     }
 
+    public void setFisher(net.minecraft.core.BlockPos water) {
+        this.fishingSpot = water.immutable();
+    }
+
     public boolean isBuilder() {
         return builder;
     }
@@ -435,7 +442,24 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
     protected void customServerAiStep() {
         super.customServerAiStep();
         worldgen = false;
-        if (home != null && !hasRestriction()) restrictTo(home, builder ? 10 : 24);
+        if (home != null && !hasRestriction()) restrictTo(home, builder ? 10 : fishingSpot != null ? 3 : 24);
+        if (fishingSpot != null && home != null && distanceToSqr(home.getX() + 0.5, home.getY(), home.getZ() + 0.5) < 9) {
+            getLookControl().setLookAt(fishingSpot.getX() + 0.5, fishingSpot.getY() + 0.5, fishingSpot.getZ() + 0.5);
+            if (tickCount % 200 == (getId() % 200)) {
+                swing(InteractionHand.MAIN_HAND);
+                if (level() instanceof ServerLevel sl) {
+                    sl.sendParticles(net.minecraft.core.particles.ParticleTypes.SPLASH, fishingSpot.getX() + 0.5, fishingSpot.getY() + 1.0,
+                            fishingSpot.getZ() + 0.5, 12, 0.3, 0.1, 0.3, 0.1);
+                    if (random.nextInt(3) == 0) {
+                        sl.sendParticles(net.minecraft.core.particles.ParticleTypes.FISHING, fishingSpot.getX() + 0.5, fishingSpot.getY() + 1.0,
+                                fishingSpot.getZ() + 0.5, 6, 0.2, 0.0, 0.2, 0.05);
+                        playSound(SoundEvents.FISHING_BOBBER_RETRIEVE, 0.6F, 1.0F);
+                    } else {
+                        playSound(SoundEvents.FISHING_BOBBER_SPLASH, 0.4F, 1.0F);
+                    }
+                }
+            }
+        }
         if (builder && home != null && tickCount % 25 == 0 && distanceToSqr(home.getX() + 0.5, home.getY(), home.getZ() + 0.5) < 100) {
             getLookControl().setLookAt(home.getX() + 0.5, home.getY() + 1, home.getZ() + 0.5);
             swing(InteractionHand.MAIN_HAND);
@@ -535,6 +559,7 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         if (settlement != 0) tag.putLong("Settlement", settlement);
         if (builder) tag.putBoolean("Builder", true);
         tag.putIntArray("BaseValues", baseValues);
+        if (fishingSpot != null) tag.putLong("FishingSpot", fishingSpot.asLong());
     }
 
     @Override
@@ -549,6 +574,7 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         settlement = tag.getLong("Settlement");
         builder = tag.getBoolean("Builder");
         baseValues = tag.getIntArray("BaseValues");
+        if (tag.contains("FishingSpot")) fishingSpot = net.minecraft.core.BlockPos.of(tag.getLong("FishingSpot"));
     }
 
     /** Copia el progreso de comercio de un aldeano convertido (nivel y experiencia). */

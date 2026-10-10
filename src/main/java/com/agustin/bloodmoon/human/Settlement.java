@@ -64,6 +64,10 @@ public final class Settlement {
     public double[] price = new double[0];
     public transient double exported, imported;
     public int playerTrades;
+    /** Puerto: orilla, dirección hacia el agua, altura del agua, tamaño del cuerpo de agua (celdas), muelles. */
+    public boolean portChecked, portLighthouse;
+    public int portX, portZ, portDX, portDZ, portY, portSize, portPiers;
+    public boolean[] pierDone = new boolean[0];
     public final List<Work> works = new ArrayList<>();
     /** Lotes descartados (el jugador construyó ahí): no se vuelven a intentar. */
     public final List<VillageLayout.Building> blocked = new ArrayList<>();
@@ -146,6 +150,10 @@ public final class Settlement {
         t.putLongArray("stock", java.util.Arrays.stream(stock).mapToLong(Double::doubleToLongBits).toArray());
         t.putLongArray("price", java.util.Arrays.stream(price).mapToLong(Double::doubleToLongBits).toArray());
         t.putInt("playerTrades", playerTrades);
+        t.putBoolean("portChecked", portChecked);
+        t.putBoolean("portLighthouse", portLighthouse);
+        t.putIntArray("port", new int[]{portX, portZ, portDX, portDZ, portY, portSize, portPiers});
+        t.putByteArray("pierDone", bytes(pierDone));
         t.putLongArray("skipRenew", skipRenew.stream().mapToLong(Long::longValue).toArray());
         ListTag wl = new ListTag();
         for (VillageLayout.Road r : wall) wl.add(road(r));
@@ -207,6 +215,13 @@ public final class Settlement {
         s.stock = java.util.Arrays.stream(t.getLongArray("stock")).mapToDouble(Double::longBitsToDouble).toArray();
         s.price = java.util.Arrays.stream(t.getLongArray("price")).mapToDouble(Double::longBitsToDouble).toArray();
         s.playerTrades = t.getInt("playerTrades");
+        s.portChecked = t.getBoolean("portChecked");
+        s.portLighthouse = t.getBoolean("portLighthouse");
+        int[] pt = t.getIntArray("port");
+        if (pt.length >= 7) {
+            s.portX = pt[0]; s.portZ = pt[1]; s.portDX = pt[2]; s.portDZ = pt[3]; s.portY = pt[4]; s.portSize = pt[5]; s.portPiers = pt[6];
+        }
+        s.pierDone = bools(t.getByteArray("pierDone"));
         for (long k : t.getLongArray("skipRenew")) s.skipRenew.add(k);
         for (Tag e : t.getList("wall", Tag.TAG_COMPOUND)) s.wall.add(road((CompoundTag) e));
         s.wallProgress = t.getDouble("wallProgress");
