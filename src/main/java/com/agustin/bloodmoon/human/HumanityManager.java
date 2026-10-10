@@ -370,7 +370,8 @@ public final class HumanityManager {
             return;
         }
         int pals = s.culture == Culture.DESERT ? 3 : 4;
-        if (prod < cons * 1.15) {
+        // granjas si falta comida (con el granero lleno no se frena todo lo demás por una granja que no encuentra lote)
+        if (prod < cons * 1.15 && s.food < s.pop * 10.0) {
             template = c + "farm_" + rng.nextInt(2);
             kind = VillageLayout.Kind.FARM;
         } else if (s.level >= Settlement.CITY && renewal(level, s, lay, bs, c, rng)) {
