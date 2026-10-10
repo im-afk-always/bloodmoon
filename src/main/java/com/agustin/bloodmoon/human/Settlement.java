@@ -53,6 +53,11 @@ public final class Settlement {
     public transient int plotWait;
     /** Tramos de la red de calles ya pavimentados. */
     public boolean[] paved = new boolean[0];
+    /** Calles abiertas al crecer (se suman a la red del plano): tramo, tramo padre (índice en la red combinada) y distancia. */
+    public final List<VillageLayout.Road> extraNet = new ArrayList<>();
+    public int[] extraParent = new int[0];
+    public double[] extraDist = new double[0];
+    public boolean plazaStone;
     public final List<Work> works = new ArrayList<>();
     /** Lotes descartados (el jugador construyó ahí): no se vuelven a intentar. */
     public final List<VillageLayout.Building> blocked = new ArrayList<>();
@@ -123,6 +128,14 @@ public final class Settlement {
         t.putByteArray("removed", bytes(removed));
         t.putByteArray("stone", bytes(stone));
         t.putInt("streetTier", streetTier);
+        ListTag xn = new ListTag();
+        for (VillageLayout.Road r : extraNet) xn.add(road(r));
+        t.put("extraNet", xn);
+        t.putIntArray("extraParent", extraParent);
+        long[] xd = new long[extraDist.length];
+        for (int i = 0; i < xd.length; i++) xd[i] = Double.doubleToLongBits(extraDist[i]);
+        t.putLongArray("extraDist", xd);
+        t.putBoolean("plazaStone", plazaStone);
         t.putLongArray("skipRenew", skipRenew.stream().mapToLong(Long::longValue).toArray());
         ListTag wl = new ListTag();
         for (VillageLayout.Road r : wall) wl.add(road(r));
@@ -174,6 +187,12 @@ public final class Settlement {
         s.removed = bools(t.getByteArray("removed"));
         s.stone = bools(t.getByteArray("stone"));
         s.streetTier = t.getInt("streetTier");
+        for (Tag e : t.getList("extraNet", Tag.TAG_COMPOUND)) s.extraNet.add(road((CompoundTag) e));
+        s.extraParent = t.getIntArray("extraParent");
+        long[] xd = t.getLongArray("extraDist");
+        s.extraDist = new double[xd.length];
+        for (int i = 0; i < xd.length; i++) s.extraDist[i] = Double.longBitsToDouble(xd[i]);
+        s.plazaStone = t.getBoolean("plazaStone");
         for (long k : t.getLongArray("skipRenew")) s.skipRenew.add(k);
         for (Tag e : t.getList("wall", Tag.TAG_COMPOUND)) s.wall.add(road((CompoundTag) e));
         s.wallProgress = t.getDouble("wallProgress");

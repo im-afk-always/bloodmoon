@@ -126,6 +126,35 @@ public final class StreetPlanner {
         return new int[]{first, last};
     }
 
+    /**
+     * Crecimiento: abre {@code count} calles nuevas desde tramos existentes (preferentemente los más alejados de la
+     * plaza), siguiendo el terreno como las demás. Se agregan al final de {@code all}; devuelve cuántos tramos se sumaron.
+     */
+    public static int extend(List<Seg> all, long seed, int cx, int cz, Terrain t, int maxR, int count) {
+        if (all.isEmpty()) return 0;
+        Random rng = new Random(seed ^ (all.size() * 0x9E3779B97F4A7C15L));
+        int before = all.size();
+        for (int c = 0; c < count; c++) {
+            // muestra al azar con sesgo hacia lo lejano
+            int best = -1;
+            double bestScore = -1;
+            for (int k = 0; k < 12; k++) {
+                int i = rng.nextInt(all.size());
+                Seg s = all.get(i);
+                double score = s.dist() + s.length() + rng.nextDouble() * 30;
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = i;
+                }
+            }
+            Seg s = all.get(best);
+            double a = Math.atan2(s.z1() - s.z0(), s.x1() - s.x0());
+            double ba = rng.nextDouble() < 0.4 ? a : a + (rng.nextBoolean() ? 1 : -1) * (Math.PI / 2 + (rng.nextDouble() - 0.5) * 0.6);
+            walk(all, rng, t, cx, cz, s.x1(), s.z1(), ba, 28 + rng.nextInt(28), 1.2, best, s.dist() + s.length(), 0.4, maxR);
+        }
+        return all.size() - before;
+    }
+
     private static void branches(List<Seg> out, Random rng, Terrain t, int cx, int cz, int[] trunk, double chance, int minLen, int maxLen,
                                  double half, int maxR, boolean nested) {
         if (trunk[0] < 0) return;
