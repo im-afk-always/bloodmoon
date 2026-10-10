@@ -276,5 +276,7 @@
   "bloodmoon.map.soul.feeding": "cristal al %s%%",
   "bloodmoon.map.soul.awake": "DESPIERTA",
   "bloodmoon.map.soul.slain": "abatida",
-  "bloodmoon.soul.cracking": "El cristal de la Primera Alma de %s se está quebrando en %s, %s... algo despierta."
+  "bloodmoon.soul.cracking": "El cristal de la Primera Alma de %s se está quebrando en %s, %s... algo despierta.",
+  "bloodmoon.void_king.call": "%s llama a las armas: ¡toda la horda acude a defenderlo!",
+  "bloodmoon.void_king.call_empty": "%s llama a las armas... pero a la horda ya no le quedan tropas para mandar."
 }

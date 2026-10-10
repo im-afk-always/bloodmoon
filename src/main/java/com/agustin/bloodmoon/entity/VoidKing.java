@@ -59,6 +59,9 @@ public class VoidKing extends Monster {
             BossEvent.BossBarColor.YELLOW, BossEvent.BossBarOverlay.NOTCHED_20);
     private boolean dominionBound, phaseTwoAnnounced;
     private int actionTick, judgementCd = 80, decreeCd = 260, novaCd = 160;
+    /** Llamado a las armas: enfriamiento, oleadas pendientes y a quién defienden. */
+    private int callCd, wavesLeft, waveTimer, wavePer;
+    private java.util.UUID assassin;
     /** Cliente: tick en que empezó la acción actual (para animar). */
     public float actionStart;
 
@@ -137,6 +140,95 @@ public class VoidKing extends Monster {
                 || super.isInvulnerableTo(source);
     }
 
+    /** Un jugador se atrevió a atacar al Rey: llama a las armas. */
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        boolean hit = super.hurt(source, amount);
+        if (hit && level() instanceof ServerLevel sl && source.getEntity() instanceof Player p && !p.isCreative() && !p.isSpectator()
+                && callCd <= 0) {
+            callToArms(sl, p);
+        }
+        return hit;
+    }
+
+    /**
+     * Toda la horda acude: los soldados del Vacío cercanos (96 bloques) van por el agresor y llegan refuerzos en tres
+     * oleadas desde portales alrededor del Rey. Los refuerzos salen de las tropas de la horda (se descuentan).
+     */
+    private void callToArms(ServerLevel sl, Player p) {
+        callCd = 1200;
+        assassin = p.getUUID();
+        com.agustin.bloodmoon.invasion.Faction f = com.agustin.bloodmoon.invasion.InvasionManager.factionOf(this);
+        int lv = f == null ? 5 : com.agustin.bloodmoon.invasion.InvasionManager.hordeLevel(f);
+        int want = 8 + 2 * lv;
+        int n = f == null ? want : Math.min(want, com.agustin.bloodmoon.invasion.InvasionManager.levyAvailable(f));
+        if (f != null && n > 0) com.agustin.bloodmoon.invasion.InvasionManager.spendLevy(sl, f, n);
+        wavesLeft = n > 0 ? 3 : 0;
+        wavePer = (n + 2) / 3;
+        waveTimer = 20;
+        int rallied = 0;
+        for (net.minecraft.world.entity.Mob m : sl.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, getBoundingBox().inflate(96),
+                m -> m != this && VoidAllies.isVoid(m))) {
+            m.setTarget(p);
+            m.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 400, 1));
+            rallied++;
+        }
+        Component msg = Component.translatable(n > 0 ? "bloodmoon.void_king.call" : "bloodmoon.void_king.call_empty", getDisplayName())
+                .withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.BOLD);
+        for (ServerPlayer q : sl.players()) {
+            if (q.distanceToSqr(this) > 160 * 160) continue;
+            q.sendSystemMessage(msg);
+            q.playNotifySound(SoundEvents.RAID_HORN.value(), net.minecraft.sounds.SoundSource.HOSTILE, 2F, 0.5F);
+            q.playNotifySound(SoundEvents.WITHER_SPAWN, net.minecraft.sounds.SoundSource.HOSTILE, 0.7F, 0.5F);
+        }
+        sl.sendParticles(ParticleTypes.SONIC_BOOM, getX(), getY() + 5, getZ(), 1, 0, 0, 0, 0);
+        sl.sendParticles(ParticleTypes.REVERSE_PORTAL, getX(), getY() + 3, getZ(), 300, 6, 3, 6, 0.3);
+    }
+
+    private void tickCallToArms(ServerLevel sl) {
+        if (callCd > 0) callCd--;
+        if (wavesLeft <= 0 || --waveTimer > 0) return;
+        waveTimer = 60;
+        wavesLeft--;
+        LivingEntity target = assassin == null ? null : sl.getPlayerByUUID(assassin);
+        if (target == null || !target.isAlive()) target = getTarget();
+        com.agustin.bloodmoon.invasion.Faction f = com.agustin.bloodmoon.invasion.InvasionManager.factionOf(this);
+        int lv = f == null ? 5 : com.agustin.bloodmoon.invasion.InvasionManager.hordeLevel(f);
+        int captains = 0;
+        for (int i = 0; i < wavePer; i++) {
+            double a = random.nextDouble() * Math.PI * 2, r = 6 + random.nextDouble() * 7;
+            double x = getX() + Math.cos(a) * r, z = getZ() + Math.sin(a) * r;
+            int y = sl.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(x), Mth.floor(z));
+            float roll = random.nextFloat();
+            net.minecraft.world.entity.Mob m;
+            if (roll < 0.15F) {
+                VoidMage mage = ModEntities.VOID_MAGE.get().create(sl);
+                if (mage == null) continue;
+                mage.applyLevel(lv);
+                mage.bindToDominion();
+                m = mage;
+            } else {
+                boolean captain = roll > 0.9F && captains < 1;
+                if (captain) captains++;
+                VoidSkeleton s = (captain ? ModEntities.VOID_CAPTAIN.get() : roll < 0.4F ? ModEntities.VOID_ARCHER.get()
+                        : ModEntities.VOID_SENTINEL.get()).create(sl);
+                if (s == null) continue;
+                m = s;
+            }
+            m.moveTo(x, y, z, random.nextFloat() * 360F, 0F);
+            m.finalizeSpawn(sl, sl.getCurrentDifficultyAt(m.blockPosition()), MobSpawnType.MOB_SUMMONED, null);
+            if (m instanceof VoidSkeleton s) {
+                s.equipForTier(lv);
+                s.bindToDominion();
+            }
+            if (target != null) m.setTarget(target);
+            sl.addFreshEntity(m);
+            sl.sendParticles(ParticleTypes.REVERSE_PORTAL, x, y + 1, z, 40, 0.3, 1, 0.3, 0.08);
+            sl.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, x, y + 0.2, z, 12, 0.4, 0.05, 0.4, 0.02);
+        }
+        playSound(SoundEvents.EVOKER_CAST_SPELL, 3F, 0.5F);
+    }
+
     @Override
     public boolean doHurtTarget(Entity target) {
         boolean hit = super.doHurtTarget(target);
@@ -160,6 +252,7 @@ public class VoidKing extends Monster {
         super.customServerAiStep();
         BossBars.update(this, bossEvent, 96.0);
         if (!(level() instanceof ServerLevel sl)) return;
+        tickCallToArms(sl);
         if (judgementCd > 0) judgementCd--;
         if (decreeCd > 0) decreeCd--;
         if (novaCd > 0) novaCd--;
@@ -169,6 +262,10 @@ public class VoidKing extends Monster {
             sl.sendParticles(ParticleTypes.SONIC_BOOM, getX(), getY() + 4, getZ(), 1, 0, 0, 0, 0);
             Component msg = Component.translatable("bloodmoon.void_king.phase2", getDisplayName());
             for (ServerPlayer p : sl.players()) if (p.distanceToSqr(this) < 96 * 96) p.sendSystemMessage(msg);
+            if (getTarget() instanceof Player tp) {   // herido de muerte: vuelve a llamar a las armas
+                callCd = 0;
+                callToArms(sl, tp);
+            }
         }
         LivingEntity target = getTarget();
         int action = getAction();

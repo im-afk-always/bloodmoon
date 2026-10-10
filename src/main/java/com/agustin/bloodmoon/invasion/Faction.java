@@ -33,6 +33,8 @@ public final class Faction {
     public long haltedUntil;
     /** La Ofrenda (fase 4): etapa (ver {@link FirstSoul}), chunk del santuario, altura del estrado, esencia dada, bloques del cristal puestos. */
     public int soulStage, soulY, soulPlaced, soulWarned;
+    /** Tropas que el Rey sacó de la reserva al llamar a las armas (se reponen de a poco). */
+    public int levy;
     public long soulSite = RankRecord.NO_SEAT;
     public double soulProgress;
     public final List<RankRecord> ranks = new ArrayList<>();
@@ -94,6 +96,7 @@ public final class Faction {
         t.putLong("slowedUntil", slowedUntil);
         t.putLong("haltedUntil", haltedUntil);
         t.putInt("soulStage", soulStage);
+        t.putInt("levy", levy);
         t.putInt("soulY", soulY);
         t.putInt("soulPlaced", soulPlaced);
         t.putInt("soulWarned", soulWarned);
@@ -135,6 +138,7 @@ public final class Faction {
         f.slowedUntil = t.getLong("slowedUntil");
         f.haltedUntil = t.getLong("haltedUntil");
         f.soulStage = t.getInt("soulStage");
+        f.levy = t.getInt("levy");
         f.soulY = t.getInt("soulY");
         f.soulPlaced = t.getInt("soulPlaced");
         f.soulWarned = t.getInt("soulWarned");

@@ -301,6 +301,8 @@ public final class InvasionManager {
             }
         }
 
+        f.levy = Math.max(0, f.levy - 2);   // la reserva del Rey se repone de a poco
+
         // 1) esencia
         double moon = BloodMoonManager.current() == MoonType.MOONLESS ? 3 : 1;
         double income = (14 + 0.012 * dead.size()) * speed * moon;
@@ -881,6 +883,23 @@ public final class InvasionManager {
             }
         }
         return out;
+    }
+
+    /** El Dominio al que pertenece un rango con cuerpo (null si no es de ninguno, p. ej. salido de un huevo). */
+    public static Faction factionOf(net.minecraft.world.entity.Entity e) {
+        if (!(e.level() instanceof ServerLevel level) || !e.getPersistentData().contains(DominionPresence.RANK_TAG)) return null;
+        int[] ids = e.getPersistentData().getIntArray(DominionPresence.RANK_TAG);
+        return ids.length < 1 ? null : InvasionData.get(level.getServer().overworld()).faction(ids[0]);
+    }
+
+    /** Tropas que la horda puede mandar ya mismo (su ejército menos lo que el Rey ya llamó). */
+    public static int levyAvailable(Faction f) {
+        return Math.max(0, f.troops - f.levy);
+    }
+
+    public static void spendLevy(ServerLevel level, Faction f, int n) {
+        f.levy += n;
+        InvasionData.get(level.getServer().overworld()).setDirty();
     }
 
     public static Faction nearest(ServerLevel level, BlockPos pos) {

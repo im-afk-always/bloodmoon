@@ -276,5 +276,7 @@
   "bloodmoon.map.soul.feeding": "crystal at %s%%",
   "bloodmoon.map.soul.awake": "AWAKE",
   "bloodmoon.map.soul.slain": "slain",
-  "bloodmoon.soul.cracking": "The crystal of the First Soul of %s is cracking at %s, %s... something is waking up."
+  "bloodmoon.soul.cracking": "The crystal of the First Soul of %s is cracking at %s, %s... something is waking up.",
+  "bloodmoon.void_king.call": "%s calls to arms: the whole horde rushes to defend him!",
+  "bloodmoon.void_king.call_empty": "%s calls to arms... but the horde has no troops left to send."
 }
