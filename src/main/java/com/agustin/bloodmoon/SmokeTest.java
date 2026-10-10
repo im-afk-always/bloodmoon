@@ -60,7 +60,25 @@ public final class SmokeTest {
             BloodMoonMod.LOGGER.error("SMOKETEST FAIL no human village within 12 regions");
             return false;
         }
-        var s = site.get();
+        boolean ok = village(level, site.get());
+        // también una del desierto (la cultura que falte)
+        outer:
+        for (int ring = 0; ring <= 20; ring++) {
+            for (int rx = -ring; rx <= ring; rx++) {
+                for (int rz = -ring; rz <= ring; rz++) {
+                    if (Math.max(Math.abs(rx), Math.abs(rz)) != ring) continue;
+                    var d = com.agustin.bloodmoon.human.VillageSites.site(level, rx, rz);
+                    if (d.isPresent() && d.get().culture() != site.get().culture()) {
+                        ok &= village(level, d.get());
+                        break outer;
+                    }
+                }
+            }
+        }
+        return ok;
+    }
+
+    private static boolean village(ServerLevel level, com.agustin.bloodmoon.human.VillageSites.Site s) {
         var lay = com.agustin.bloodmoon.human.VillageLayout.get(level, s);
         long t0 = System.nanoTime();
         int r = com.agustin.bloodmoon.human.VillageLayout.RADIUS / 16 + 1;
@@ -86,10 +104,41 @@ public final class SmokeTest {
                 if (bl == net.minecraft.world.level.block.Blocks.DIRT_PATH || bl == net.minecraft.world.level.block.Blocks.SMOOTH_SANDSTONE) paths++;
             }
         }
+        try {
+            topDown(level, s.x(), s.z(), 88, "village_" + s.culture().name().toLowerCase());
+        } catch (Exception e) {
+            BloodMoonMod.LOGGER.warn("SMOKETEST village map failed", e);
+        }
         double rate = total == 0 ? 0 : (double) match / total;
         BloodMoonMod.LOGGER.info("SMOKETEST village {} at {} {} {} buildings={} blocks {}/{} ({}%) paths={} in {} ms", s.culture(), s.x(), s.y(), s.z(),
                 lay.buildings().size(), match, total, (int) (rate * 100), paths, (System.nanoTime() - t0) / 1_000_000);
         return lay.buildings().size() >= 6 && rate > 0.9 && paths > 30;
+    }
+
+    /** Vista cenital (colores de mapa con sombreado por altura) para revisar a ojo lo generado: run/smoke/<name>.png. */
+    private static void topDown(ServerLevel level, int cx, int cz, int r, String name) throws java.io.IOException {
+        int n = 2 * r + 1, sc = 4;
+        var img = new java.awt.image.BufferedImage(n * sc, n * sc, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        int[] prev = new int[n];
+        for (int dz = 0; dz < n; dz++) {
+            for (int dx = 0; dx < n; dx++) {
+                int x = cx - r + dx, z = cz - r + dz;
+                int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, x, z) - 1;
+                BlockPos p = new BlockPos(x, y, z);
+                BlockState st = level.getBlockState(p);
+                int col = st.getMapColor(level, p).col;
+                if (st.is(net.minecraft.world.level.block.Blocks.LANTERN)) col = 0xFFD040;
+                double shade = dz == 0 ? 1.0 : y > prev[dx] ? 1.15 : y < prev[dx] ? 0.8 : 1.0;
+                prev[dx] = y;
+                int rr = Math.min(255, (int) (((col >> 16) & 255) * shade)), gg = Math.min(255, (int) (((col >> 8) & 255) * shade)),
+                        bb = Math.min(255, (int) ((col & 255) * shade));
+                int rgb = rr << 16 | gg << 8 | bb;
+                for (int i = 0; i < sc; i++) for (int j = 0; j < sc; j++) img.setRGB(dx * sc + i, dz * sc + j, rgb);
+            }
+        }
+        java.io.File dir = new java.io.File("smoke");
+        dir.mkdirs();
+        javax.imageio.ImageIO.write(img, "png", new java.io.File(dir, name + ".png"));
     }
 
     /** Humanos: cada oficio que comercia tiene ofertas en monedas (ninguna esmeralda) y un aldeano se convierte. */

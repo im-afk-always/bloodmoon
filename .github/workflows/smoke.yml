@@ -24,6 +24,14 @@ jobs:
           BLOODMOON_SMOKETEST: "1"
         run: |
           timeout 1200 ./gradlew runServer --no-daemon > server.log 2>&1 || true
-          grep -E "SMOKETEST" server.log | sed 's/^/::notice::/' || true
+          grep -E "SMOKETEST (village|human)" server.log | sed 's/.*SMOKETEST //' | paste -sd'|' | sed 's/^/::notice::HUMANIDAD /' || true
+          grep -E "SMOKETEST" server.log | grep -vE "SMOKETEST (village|human)" | tail -8 | sed 's/^/::notice::/' || true
           grep -E "Exception|ERROR\]|Error loading|Failed to" server.log | grep -v "SMOKETEST" | head -40 | sed 's/^/::warning::/' || true
           grep -q "SMOKETEST PASS" server.log || { tail -60 server.log | sed 's/^/::error::/'; exit 1; }
+      - name: Subir capturas de la prueba
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-maps
+          path: run/smoke/*.png
+          if-no-files-found: ignore
