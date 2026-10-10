@@ -304,20 +304,25 @@ public final class HumanityManager {
             if (!s.wall.isEmpty()) s.treasury -= 3000;
         }
         if (!s.wall.isEmpty() && s.wallProgress < 1) s.wallProgress = Math.min(1, s.wallProgress + 1.0 / 6 / CYCLES_PER_DAY);
-        // obra
-        Settlement.Work cur = s.current();
-        if (cur == null) {
+        // obras: varias a la vez según el nivel (una aldea levanta una casa; una ciudad rica, varias)
+        boolean mason = false;
+        for (VillageLayout.Building b : bs) if (b.job() == HumanJob.MASON) mason = true;
+        int maxActive = 1 + s.level + (mason ? 1 : 0);
+        for (int tries = 0; tries < maxActive; tries++) {
+            int active = 0;
+            for (Settlement.Work w : s.works) if (w.state == 0) active++;
+            if (active >= maxActive) break;
+            int before = s.works.size();
             planNext(level, s, bs, housing, prod, cons);
-            cur = s.current();
+            if (s.works.size() == before) break;
         }
-        if (cur != null) {
-            boolean mason = false;
-            for (VillageLayout.Building b : bs) if (b.job() == HumanJob.MASON) mason = true;
-            s.progress += (1.0 / days(cur.b)) * (mason ? 1.3 : 1.0) / CYCLES_PER_DAY;
-            if (s.progress >= 1) {
-                s.progress = 0;
-                cur.state = 1;
-                if (!cur.demolishOnly) s.pop += cur.b.residents();   // llegan los trabajadores del edificio nuevo
+        for (Settlement.Work w : s.works) {
+            if (w.state != 0) continue;
+            w.progress += (1.0 / days(w.b)) * (mason ? 1.3 : 1.0) / CYCLES_PER_DAY;
+            if (w.progress >= 1) {
+                w.progress = 1;
+                w.state = 1;
+                if (!w.demolishOnly) s.pop += w.b.residents();   // llegan los trabajadores del edificio nuevo
             }
         }
         // colonias
@@ -582,7 +587,7 @@ public final class HumanityManager {
                 case TOWER -> c + "city_tower";
                 default -> null;
             };
-            if (b.kind() == VillageLayout.Kind.FARM && o.dist() < 55) {
+            if (b.kind() == VillageLayout.Kind.FARM && o.dist() < 75) {
                 return replace(s, lay, o, b, true);
             }
             if (nt == null) continue;
@@ -667,7 +672,6 @@ public final class HumanityManager {
                 // el jugador construyó en el lote: se descarta y se devuelve el dinero
                 w.state = 4;
                 s.blocked.add(w.b);
-                if (s.current() == null) s.progress = 0;
                 s.treasury += cost(w.b);
                 data.setDirty();
                 return 1;
@@ -701,7 +705,7 @@ public final class HumanityManager {
             return 1;
         }
         int size = VillageBuilder.size(level, w.b);
-        int target = w.state >= 1 ? size : (int) Math.floor(s.progress * size);
+        int target = w.state >= 1 ? size : (int) Math.floor(w.progress * size);
         if (w.placed < target) {
             int to = Math.min(target, w.placed + Math.min(budget, w.state >= 1 ? 400 : 6));
             VillageBuilder.place(level, level, w.b, box, w.placed, to);
@@ -1044,7 +1048,8 @@ public final class HumanityManager {
 
     public static String describe(ServerLevel level, Settlement s) {
         List<VillageLayout.Building> bs = built(level, s);
-        Settlement.Work cur = s.current();
+        List<Settlement.Work> cur = new ArrayList<>();
+        for (Settlement.Work w : s.works) if (w.state == 0) cur.add(w);
         int housing = 0;
         for (VillageLayout.Building b : bs) housing += capacity(b);
         double prod = production(bs, s.pop);
@@ -1060,7 +1065,8 @@ public final class HumanityManager {
                 + s.x + " " + s.z + "\n población " + s.pop + "/" + housing + " (" + s.materialized + " a la vista)"
                 + " · comida " + (int) s.food + " (" + String.format(java.util.Locale.ROOT, "%+.1f", prod - s.pop) + "/día)"
                 + " · tesoro " + coins(s.treasury)
-                + "\n edificios " + bs.size() + " · obra: " + (cur == null ? "ninguna" : cur.b.template() + " " + (int) (s.progress * 100) + "%")
+                + "\n edificios " + bs.size() + " · obras: " + (cur.isEmpty() ? "ninguna" : cur.stream().map(w -> w.b.template().substring(w.b.template().indexOf('/') + 1)
+                        + " " + (int) (w.progress * 100) + "%").collect(java.util.stream.Collectors.joining(", ")))
                 + " · pendientes de colocar " + s.works.stream().filter(w -> w.state == 1).count()
                 + "\n mercado:" + Market.report(s) + "\n tratos con jugadores " + s.playerTrades
                 + (s.level >= Settlement.CITY ? "\n piedra: " + renewed + " edificios · muralla " + (s.wall.isEmpty() ? "sin empezar" : (int) (s.wallProgress * 100) + "%") : "");

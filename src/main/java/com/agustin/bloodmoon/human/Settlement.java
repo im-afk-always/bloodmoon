@@ -28,6 +28,7 @@ public final class Settlement {
         public int replaces = -1;
         /** Solo demoler (sin edificio nuevo): granjas que el centro de la ciudad ya no tiene. */
         public boolean demolishOnly;
+        public double progress;
     }
 
     public long key;
@@ -124,6 +125,7 @@ public final class Settlement {
             c.putBoolean("prepared", w.prepared);
             c.putInt("replaces", w.replaces);
             c.putBoolean("demolish", w.demolishOnly);
+            c.putDouble("progress", w.progress);
             ws.add(c);
         }
         t.put("works", ws);
@@ -189,6 +191,7 @@ public final class Settlement {
             w.prepared = c.getBoolean("prepared");
             w.replaces = c.contains("replaces") ? c.getInt("replaces") : -1;
             w.demolishOnly = c.getBoolean("demolish");
+            w.progress = c.getDouble("progress");
             s.works.add(w);
         }
         for (Tag e : t.getList("blocked", Tag.TAG_COMPOUND)) s.blocked.add(building((CompoundTag) e));
