@@ -153,6 +153,8 @@ public final class SmokeTest {
         BloodMoonMod.LOGGER.info("SMOKETEST humanity city {} level={} day={} pop={} stone={} streets={} wall={}/{} works={} placed={} in {} ms",
                 s.name, s.level, cityDay, s.pop, stoneBuildings, fin[0], fin[1], s.wall.size(), s.works.size(), cityPlaced,
                 (System.nanoTime() - tc) / 1_000_000);
+        BloodMoonMod.LOGGER.info("SMOKETEST humanity diag renew={} skip={} wait={} {}", java.util.Arrays.toString(com.agustin.bloodmoon.human.HumanityManager.RENEW),
+                s.skipRenew.size(), s.plotWait, com.agustin.bloodmoon.human.HumanityManager.describe(level, s).replace('\n', '/'));
         try {
             topDown(level, s.x, s.z, 170, "city_" + s.name.toLowerCase().replace(' ', '_'));
         } catch (Exception e) {

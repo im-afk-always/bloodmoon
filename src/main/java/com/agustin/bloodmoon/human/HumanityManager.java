@@ -518,7 +518,11 @@ public final class HumanityManager {
      * casas, talleres y torres de madera se demuelen y en su lugar se levantan edificios de piedra de varias plantas;
      * las granjas del centro se mudan afuera. Devuelve true si ya decidió (aunque espere a juntar el dinero).
      */
+    /** Diagnóstico de la renovación (pruebas): {llamadas, fuente, cívico en lugar viejo, cívico en lote, casa, granja, no entra}. */
+    public static final int[] RENEW = new int[7];
+
     private static boolean renewal(ServerLevel level, Settlement s, VillageLayout.Layout lay, List<VillageLayout.Building> bs, String c, Random rng) {
+        RENEW[0]++;
         Net nn = net(s, lay);
         List<VillageLayout.Road> roads = nn.blocking(lay.plaza(), s);
         // candidatos viejos, del centro hacia afuera
@@ -555,7 +559,7 @@ public final class HumanityManager {
                 if (o.b().kind() != VillageLayout.Kind.WELL) continue;
                 VillageLayout.Building nb = VillageLayout.placeAt(level, c + "fountain", VillageLayout.Kind.WELL, HumanJob.NONE, 0,
                         o.b().coreX(), o.b().coreZ(), o.b().rot(), o.b().floorY(), occupied(level, s, lay, o.b()), List.of(), 0);
-                if (nb != null) return replace(s, lay, o, nb, false);
+                if (nb != null) { RENEW[1]++; return replace(s, lay, o, nb, false); }
             }
         }
         // 2-4. cívicos: primero ocupando el lugar de algo viejo cerca del centro, si no en un lote libre
@@ -573,12 +577,13 @@ public final class HumanityManager {
                     if (o.dist() > 60 || city(o.b()) || o.b().kind() == VillageLayout.Kind.WELL) continue;
                     VillageLayout.Building nb = VillageLayout.placeAt(level, cv[0], kind, job, res, o.b().coreX(), o.b().coreZ(), o.b().rot(),
                             o.b().floorY(), occupied(level, s, lay, o.b()), roads, 1);
-                    if (nb != null) return replace(s, lay, o, nb, false);
+                    if (nb != null) { RENEW[2]++; return replace(s, lay, o, nb, false); }
                 }
             }
             VillageLayout.Plot pl = VillageLayout.findPlot(level, s.site(), nn.roads(), nn.dist(), 1000, cv[0], kind, job, res,
                     occupied(level, s, lay, null), roads, b -> !loaded(level, b) || VillageBuilder.artificial(level, b, 3) <= 3, true);
             if (pl != null) {
+                RENEW[3]++;
                 VillageLayout.Building nb = pl.building();
                 double price = cost(nb) + Market.importCost(s, nb);
                 if (s.treasury < price) return true;
@@ -605,6 +610,7 @@ public final class HumanityManager {
                 default -> null;
             };
             if (b.kind() == VillageLayout.Kind.FARM && o.dist() < 75) {
+                RENEW[5]++;
                 return replace(s, lay, o, b, true);
             }
             if (nt == null) continue;
@@ -613,8 +619,10 @@ public final class HumanityManager {
                     occupied(level, s, lay, b), roads, 1);
             if (nb == null) {
                 s.skipRenew.add(VillageBuilder.key(b.coreX(), b.coreZ()));   // no entra: queda como está
+                RENEW[6]++;
                 continue;
             }
+            RENEW[4]++;
             return replace(s, lay, o, nb, false);
         }
         return false;
