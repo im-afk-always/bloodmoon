@@ -610,7 +610,7 @@ public final class HumanityManager {
                 case TOWER -> c + "city_tower";
                 default -> null;
             };
-            if (b.kind() == VillageLayout.Kind.FARM && o.dist() < 75) {
+            if (b.kind() == VillageLayout.Kind.FARM && o.dist() < 75 && s.food > s.pop * 6.0) {   // sin granero lleno, la granja se queda
                 RENEW[5]++;
                 return replace(s, lay, o, b, true);
             }
