@@ -47,7 +47,8 @@ public final class Settlement {
     public int colonyNext;
     /** Ciclos de espera tras no encontrar lote (no se guarda). */
     public transient int plotWait;
-    public int[] armLen = new int[0];
+    /** Tramos de la red de calles ya pavimentados. */
+    public boolean[] paved = new boolean[0];
     public final List<Work> works = new ArrayList<>();
     /** Lotes descartados (el jugador construyó ahí): no se vuelven a intentar. */
     public final List<VillageLayout.Building> blocked = new ArrayList<>();
@@ -84,7 +85,9 @@ public final class Settlement {
         t.putDouble("progress", progress);
         t.putInt("lastColony", lastColonyDay);
         t.putInt("colonyNext", colonyNext);
-        t.putIntArray("arms", armLen);
+        byte[] pv = new byte[paved.length];
+        for (int i = 0; i < pv.length; i++) pv[i] = (byte) (paved[i] ? 1 : 0);
+        t.putByteArray("paved", pv);
         ListTag ws = new ListTag();
         for (Work w : works) {
             CompoundTag c = building(w.b);
@@ -124,7 +127,9 @@ public final class Settlement {
         s.progress = t.getDouble("progress");
         s.lastColonyDay = t.getInt("lastColony");
         s.colonyNext = t.getInt("colonyNext");
-        s.armLen = t.getIntArray("arms");
+        byte[] pv = t.getByteArray("paved");
+        s.paved = new boolean[pv.length];
+        for (int i = 0; i < pv.length; i++) s.paved[i] = pv[i] != 0;
         for (Tag e : t.getList("works", Tag.TAG_COMPOUND)) {
             CompoundTag c = (CompoundTag) e;
             Work w = new Work();
@@ -166,11 +171,14 @@ public final class Settlement {
         c.putDouble("x1", r.x1());
         c.putDouble("z1", r.z1());
         c.putDouble("h", r.half());
+        c.putInt("y0", r.y0());
+        c.putInt("y1", r.y1());
         return c;
     }
 
     static VillageLayout.Road road(CompoundTag c) {
         if (!c.contains("h")) return null;
-        return new VillageLayout.Road(c.getDouble("x0"), c.getDouble("z0"), c.getDouble("x1"), c.getDouble("z1"), c.getDouble("h"));
+        int y0 = c.contains("y0") ? c.getInt("y0") : Integer.MIN_VALUE, y1 = c.contains("y1") ? c.getInt("y1") : Integer.MIN_VALUE;
+        return new VillageLayout.Road(c.getDouble("x0"), c.getDouble("z0"), c.getDouble("x1"), c.getDouble("z1"), c.getDouble("h"), y0, y1);
     }
 }

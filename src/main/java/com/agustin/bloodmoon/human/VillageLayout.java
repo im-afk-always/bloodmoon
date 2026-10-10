@@ -16,13 +16,14 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Plano de una aldea, determinista a partir del sitio: un pozo en la plaza, 3-4 calles que salen de ella y, a los
+ * Plano de una aldea, determinista a partir del sitio: un pozo en la plaza, una red de calles con forma propia
+ * ({@link StreetPlanner}: orgánica, pueblo-calle, cruce de caminos o trama de manzanas) que sigue el terreno y, a los
  * costados, puestos del mercado, talleres de oficios, casas, granjas y una torre de guardia, todos con la puerta hacia
- * la calle. La altura de cada edificio se toma del terreno generado (antes de árboles), así que todos los chunks
- * coinciden aunque se construyan por separado.
+ * la calle. Las alturas salen del terreno generado (antes de árboles), así que todos los chunks coinciden aunque se
+ * construyan por separado. La red ya trae las calles futuras: el asentamiento las pavimenta a medida que crece.
  */
 public final class VillageLayout {
-    public static final int RADIUS = 80;
+    public static final int RADIUS = 130;
 
     public enum Kind { WELL, STALL, WORK, HOUSE, FARM, TOWER }
 
@@ -36,21 +37,54 @@ public final class VillageLayout {
         }
     }
 
-    public record Road(double x0, double z0, double x1, double z1, double half) {
-        public double dist(double px, double pz) {
+    /**
+     * Tramo de calle. {@code y0}/{@code y1}: primer bloque libre en cada punta según el terreno generado (la calle se
+     * nivela en rampa entre ambas); MIN_VALUE = seguir el suelo.
+     */
+    public record Road(double x0, double z0, double x1, double z1, double half, int y0, int y1) {
+        public Road(double x0, double z0, double x1, double z1, double half) {
+            this(x0, z0, x1, z1, half, Integer.MIN_VALUE, Integer.MIN_VALUE);
+        }
+
+        public double t(double px, double pz) {
             double dx = x1 - x0, dz = z1 - z0;
             double l2 = dx * dx + dz * dz;
-            double t = l2 == 0 ? 0 : Math.max(0, Math.min(1, ((px - x0) * dx + (pz - z0) * dz) / l2));
-            double qx = x0 + t * dx - px, qz = z0 + t * dz - pz;
+            return l2 == 0 ? 0 : Math.max(0, Math.min(1, ((px - x0) * dx + (pz - z0) * dz) / l2));
+        }
+
+        public double dist(double px, double pz) {
+            double t = t(px, pz);
+            double qx = x0 + t * (x1 - x0) - px, qz = z0 + t * (z1 - z0) - pz;
             return Math.sqrt(qx * qx + qz * qz);
+        }
+
+        /** Primer bloque libre de la calle a la altura de (px, pz), o MIN_VALUE si sigue el suelo. */
+        public int y(double px, double pz) {
+            if (y0 == Integer.MIN_VALUE) return Integer.MIN_VALUE;
+            return (int) Math.round(y0 + (y1 - y0) * t(px, pz));
+        }
+
+        public double length() {
+            return Math.hypot(x1 - x0, z1 - z0);
         }
     }
 
+    /**
+     * Plano completo. {@code roads}: lo que se pavimenta al generar el mundo (plaza, tramos usados y accesos).
+     * {@code net}: toda la red planificada, también la futura ({@code parent}: tramo del que sale; {@code dist}: distancia
+     * por la red). {@code pavedInit}: tramos pavimentados de entrada. {@code buildingSeg}/{@code spurs}: tramo y acceso de
+     * cada edificio original (en el mismo orden que {@code buildings}).
+     */
     public record Layout(VillageSites.Site site, List<Building> buildings, List<Road> roads, List<int[]> lamps, String stats,
-                         double[][] dirs, int[] lens) {}
+                         StreetPlanner.Pattern pattern, List<Road> net, int[] parent, double[] dist, boolean[] pavedInit,
+                         int[] buildingSeg, List<Road> spurs) {
+        public Road plaza() {
+            return roads.get(0);
+        }
+    }
 
-    /** Hasta dónde puede estirarse una calle cuando la aldea crece. */
-    public static final int MAX_LEN = 120;
+    /** Hasta dónde (distancia por la red) puede crecer un asentamiento. */
+    public static final int MAX_DIST = 170;
 
     /** Contadores de rechazos (solo para diagnóstico). */
     private static final int[] REJ = new int[4];
@@ -88,6 +122,26 @@ public final class VillageLayout {
         return CACHE.computeIfAbsent(site.seed() ^ ((long) site.x() << 32) ^ site.z(), k -> build(level, site));
     }
 
+    /** Terreno generado (sin árboles) como lo ve el trazador de calles. */
+    static StreetPlanner.Terrain terrain(ServerLevel level) {
+        ChunkGenerator gen = level.getChunkSource().getGenerator();
+        RandomState rs = level.getChunkSource().randomState();
+        int sea = level.getSeaLevel();
+        return new StreetPlanner.Terrain() {
+            @Override
+            public int height(int x, int z) {
+                return (int) (column(gen, level, rs, x, z) >> 32);
+            }
+
+            @Override
+            public boolean wet(int x, int z) {
+                long c = column(gen, level, rs, x, z);
+                int surf = (int) (c >> 32), floor = (int) c;
+                return floor < surf || surf <= sea;
+            }
+        };
+    }
+
     private static Layout build(ServerLevel level, VillageSites.Site site) {
         Random rng = new Random(site.seed());
         java.util.Arrays.fill(REJ, 0);
@@ -97,23 +151,26 @@ public final class VillageLayout {
         List<int[]> lamps = new ArrayList<>();
         ChunkGenerator gen = level.getChunkSource().getGenerator();
         RandomState rs = level.getChunkSource().randomState();
+        StreetPlanner.Terrain terrain = terrain(level);
+
+        // red de calles según el patrón de esta aldea
+        StreetPlanner.Pattern pattern = StreetPlanner.choose(site.seed(), site.culture() == Culture.DESERT);
+        List<StreetPlanner.Seg> segs = StreetPlanner.plan(site.seed(), site.x(), site.z(), pattern, terrain, MAX_DIST - 40);
+        List<Road> net = new ArrayList<>();
+        int[] parent = new int[segs.size()];
+        double[] dist = new double[segs.size()];
+        for (int i = 0; i < segs.size(); i++) {
+            StreetPlanner.Seg g = segs.get(i);
+            net.add(new Road(g.x0(), g.z0(), g.x1(), g.z1(), g.half(), g.y0(), g.y1()));
+            parent[i] = g.parent();
+            dist[i] = g.dist();
+        }
+        int cy = terrain.height(site.x(), site.z());
+        Road plaza = new Road(site.x(), site.z(), site.x(), site.z(), site.culture() == Culture.DESERT ? 6.5 : 5.5, cy, cy);
+        roads.add(plaza);
 
         Building well = place(level, gen, rs, c + "well", Kind.WELL, HumanJob.NONE, 0, site.x(), site.z(), Rotation.NONE, out, roads, true);
         if (well != null) out.add(well);
-
-        int arms = 3 + rng.nextInt(2);
-        double a0 = rng.nextDouble() * Math.PI * 2;
-        double[][] dirs = new double[arms][];
-        int[] lens = new int[arms];
-        for (int i = 0; i < arms; i++) {
-            double a = a0 + i * Math.PI * 2 / arms + (rng.nextDouble() - 0.5) * 0.45;
-            dirs[i] = new double[]{Math.cos(a), Math.sin(a)};
-            lens[i] = 46 + rng.nextInt(22);
-            roads.add(new Road(site.x() + dirs[i][0] * 4, site.z() + dirs[i][1] * 4,
-                    site.x() + dirs[i][0] * lens[i], site.z() + dirs[i][1] * lens[i], 1.5));
-        }
-        // plaza alrededor del pozo
-        roads.add(new Road(site.x(), site.z(), site.x(), site.z(), 5.5));
 
         // qué se construye, en orden de cercanía a la plaza
         List<String[]> queue = new ArrayList<>();   // {template, kind, job, residents}
@@ -126,8 +183,7 @@ public final class VillageLayout {
         List<String[]> works = new ArrayList<>();
         works.add(new String[]{c + "work_farmer", "WORK", "FARMER", "1"});
         for (int i = 0; i < nJobs && i < jobs.size(); i++) {
-            String id = jobs.get(i).vanilla;
-            works.add(new String[]{c + "work_" + id, "WORK", jobs.get(i).name(), "1"});
+            works.add(new String[]{c + "work_" + jobs.get(i).vanilla, "WORK", jobs.get(i).name(), "1"});
         }
         int houses = 4 + rng.nextInt(4);
         List<String[]> homes = new ArrayList<>();
@@ -136,7 +192,6 @@ public final class VillageLayout {
             boolean large = rng.nextInt(3) == 0;
             homes.add(new String[]{c + (large ? "house_large_" : "house_small_") + rng.nextInt(pals), "HOUSE", "NONE", large ? "2" : "1"});
         }
-        // talleres y casas intercalados
         int wi = 0, hi = 0;
         while (wi < works.size() || hi < homes.size()) {
             if (wi < works.size()) queue.add(works.get(wi++));
@@ -146,81 +201,115 @@ public final class VillageLayout {
         int farms = 2 + rng.nextInt(2);
         for (int i = 0; i < farms; i++) queue.add(new String[]{c + "farm_" + rng.nextInt(2), "FARM", "FARMER", i == 0 ? "1" : "0"});
 
+        List<Road> blocking = new ArrayList<>(net);
+        blocking.add(plaza);
         int[] rejects = new int[1];
+        List<Integer> bSeg = new ArrayList<>();
+        List<Road> spurs = new ArrayList<>();
+        bSeg.add(-1);
+        spurs.add(null);
+        boolean[] paved = new boolean[net.size()];
         for (String[] want : queue) {
-            Plot pl = findPlot(level, site, dirs, lens, 3, want[0], Kind.valueOf(want[1]), HumanJob.valueOf(want[2]),
-                    Integer.parseInt(want[3]), out, roads, null);
+            Plot pl = findPlot(level, site, net, dist, MAX_DIST - 60, want[0], Kind.valueOf(want[1]), HumanJob.valueOf(want[2]),
+                    Integer.parseInt(want[3]), out, blocking, null, false);
             if (pl == null) {
                 rejects[0]++;
                 continue;
             }
             out.add(pl.building());
-            roads.add(pl.spur());
+            bSeg.add(pl.seg());
+            spurs.add(pl.spur());
+            for (int k = pl.seg(); k >= 0 && !paved[k]; k = parent[k]) paved[k] = true;
         }
-        // faroles a lo largo de las calles
-        for (int i = 0; i < arms; i++) {
-            for (int d = 8; d < lens[i]; d += 13) {
-                double side = (d / 13) % 2 == 0 ? 1 : -1;
-                int lx = (int) Math.round(site.x() + dirs[i][0] * d - dirs[i][1] * side * 2.6);
-                int lz = (int) Math.round(site.z() + dirs[i][1] * d + dirs[i][0] * side * 2.6);
+        // el centro siempre tiene calles aunque no tengan casas todavía
+        for (int i = 0; i < net.size(); i++) {
+            if (dist[i] <= 24) for (int k = i; k >= 0 && !paved[k]; k = parent[k]) paved[k] = true;
+        }
+        for (int i = 0; i < net.size(); i++) if (paved[i]) roads.add(net.get(i));
+        for (Road sp : spurs) if (sp != null) roads.add(sp);
+        lamps.addAll(lamps(net, paved, out, 0));
+        String stats = pattern + " streets=" + net.size() + " queued=" + queue.size() + " placed=" + (out.size() - 1) + " miss=" + rejects[0]
+                + " wet=" + REJ[0] + " slope=" + REJ[1] + " overlap=" + REJ[2] + " road=" + REJ[3];
+        int[] bs = new int[bSeg.size()];
+        for (int i = 0; i < bs.length; i++) bs[i] = bSeg.get(i);
+        return new Layout(site, out, roads, lamps, stats, pattern, net, parent, dist, paved, bs, spurs);
+    }
+
+    /** Faroles cada ~12 bloques a lo largo de los tramos marcados, alternando de lado; nunca dentro de un edificio. */
+    public static List<int[]> lamps(List<Road> net, boolean[] which, List<Building> buildings, int salt) {
+        List<int[]> out = new ArrayList<>();
+        for (int i = 0; i < net.size(); i++) {
+            if (!which[i]) continue;
+            Road r = net.get(i);
+            double len = r.length();
+            if (len < 1) continue;
+            double dx = (r.x1() - r.x0()) / len, dz = (r.z1() - r.z0()) / len;
+            for (double t = 3 + ((i + salt) % 3) * 4; t < len; t += 12) {
+                double side = ((int) (t / 12) + i) % 2 == 0 ? 1 : -1;
+                double off = r.half() + 1.2;
+                int lx = (int) Math.round(r.x0() + dx * t - dz * side * off);
+                int lz = (int) Math.round(r.z0() + dz * t + dx * side * off);
                 boolean clash = false;
-                for (Building b : out) if (b.contains(lx, lz, 1)) clash = true;
-                if (!clash) lamps.add(new int[]{lx, lz});
+                for (Building b : buildings) {
+                    if (b.contains(lx, lz, 1)) {
+                        clash = true;
+                        break;
+                    }
+                }
+                for (int k = 0; k < net.size() && !clash; k++) if (net.get(k).dist(lx, lz) <= net.get(k).half() + 0.3) clash = true;
+                if (!clash) out.add(new int[]{lx, lz});
             }
         }
-        String stats = "queued=" + queue.size() + " placed=" + (out.size() - 1) + " tries=" + rejects[0]
-                + " wet=" + REJ[0] + " slope=" + REJ[1] + " overlap=" + REJ[2] + " road=" + REJ[3];
-        return new Layout(site, out, roads, lamps, stats, dirs, lens);
+        return out;
     }
 
-    public record Plot(Building building, Road spur, int arm, double d) {}
+    public record Plot(Building building, Road spur, int seg, double t) {}
 
     /**
-     * Primer lote libre (de la plaza hacia afuera) donde entra la plantilla, con la puerta hacia la calle.
-     * {@code limits[arm] - margin} es hasta dónde se busca en cada calle; {@code accept} puede vetar un lote (p. ej. si
-     * el jugador construyó ahí).
+     * Primer lote libre (por distancia en la red desde la plaza) donde entra la plantilla, al costado de algún tramo y con
+     * la puerta hacia él. {@code maxDist}: hasta dónde se busca. {@code accept} puede vetar un lote (p. ej. si el jugador
+     * construyó ahí). {@code coarse}: terreno en grilla cacheada (búsquedas en partida).
      */
-    public static Plot findPlot(ServerLevel level, VillageSites.Site site, double[][] dirs, int[] limits, int margin, String template,
-                                Kind kind, HumanJob job, int residents, List<Building> others, List<Road> roads,
-                                java.util.function.Predicate<Building> accept) {
-        return findPlot(level, site, dirs, limits, margin, template, kind, job, residents, others, roads, accept, false);
-    }
-
-    /** {@code coarse}: terreno muestreado en una grilla de 4 bloques y cacheado (búsquedas en partida, mucho más baratas). */
-    public static Plot findPlot(ServerLevel level, VillageSites.Site site, double[][] dirs, int[] limits, int margin, String template,
-                                Kind kind, HumanJob job, int residents, List<Building> others, List<Road> roads,
+    public static Plot findPlot(ServerLevel level, VillageSites.Site site, List<Road> net, double[] dist, double maxDist, String template,
+                                Kind kind, HumanJob job, int residents, List<Building> others, List<Road> blocking,
                                 java.util.function.Predicate<Building> accept, boolean coarse) {
         ChunkGenerator gen = level.getChunkSource().getGenerator();
         RandomState rs = level.getChunkSource().randomState();
         VTemplate vt = template(level, template);
         if (vt.t().blocks().isEmpty()) return null;
-        List<double[]> plots = new ArrayList<>();   // {d, arm, side}
-        for (int i = 0; i < dirs.length; i++) {
-            for (int d = 9; d < limits[i] - margin; d += 2) {
-                plots.add(new double[]{d, i, -1});
-                plots.add(new double[]{d, i, 1});
+        List<double[]> plots = new ArrayList<>();   // {orden, tramo, t, lado}
+        for (int i = 0; i < net.size(); i++) {
+            Road r = net.get(i);
+            double len = r.length();
+            for (double t = 2; t < len - 0.5; t += 2) {
+                if (dist[i] + t > maxDist) break;
+                plots.add(new double[]{dist[i] + t, i, t, -1});
+                plots.add(new double[]{dist[i] + t + 0.5, i, t, 1});
             }
         }
-        plots.sort((p, q) -> Double.compare(p[0] + p[1] * 0.01 + p[2] * 0.001, q[0] + q[1] * 0.01 + q[2] * 0.001));
+        plots.sort((p, q) -> Double.compare(p[0], q[0]));
         for (double[] p : plots) {
-            int arm = (int) p[1];
-            double side = p[2];
-            double rx = site.x() + dirs[arm][0] * p[0], rz = site.z() + dirs[arm][1] * p[0];
-            double px = -dirs[arm][1] * side, pz = dirs[arm][0] * side;   // perpendicular
-            // orientación: la puerta (+z de la plantilla) mira hacia la calle
+            int i = (int) p[1];
+            Road r = net.get(i);
+            double len = r.length();
+            double dx = (r.x1() - r.x0()) / len, dz = (r.z1() - r.z0()) / len;
+            double side = p[3];
+            double rx = r.x0() + dx * p[2], rz = r.z0() + dz * p[2];
+            double px = -dz * side, pz = dx * side;   // perpendicular
+            // la puerta (+z de la plantilla) mira hacia la calle
             Rotation rot = DominionTemplates.facing(0, 0, (int) Math.round(-px * 100), (int) Math.round(-pz * 100));
-            // distancia mínima para que ninguna esquina pise la calle
             double minProj = Double.MAX_VALUE;
             for (int cxz = 0; cxz < 4; cxz++) {
                 int[] cr = DominionTemplates.rotate((cxz & 1) == 0 ? vt.minX() : vt.maxX(), (cxz & 2) == 0 ? vt.minZ() : vt.maxZ(), rot);
                 minProj = Math.min(minProj, cr[0] * px + cr[1] * pz);
             }
-            double off = Math.max(2.5 + vt.t().coreZ(), 2.6 - minProj);
+            double off = Math.max(r.half() + 1 + vt.t().coreZ(), r.half() + 1.1 - minProj);
             int bx = (int) Math.round(rx + px * off), bz = (int) Math.round(rz + pz * off);
-            Building b = place(level, gen, rs, template, kind, job, residents, bx, bz, rot, others, roads, false, coarse);
+            Building b = place(level, gen, rs, template, kind, job, residents, bx, bz, rot, others, blocking, false, coarse);
             if (b == null) continue;
             if (accept != null && !accept.test(b)) continue;
-            return new Plot(b, new Road(b.coreX(), b.coreZ(), rx, rz, 0.6), arm, p[0]);
+            int ry = r.y(rx, rz);
+            return new Plot(b, new Road(b.coreX(), b.coreZ(), rx, rz, 0.6, b.floorY() + 1, ry == Integer.MIN_VALUE ? b.floorY() + 1 : ry), i, p[2]);
         }
         return null;
     }
@@ -312,7 +401,7 @@ public final class VillageLayout {
         }
         int[] sorted = hs.clone();
         Arrays.sort(sorted);
-        if (kind != Kind.WELL && sorted[8] - sorted[0] > 8) {
+        if (kind != Kind.WELL && sorted[8] - sorted[0] > 10) {
             REJ[1]++;
             return Integer.MIN_VALUE;
         }

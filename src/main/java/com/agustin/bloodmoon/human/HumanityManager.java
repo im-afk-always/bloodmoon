@@ -151,7 +151,7 @@ public final class HumanityManager {
         s.materialized = s.pop;
         s.food = s.pop * 3.0;
         s.treasury = 300;
-        s.armLen = lay.lens().clone();
+        s.paved = lay.pavedInit().clone();
         s.foundedDay = (int) (level.getDayTime() / 24000L);
         data.settlements.put(key, s);
         data.setDirty();
@@ -290,10 +290,8 @@ public final class HumanityManager {
             s.colonyNext++;
             Settlement.Work w = new Settlement.Work();
             w.b = b;
-            double[] near = nearestArm(lay, s, b.coreX(), b.coreZ());
-            w.arm = (int) near[0];
-            w.d = near[1];
-            w.spur = new VillageLayout.Road(b.coreX(), b.coreZ(), near[2], near[3], 0.6);
+            w.arm = lay.buildingSeg()[s.colonyNext - 1];
+            w.spur = lay.spurs().get(s.colonyNext - 1);
             s.works.add(w);
             return;
         }
@@ -346,15 +344,10 @@ public final class HumanityManager {
         List<VillageLayout.Building> others = new ArrayList<>(lay.buildings());
         for (Settlement.Work w : s.works) others.add(w.b);
         others.addAll(s.blocked);
-        List<VillageLayout.Road> roads = new ArrayList<>(lay.roads());
-        for (int i = 0; i < lay.dirs().length; i++) {
-            roads.add(new VillageLayout.Road(s.x + lay.dirs()[i][0] * 4, s.z + lay.dirs()[i][1] * 4,
-                    s.x + lay.dirs()[i][0] * VillageLayout.MAX_LEN, s.z + lay.dirs()[i][1] * VillageLayout.MAX_LEN, 1.5));
-        }
-        int[] limits = new int[lay.dirs().length];
-        java.util.Arrays.fill(limits, VillageLayout.MAX_LEN);
-        VillageLayout.Plot pl = VillageLayout.findPlot(level, s.site(), lay.dirs(), limits, 3, template, kind, job, residents, others, roads,
-                b -> !loaded(level, b) || VillageBuilder.artificial(level, b, 3) <= 3, true);
+        List<VillageLayout.Road> roads = new ArrayList<>(lay.net());
+        roads.add(lay.plaza());
+        VillageLayout.Plot pl = VillageLayout.findPlot(level, s.site(), lay.net(), lay.dist(), VillageLayout.MAX_DIST, template, kind, job,
+                residents, others, roads, b -> !loaded(level, b) || VillageBuilder.artificial(level, b, 3) <= 3, true);
         if (pl == null) {
             s.plotWait = CYCLES_PER_DAY;   // no hay lugar: se vuelve a mirar mañana
             return;
@@ -363,25 +356,9 @@ public final class HumanityManager {
         Settlement.Work w = new Settlement.Work();
         w.b = pl.building();
         w.spur = pl.spur();
-        w.arm = pl.arm();
-        w.d = pl.d();
+        w.arm = pl.seg();
+        w.d = pl.t();
         s.works.add(w);
-    }
-
-    private static double[] nearestArm(VillageLayout.Layout lay, Settlement s, int x, int z) {
-        double best = Double.MAX_VALUE;
-        double[] out = {0, 0, s.x, s.z};
-        for (int i = 0; i < lay.dirs().length; i++) {
-            double dx = lay.dirs()[i][0], dz = lay.dirs()[i][1];
-            double t = Math.max(0, (x - s.x) * dx + (z - s.z) * dz);
-            double px = s.x + dx * t, pz = s.z + dz * t;
-            double dist = Math.hypot(px - x, pz - z);
-            if (dist < best) {
-                best = dist;
-                out = new double[]{i, t, px, pz};
-            }
-        }
-        return out;
     }
 
     // ------------------------------------------------------------------ obra a la vista
@@ -419,7 +396,13 @@ public final class HumanityManager {
                 data.setDirty();
                 return 1;
             }
-            VillageBuilder.clearTrees(level, box, List.of(w.b), List.of(), false);
+            VillageLayout.Layout lay = VillageLayout.get(level, s.site());
+            int[] ybox = {w.b.minX() - 3, w.b.minZ() - 3, w.b.maxX() + 3, w.b.maxZ() + 3};
+            VillageBuilder.clearTrees(level, ybox, List.of(w.b), List.of(), false);
+            List<VillageLayout.Road> near = new ArrayList<>();
+            near.add(lay.plaza());
+            for (int k = 0; k < lay.net().size(); k++) if (k < s.paved.length && s.paved[k]) near.add(lay.net().get(k));
+            VillageBuilder.yard(level, w.b, ybox, near, desert, false);
             VillageBuilder.prepare(level, level, w.b, box, desert);
             w.prepared = true;
             if (w.state == 0 && level.getNearestPlayer(w.b.coreX(), w.b.floorY(), w.b.coreZ(), 96, false) != null) spawnBuilder(level, s, w);
@@ -471,28 +454,25 @@ public final class HumanityManager {
         VillageLayout.Layout lay = VillageLayout.get(level, s.site());
         List<VillageLayout.Road> roads = new ArrayList<>();
         if (w.spur != null) roads.add(w.spur);
-        // estirar la calle hasta el edificio
-        if (w.arm >= 0 && w.arm < s.armLen.length && w.d + 6 > s.armLen[w.arm]) {
-            double[] dir = lay.dirs()[w.arm];
-            int from = Math.max(4, s.armLen[w.arm]);
-            int to = (int) Math.min(VillageLayout.MAX_LEN, w.d + 6);
-            roads.add(new VillageLayout.Road(s.x + dir[0] * from, s.z + dir[1] * from, s.x + dir[0] * to, s.z + dir[1] * to, 1.5));
-            for (int d = (from / 13 + 1) * 13 + 8; d < to; d += 13) {
-                double side = (d / 13) % 2 == 0 ? 1 : -1;
-                int lx = (int) Math.round(s.x + dir[0] * d - dir[1] * side * 2.6);
-                int lz = (int) Math.round(s.z + dir[1] * d + dir[0] * side * 2.6);
-                if (level.hasChunk(lx >> 4, lz >> 4)) VillageBuilder.lamp(level, lx, lz, desert, false);
-            }
-            s.armLen[w.arm] = to;
+        // abrir la calle hasta el edificio: su tramo y los que lo unen a la plaza
+        if (s.paved.length != lay.net().size()) s.paved = java.util.Arrays.copyOf(s.paved, lay.net().size());
+        boolean[] fresh = new boolean[lay.net().size()];
+        for (int k = w.arm; k >= 0 && k < fresh.length && !s.paved[k]; k = lay.parent()[k]) {
+            s.paved[k] = true;
+            fresh[k] = true;
+            roads.add(lay.net().get(k));
         }
         // una colonia pavimenta su plaza con el pozo
-        if (w.b.kind() == VillageLayout.Kind.WELL) roads.add(new VillageLayout.Road(s.x, s.z, s.x, s.z, 5.5));
+        if (w.b.kind() == VillageLayout.Kind.WELL) roads.add(lay.plaza());
         List<VillageLayout.Building> all = new ArrayList<>(built(level, s));
         for (VillageLayout.Road r : roads) {
             int[] box = {(int) Math.floor(Math.min(r.x0(), r.x1()) - r.half() - 3), (int) Math.floor(Math.min(r.z0(), r.z1()) - r.half() - 3),
                     (int) Math.ceil(Math.max(r.x0(), r.x1()) + r.half() + 3), (int) Math.ceil(Math.max(r.z0(), r.z1()) + r.half() + 3)};
             VillageBuilder.clearTrees(level, box, List.of(), List.of(r), false);
             VillageBuilder.pave(level, box, List.of(r), all, desert, false);
+        }
+        for (int[] l : VillageLayout.lamps(lay.net(), fresh, all, s.works.size())) {
+            if (level.hasChunk(l[0] >> 4, l[1] >> 4)) VillageBuilder.lamp(level, l[0], l[1], desert, false);
         }
         // se va el obrero, llegan los que viven o trabajan ahí
         for (Human h : level.getEntitiesOfClass(Human.class, new net.minecraft.world.phys.AABB(
@@ -603,8 +583,7 @@ public final class HumanityManager {
             s.pop = 8;
             s.food = 40;
             s.treasury = 300;
-            s.armLen = new int[lay.dirs().length];
-            java.util.Arrays.fill(s.armLen, 4);
+            s.paved = new boolean[lay.net().size()];
             s.foundedDay = (int) (level.getDayTime() / 24000L);
             parent.pop -= 8;
             parent.treasury -= 300;

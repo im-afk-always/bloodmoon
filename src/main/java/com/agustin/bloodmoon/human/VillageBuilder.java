@@ -83,21 +83,32 @@ public final class VillageBuilder {
         }
     }
 
-    /** Pavimenta las calles (sin pisar edificios); el agua se cruza con un puente. */
+    /**
+     * Pavimenta las calles (sin pisar edificios), niveladas en rampa según la altura planificada de cada tramo: corta las
+     * lomas, rellena los pozos (hasta 5 bloques) y cruza el agua con un puente. {@code stone}: empedrado de ciudad.
+     */
     public static void pave(WorldGenLevel level, int[] box, List<VillageLayout.Road> roads, List<VillageLayout.Building> buildings,
                             boolean desert, boolean wg) {
+        pave(level, box, roads, buildings, desert, wg, false);
+    }
+
+    public static void pave(WorldGenLevel level, int[] box, List<VillageLayout.Road> roads, List<VillageLayout.Building> buildings,
+                            boolean desert, boolean wg, boolean stone) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         BlockState air = Blocks.AIR.defaultBlockState();
+        BlockState fill = (desert ? Blocks.SANDSTONE : Blocks.DIRT).defaultBlockState();
         for (int x = box[0]; x <= box[2]; x++) {
             for (int z = box[1]; z <= box[3]; z++) {
-                boolean road = false;
+                VillageLayout.Road road = null;
+                double best = Double.MAX_VALUE;
                 for (VillageLayout.Road r : roads) {
-                    if (r.dist(x, z) <= r.half()) {
-                        road = true;
-                        break;
+                    double d = r.dist(x, z);
+                    if (d <= r.half() && d - r.half() < best) {
+                        best = d - r.half();
+                        road = r;
                     }
                 }
-                if (!road) continue;
+                if (road == null) continue;
                 if (!wg && level instanceof ServerLevel sl && !sl.hasChunk(x >> 4, z >> 4)) continue;
                 boolean inside = false;
                 for (VillageLayout.Building b : buildings) {
@@ -107,26 +118,94 @@ public final class VillageBuilder {
                     }
                 }
                 if (inside) continue;
-                int y = ground(level, x, z, wg);
-                p.set(x, y, z);
+                int g = ground(level, x, z, wg);
+                p.set(x, g, z);
                 BlockState top = level.getBlockState(p);
+                if (!wg && !natural(top) && !isPath(top) && !isStone(top)) continue;   // en partida no se pisa lo del jugador
+                int want = road.y(x, z);
+                int y = want == Integer.MIN_VALUE ? g : want - 1;
                 long h = hash(x, z);
                 if (!top.getFluidState().isEmpty()) {
-                    level.setBlock(p, (desert ? Blocks.SMOOTH_SANDSTONE : Blocks.SPRUCE_PLANKS).defaultBlockState(), FLAGS);
-                } else if (isPath(top)) {
+                    // puente: a la altura de la calle, nunca por debajo del agua
+                    int by = Math.max(y, g);
+                    level.setBlock(p.set(x, by, z), (desert ? Blocks.SMOOTH_SANDSTONE : stone ? Blocks.STONE_BRICKS : Blocks.SPRUCE_PLANKS).defaultBlockState(), FLAGS);
+                    for (int k = 1; k <= 3; k++) {
+                        p.set(x, by + k, z);
+                        if (!level.getBlockState(p).isAir() && level.getBlockState(p).getFluidState().isEmpty()) level.setBlock(p, air, FLAGS);
+                    }
                     continue;
-                } else if (!wg && !natural(top)) {
-                    continue;   // en partida no se pisa lo que construyó el jugador
-                } else {
-                    BlockState path;
-                    if (desert) path = (h % 5 == 0 ? Blocks.SANDSTONE : h % 7 == 0 ? Blocks.CUT_SANDSTONE : Blocks.SMOOTH_SANDSTONE).defaultBlockState();
-                    else path = (h % 9 == 0 ? Blocks.GRAVEL : h % 13 == 0 ? Blocks.COARSE_DIRT : Blocks.DIRT_PATH).defaultBlockState();
-                    level.setBlock(p, path, FLAGS);
                 }
-                for (int k = 1; k <= 3; k++) {
-                    p.set(x, y + k, z);
+                if (y - g > 5) y = g + 5;
+                if (g - y > 6) y = g - 6;
+                // cortar la loma por encima de la calle
+                for (int yy = y + 1; yy <= Math.max(g, y) + 3; yy++) {
+                    p.set(x, yy, z);
                     BlockState st = level.getBlockState(p);
-                    if (!st.isAir() && passable(st) && st.getFluidState().isEmpty()) level.setBlock(p, air, FLAGS);
+                    if (!st.isAir() && st.getFluidState().isEmpty() && (wg || natural(st))) level.setBlock(p, air, FLAGS);
+                }
+                // rellenar el pozo por debajo
+                for (int yy = g + 1; yy < y; yy++) level.setBlock(p.set(x, yy, z), fill, FLAGS);
+                BlockState path;
+                if (stone) {
+                    if (desert) path = (h % 6 == 0 ? Blocks.CUT_SANDSTONE : h % 5 == 0 ? Blocks.CHISELED_SANDSTONE : Blocks.SMOOTH_SANDSTONE).defaultBlockState();
+                    else path = (h % 4 == 0 ? Blocks.STONE_BRICKS : h % 5 == 0 ? Blocks.CRACKED_STONE_BRICKS : h % 7 == 0 ? Blocks.ANDESITE : Blocks.POLISHED_ANDESITE).defaultBlockState();
+                } else if (desert) {
+                    path = (h % 5 == 0 ? Blocks.SANDSTONE : h % 7 == 0 ? Blocks.CUT_SANDSTONE : Blocks.SMOOTH_SANDSTONE).defaultBlockState();
+                } else {
+                    path = (h % 9 == 0 ? Blocks.GRAVEL : h % 13 == 0 ? Blocks.COARSE_DIRT : Blocks.DIRT_PATH).defaultBlockState();
+                }
+                level.setBlock(p.set(x, y, z), path, FLAGS);
+            }
+        }
+    }
+
+    private static boolean isStone(BlockState st) {
+        return st.is(Blocks.STONE_BRICKS) || st.is(Blocks.CRACKED_STONE_BRICKS) || st.is(Blocks.POLISHED_ANDESITE) || st.is(Blocks.ANDESITE)
+                || st.is(Blocks.CHISELED_SANDSTONE) || st.is(Blocks.GRAVEL) || st.is(Blocks.COARSE_DIRT);
+    }
+
+    /**
+     * Nivela el terreno alrededor de un edificio: el patio queda a la altura del piso y los 3 bloques siguientes hacen
+     * una pendiente suave hasta el terreno natural (los constructores cortan lomas y rellenan pozos). No toca calles.
+     */
+    public static void yard(WorldGenLevel level, VillageLayout.Building b, int[] box, List<VillageLayout.Road> roads, boolean desert, boolean wg) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        BlockState air = Blocks.AIR.defaultBlockState();
+        BlockState fill = (desert ? Blocks.SANDSTONE : Blocks.DIRT).defaultBlockState();
+        BlockState topBlock = (desert ? Blocks.SAND : Blocks.GRASS_BLOCK).defaultBlockState();
+        int m = 3;
+        for (int x = Math.max(box[0], b.minX() - m); x <= Math.min(box[2], b.maxX() + m); x++) {
+            for (int z = Math.max(box[1], b.minZ() - m); z <= Math.min(box[3], b.maxZ() + m); z++) {
+                if (!wg && level instanceof ServerLevel sl && !sl.hasChunk(x >> 4, z >> 4)) continue;
+                boolean onRoad = false;
+                for (VillageLayout.Road r : roads) {
+                    if (r.dist(x, z) <= r.half() + 0.5) {
+                        onRoad = true;
+                        break;
+                    }
+                }
+                if (onRoad) continue;
+                int k = Math.max(Math.max(b.minX() - x, x - b.maxX()), Math.max(b.minZ() - z, z - b.maxZ()));
+                k = Math.max(0, k);
+                int g = ground(level, x, z, wg);
+                BlockState top = level.getBlockState(p.set(x, g, z));
+                if (!top.getFluidState().isEmpty()) continue;
+                if (!wg && !natural(top)) continue;
+                int target = b.floorY() + (int) Math.round((g - b.floorY()) * k / (double) (m + 1));
+                if (g > target) {
+                    for (int y = target + 1; y <= g + 2; y++) {
+                        p.set(x, y, z);
+                        BlockState st = level.getBlockState(p);
+                        if (!st.isAir() && st.getFluidState().isEmpty() && (wg || natural(st))) level.setBlock(p, air, FLAGS);
+                    }
+                    p.set(x, target, z);
+                    BlockState t = level.getBlockState(p);
+                    if (t.is(BlockTags.DIRT) || t.is(BlockTags.BASE_STONE_OVERWORLD) || t.is(BlockTags.SAND) || t.is(Blocks.SANDSTONE)) {
+                        level.setBlock(p, topBlock, FLAGS);
+                    }
+                } else if (g < target) {
+                    for (int y = Math.max(g + 1, target - 6); y < target; y++) level.setBlock(p.set(x, y, z), fill, FLAGS);
+                    level.setBlock(p.set(x, target, z), topBlock, FLAGS);
                 }
             }
         }
