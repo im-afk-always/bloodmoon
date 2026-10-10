@@ -28,8 +28,9 @@ def dpal(kind):
 
 class Adobe(House):
     """Reusa la planta, la escalera y el amueblado del kit; cambia muros, aberturas y techo."""
-    def __init__(self, seed, pal, rects, floors=2, setback=3, dome=False, terrace=True, **kw):
+    def __init__(self, seed, pal, rects, floors=2, setback=3, dome=False, terrace=True, roof_ladder=True, open_dome=False, **kw):
         self.setback = setback; self.dome = dome; self.terrace = terrace
+        self.roof_ladder = roof_ladder; self.open_dome = open_dome
         def lv(f, rects):
             if f == 0: return list(rects)
             x0, z0, x1, z1 = rects[0]
@@ -145,11 +146,20 @@ class Adobe(House):
                 cx, cz = (min(xs) + max(xs)) // 2, (min(zs) + max(zs)) // 2
                 r = max(2, min(max(xs) - min(xs), max(zs) - min(zs)) // 2 - 1)
                 dome(v, cx, yr + 1, cz, r, p['dome'], p['accent'])
+                if self.open_dome:
+                    # la cúpula se abre hacia el salón: sin losa debajo
+                    import math
+                    for (x, z) in C:
+                        if math.hypot(x - cx, z - cz) <= r - 0.5 and (x, z) not in P: v.air(x, yr, z)
+        if not self.roof_ladder: return
         # escalera de mano a la terraza
         C, P = self.cells[-1], self.per[-1]
         inner = sorted(c for c in C if c not in P)
-        lx, lz = inner[-1]
-        for y in range(self.top - H + 1, self.top + 1):
+        ys = range(self.top - H + 1, self.top + 1)
+        # contra un muro macizo en toda su altura (una ventana detrás la dejaría sin apoyo)
+        ok = [c for c in inner if (c[0], c[1] + 1) in P and all(full(v.get(c[0], y, c[1] + 1)) for y in ys)]
+        lx, lz = (ok or inner)[-1]
+        for y in ys:
             v.set(lx, y, lz, 'ladder', facing='north', waterlogged='false')
             self.reserved.add((lx, y, lz)); self.reserved.add((lx, y, lz - 1))
 
@@ -196,6 +206,21 @@ def dworkshop(job, seed, city=False):
 def dcity_house(i, seed):
     p = dpal(i % 5)
     return Adobe(seed, p, [(-4, -5, 4, 5)], floors=3 + (i % 2), rooms=['living', 'bed', 'bed', 'bed'], setback=2, dome=(i % 3 == 1)).v
+
+def dlibrary(seed, big=False):
+    """Biblioteca de adobe con cúpula: salón de doble altura, galería en U, escalinata central y estanterías."""
+    p = dpal(3 if big else 1)
+    hw, hd = (8, 8) if big else (6, 6)
+    H = 8
+    a = Adobe(seed, p, [(-hw, -hd, hw, hd)], floors=1, rooms=['none'], setback=0, dome=True, terrace=False, H=H,
+              roof_ladder=False, open_dome=True)
+    v = a.v
+    tall_windows(v, 2, 3, (5, 6))
+    info = library_hall(v, hw, hd, H, p['wood'], p['floor2'], p['fence'], ring=4 if big else 3, stair_w=3 if big else 2)
+    lx = max(x for x, _ in info['feet']) + 2
+    v.set(lx, 1, info['zt'] + 4, 'lectern', facing='west', has_book='false', powered='false')
+    v.core = (0, 1, hd + 1)
+    return v
 
 def dtemple(seed, big=False):
     p = dpal(3 if big else 1)
@@ -257,6 +282,11 @@ def dpalace(seed, capital=False):
         v.set(px, 0, pz, 'grass_block')
     # salón con cúpula al fondo
     dome(v, 0, H + 2, -R + 2, 3, p['dome'], p['accent'])
+    # la cúpula se abre hacia la galería de abajo (si no, queda un hueco cerrado sobre el techo)
+    import math
+    for x in range(-3, 4):
+        for z in range(-R - 1, -R + 6):
+            if math.hypot(x, z - (-R + 2)) <= 2.5 and max(abs(x), abs(z)) < R: v.air(x, H + 1, z)
     for x in range(-1, 2):
         for y in (1, 2, 3): v.air(x, y, R)
     v.set(0, 4, R, p['accent'])

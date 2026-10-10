@@ -156,7 +156,8 @@ public final class Market {
     static int[] materials(VillageLayout.Building b) {
         boolean c = HumanityManager.city(b);
         String t = b.template();
-        if (t.endsWith("city_work_cleric")) return new int[]{60, 500};
+        if (t.endsWith("city_work_librarian")) return new int[]{140, 360};
+        if (t.endsWith("work_librarian")) return new int[]{80, 90};
         return switch (b.kind()) {
             case HOUSE -> c ? new int[]{40, 120} : t.contains("large") ? new int[]{50, 20} : new int[]{30, 10};
             case WORK -> c ? new int[]{45, 120} : new int[]{30, 15};

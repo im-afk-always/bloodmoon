@@ -73,8 +73,8 @@ def market_hall(seed):
             v.set(x - 1, 1, z, 'spruce_slab', type='top', waterlogged='false')
             for dx in (-1, 0, 1): v.set(x + dx, 3, z, cols[(i + dx + (z > 0)) % len(cols)] + '_wool')
     for x in range(-hw + 2, hw - 1, 4): v.lantern(x, 4, 0, hanging=True)
+    # escalera de mano al salón: atraviesa el piso para poder salir arriba
     for y in range(1, 6): v.set(-hw + 1, y, 0, 'ladder', facing='east', waterlogged='false')
-    v.air(-hw + 1, 5, 0)
     # salón: mesa larga de gremio
     for x in range(-4, 5): v.fence(x, 6, 0, 'dark_oak'); v.set(x, 7, 0, 'dark_oak_pressure_plate', powered='false')
     for x in range(-4, 5, 2): v.stair(x, 6, -1, 'dark_oak', 'north'); v.stair(x, 6, 1, 'dark_oak', 'south')
@@ -114,7 +114,8 @@ def town_hall(seed):
         for y in (1, 2, 3): v.air(x, y, tz1)
     v.door(0, 1, tz1, 'dark_oak', 'north'); v.door(-1, 1, tz1, 'dark_oak', 'north', hinge='right'); v.door(1, 1, tz1, 'dark_oak', 'north', hinge='left')
     for z in range(tz0, tz1): v.air(0, 1, z); v.air(0, 2, z); v.air(-1, 1, z); v.air(-1, 2, z); v.air(1, 1, z); v.air(1, 2, z)
-    for y in range(1, Ht - 2): v.set(-1, y, tz0 + 1, 'ladder', facing='south', waterlogged='false')
+    # escalera de mano contra el muro lateral de la torre (el del fondo tiene el paso abierto abajo)
+    for y in range(1, Ht - 2): v.set(1, y, tz0 + 2, 'ladder', facing='west', waterlogged='false')
     v.air(0, 1, 5); v.air(0, 2, 5); v.air(-1, 1, 5); v.air(-1, 2, 5); v.air(1, 1, 5); v.air(1, 2, 5)
     for x in (-2, 2): v.lantern(x, 3, tz1 + 1, hanging=False) if False else v.set(x, 1, tz1 + 1, 'stone_brick_wall', up='true', north='none', south='none', east='none', west='none', waterlogged='false')
     for x in (-2, 2): v.lantern(x, 2, tz1 + 1)
@@ -167,8 +168,12 @@ def castle(seed):
                     elif y in (5, 10): v.set(x, y, z, 'spruce_planks')
                     else: v.air(x, y, z)
             if y in (3, 8, 13):
-                for (ax, az) in ((cx + rr, cz), (cx - rr, cz), (cx, cz + rr), (cx, cz - rr)):
+                # saeteras (no en la cara de la escalera de mano, que se apoya ahí)
+                for (ax, az) in ((cx + rr, cz), (cx - rr, cz), (cx, cz + rr)):
                     v.air(ax, y, az); v.air(ax, y + 1, az)
+        # puerta hacia el patio, en la cara diagonal que mira al centro
+        sx_, sz_ = (1 if cx > 0 else -1), (1 if cz > 0 else -1)
+        for y in (1, 2): v.air(cx - sx_ * 3, y, cz - sz_ * 3)
         for x in range(cx - rr - 1, cx + rr + 2):
             for z in range(cz - rr - 1, cz + rr + 2):
                 dx, dz = abs(x - cx), abs(z - cz)

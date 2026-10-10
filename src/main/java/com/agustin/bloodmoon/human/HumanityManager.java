@@ -228,7 +228,9 @@ public final class HumanityManager {
 
     static int cost(VillageLayout.Building b) {
         boolean c = city(b);
-        if (b.template().endsWith("city_work_cleric")) return 2500;
+        // la biblioteca es la obra grande del pueblo (reemplazó a la iglesia)
+        if (b.template().endsWith("city_work_librarian")) return 2000;
+        if (b.template().endsWith("work_librarian")) return 500;
         return switch (b.kind()) {
             case HOUSE -> c ? 600 : b.template().contains("large") ? 260 : 150;
             case WORK -> c ? 700 : 220;
@@ -244,7 +246,8 @@ public final class HumanityManager {
 
     static double days(VillageLayout.Building b) {
         boolean c = city(b);
-        if (b.template().endsWith("city_work_cleric")) return 8;
+        if (b.template().endsWith("city_work_librarian")) return 6;
+        if (b.template().endsWith("work_librarian")) return 2.5;
         return switch (b.kind()) {
             case HOUSE -> c ? 2.5 : b.template().contains("large") ? 1.6 : 1.0;
             case WORK -> c ? 2.5 : 1.2;

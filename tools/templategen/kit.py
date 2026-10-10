@@ -71,6 +71,20 @@ CITY_COLORS = [
     [('cyan_terracotta', 1)], [('pink_terracotta', 6), ('white_terracotta', 1)], [('orange_terracotta', 6), ('terracotta', 1)],
     [('light_blue_terracotta', 1)], [('lime_terracotta', 6), ('green_terracotta', 1)]]
 
+def flue(v, cx, cz, y0, ytop, mat, mouth=(1, 0)):
+    """Chimenea de conducto hueco: columna de aire en (cx,cz) desde el hogar (y0) hasta ytop, encerrada por sus cuatro
+    vecinos; la boca del hogar (lado mouth) queda abierta en y0 y y0+1. Fogata encendida en el hogar y otra dentro del
+    conducto dos bloques bajo el remate: el humo sale por arriba y el fuego no asoma."""
+    for y in range(y0, ytop + 1):
+        for a, b in DIRS4:
+            if (a, b) == mouth and y < y0 + 2:
+                v.air(cx + a, y, cz + b); continue
+            v.set(cx + a, y, cz + b, mat(cx + a, y, cz + b))
+        if y > y0: v.air(cx, y, cz)
+    fire = dict(facing='east', lit='true', signal_fire='false', waterlogged='false')
+    v.set(cx, y0, cz, 'campfire', **fire)
+    v.set(cx, ytop - 2, cz, 'campfire', **fire)
+
 # --------------------------------------------------------------------- casa de entramado
 class House:
     def __init__(self, seed, pal, rects, floors=2, jetty=True, hip=False, stone_ground=True, chimney=True, rooms=None, job=None,
@@ -105,6 +119,7 @@ class House:
         if chimney: self.build_chimney()
         self.build_stairs()
         self.furnish(rooms or [])
+        self.unblock()
         self.v.core = (self.door[0], 1, self.door[1] + 1)
 
     # ---------------------------------------------------------------- muros
@@ -277,52 +292,245 @@ class House:
                     v.pane(x, top + h - 2, z)
 
     def build_chimney(self):
+        """Chimenea con conducto hueco desde el hogar hasta arriba: el fuego del hogar se ve en la sala y otra fogata,
+        metida en el conducto bajo el remate, echa el humo sin asomar."""
         v, p = self.v, self.p
         x0, z0, x1, z1 = self.rects[0]
-        cx, cz = x0 + 1, (z0 + z1) // 2
         ytop = self.top + max(self.Hm.values()) + 2
-        for y in range(2, ytop + 1):
-            v.set(cx, y, cz, pick(p['chimney'], cx, y, cz, 8))
-        v.set(cx, 1, cz, 'campfire', facing='east', lit='true', signal_fire='false', waterlogged='false')
-        v.set(cx, ytop + 1, cz, 'campfire', facing='east', lit='true', signal_fire='false', waterlogged='false')
-        for dz in (-1, 1):
-            for y in (1, 2): v.set(cx, y, cz + dz, 'bricks')
-            v.stair(cx + 1, 3, cz + dz, 'brick', 'west', 'top')
-        v.stair(cx + 1, 3, cz, 'brick', 'west', 'top')
-        for y in range(1, 4):
-            for dz in (-1, 0, 1): self.reserved.add((cx + 1, y, cz + dz))
+        if x1 - x0 >= 10:
+            cx, cz, (mx, mz) = x0 + 1, (z0 + z1) // 2, (1, 0)       # casa ancha: contra el muro lateral
+        else:
+            cx, cz, (mx, mz) = (x0 + x1) // 2, z0 + 1, (0, 1)       # casa angosta: contra el muro del fondo
+        flue(v, cx, cz, 1, ytop, lambda x, y, z: pick(p['chimney'], x, y, z, 8), mouth=(mx, mz))
+        face = NAME[(-mx, -mz)]
+        for k in (-1, 0, 1):
+            hx, hz = cx + mx + k * mz, cz + mz + k * mx           # campana sobre la boca del hogar
+            v.stair(hx, 3, hz, 'brick', face, 'top')
+            for y in range(1, 4): self.reserved.add((hx, y, hz))
         for f in range(1, self.floors):
-            self.reserved.add((cx + 1, f * self.H + 1, cz))
+            for y in range(f * self.H + 1, f * self.H + 3): self.reserved.add((cx + mx, y, cz + mz))
 
     # ---------------------------------------------------------------- escalera
     def build_stairs(self):
+        """Un tramo recto por piso, contra un muro: H escalones con 3 de alto libre encima de cada uno, la boca de
+        llegada abierta en el piso de arriba, una celda libre al pie y otra al llegar, y un pasillo reservado desde la
+        puerta (o la llegada anterior) hasta el pie, para que los muebles nunca tapen el paso. 2 de ancho si entra."""
         v, p, H = self.v, self.p, self.H
-        floors = self.floors + (1 if self.has_attic() else 0)
-        for f in range(min(floors, self.floors + 1) - 1):
-            if f >= self.floors: break
+        dx0, dz0 = self.door
+        start = (dx0, dz0 - 1)
+        self.stair_cells = set()
+        self.arrival = {}
+        for f in range(self.floors - 1):
             C, P = self.cells[f], self.per[f]
-            inner = [c for c in C if c not in P]
-            zmin = min(z for _, z in inner)
-            xs = sorted(x for x, z in inner if z == zmin)
-            if len(xs) < 6: continue
-            if f % 2 == 0: run = [(xs[-1] - i, zmin) for i in range(H)]; face = 'west'
-            else: run = [(xs[0] + i, zmin) for i in range(H)]; face = 'east'
+            Cu, Pu = self.cells[f + 1], self.per[f + 1]
+            inner = {c for c in C if c not in P}
+            inner_up = {c for c in Cu if c not in Pu}
             y0 = f * H
-            target_cells = self.cells[f + 1] if f + 1 < self.floors else C
-            for i, (x, z) in enumerate(run):
-                v.stair(x, y0 + 1 + i, z, p['wood'], face, 'bottom')
-                for y in range(y0 + 1, y0 + 1 + i): v.set(x, y, z, p['floor'])
-                for y in range(y0 + 1 + i + 1, y0 + H + 3):
-                    if y >= y0 + H and i >= 1: v.air(x, y, z)
-                for y in range(y0 + 1, y0 + H + 3):
-                    self.reserved.add((x, y, z)); self.reserved.add((x, y, z + 1))
-            # baranda en el piso de arriba
-            for i, (x, z) in enumerate(run):
-                if i >= 1 and (x, z + 1) in target_cells and (x, z + 1) not in (self.per[f + 1] if f + 1 < self.floors else P):
-                    v.fence(x, y0 + H + 1, z + 1, p['fence'])
+            run = self.pick_run(inner, inner_up, y0, start, f)
+            if run is None:
+                raise ValueError(f'sin lugar para la escalera del piso {f}')
+            lines, face, feet, exits = run
+            for line in lines:
+                for i, (x, z) in enumerate(line):
+                    y = y0 + 1 + i
+                    v.stair(x, y, z, p['wood'], face, 'bottom')
+                    for yy in range(y0 + 1, y): v.set(x, yy, z, p['floor'])
+                    for yy in range(y + 1, y + 4): v.air(x, yy, z)
+                    for yy in range(y0 + 1, y + 4): self.reserved.add((x, yy, z))
+                    self.stair_cells.add((x, z, f))
+            for (x, z) in feet:
+                for yy in range(y0 + 1, y0 + 4): v.air(x, yy, z); self.reserved.add((x, yy, z))
+            for (x, z) in exits:
+                for yy in range(y0 + H + 1, y0 + H + 4): v.air(x, yy, z); self.reserved.add((x, yy, z))
+            # baranda alrededor de la boca, salvo la llegada y los lados contra el muro
+            hole = {c for line in lines for c in line[:-1]}
+            steps = {c for line in lines for c in line}
+            yu = y0 + H + 1
+            def reach_up():
+                from collections import deque
+                seen = {exits[0]}; q = deque([exits[0]])
+                while q:
+                    c = q.popleft()
+                    for a, b in DIRS4:
+                        n = (c[0] + a, c[1] + b)
+                        if n in seen or n not in inner_up or n in steps: continue
+                        if any(v.get(n[0], yy, n[1]) is not None and v.get(n[0], yy, n[1]).n != 'air' for yy in (yu, yu + 1)): continue
+                        seen.add(n); q.append(n)
+                return len(seen)
+            base = reach_up()
+            for (x, z) in sorted(hole):
+                for a, b in DIRS4:
+                    n = (x + a, z + b)
+                    if n in steps or n in exits or n not in inner_up: continue
+                    if (n[0], yu, n[1]) in self.reserved: continue
+                    s = v.get(n[0], yu, n[1])
+                    if s is not None and s.n != 'air': continue
+                    v.fence(n[0], yu, n[1], p['fence'])
+                    r = reach_up()
+                    if r < base - 1:            # esta baranda encerraría parte del piso: queda el hueco de paso
+                        v.air(n[0], yu, n[1]); continue
+                    base = r
+                    self.reserved.add((n[0], yu, n[1])); self.reserved.add((n[0], yu + 1, n[1]))
+            self.reserve_path(inner, start, feet[0], y0)
+            start = exits[0]
+            self.arrival[f + 1] = start
+        self.last_arrival = start
+
+    def pick_run(self, inner, inner_up, y0, start, f):
+        """Elige dónde va el tramo: celdas libres de punta a punta, preferentemente contra el muro del fondo."""
+        H, v, p = self.H, self.v, self.p
+        decks = {p['floor'], p.get('floor2'), 'air'}
+
+        def free(c, ya, yb, foot=False):
+            if (c[0], y0, c[1]) not in v.b or v.b[(c[0], y0, c[1])].n == 'air': return False   # tiene que haber piso
+            for yy in range(ya, yb + 1):
+                s = v.get(c[0], yy, c[1])
+                if yy == y0 + H:
+                    if s is not None and s.n not in decks: return False
+                elif s is not None and s.n != 'air': return False
+                if (c[0], yy, c[1]) in self.reserved and not (foot and c == start): return False
+            return True
+
+        def free_up(c):
+            for yy in range(y0 + H + 1, y0 + H + 4):
+                s = v.get(c[0], yy, c[1])
+                if s is not None and s.n != 'air': return False
+            s = v.get(c[0], y0 + H, c[1])
+            return s is not None and s.n != 'air'
+
+        def open_at(c, y):
+            return all((v.get(c[0], yy, c[1]) is None or v.get(c[0], yy, c[1]).n == 'air') for yy in (y, y + 1))
+
+        def flood(seed, cells, y, banned):
+            from collections import deque
+            if seed not in cells or seed in banned: return set()
+            seen = {seed}; q = deque([seed])
+            while q:
+                c = q.popleft()
+                for a, b in DIRS4:
+                    n = (c[0] + a, c[1] + b)
+                    if n in seen or n not in cells or n in banned or not open_at(n, y): continue
+                    seen.add(n); q.append(n)
+            return seen
+
+        up_free = {c for c in inner_up if open_at(c, y0 + H + 1)}
+        xs = {c[0] for c in inner}; zs = {c[1] for c in inner}
+        wide = len(xs) >= 6 and len(zs) >= 6
+        cands = []
+        for (dx, dz), face in (((-1, 0), 'west'), ((1, 0), 'east'), ((0, -1), 'north'), ((0, 1), 'south')):
+            for sx, sz in ((dz, dx), (-dz, -dx)):            # el costado del tramo que da al muro (si lo hay)
+                for c0 in inner:
+                    against = (c0[0] + sx, c0[1] + sz) not in inner
+                    line = [(c0[0] + dx * i, c0[1] + dz * i) for i in range(H)]
+                    foot = (c0[0] - dx, c0[1] - dz)
+                    ex = (c0[0] + dx * H, c0[1] + dz * H)
+                    if not all(c in inner for c in line) or foot not in inner: continue
+                    if not all(c in inner_up for c in line[1:]) or ex not in inner_up: continue
+                    if start in line: continue
+                    if not all(free(c, y0 + 1, y0 + H + 3) for c in line) or not free(foot, y0 + 1, y0 + 3, True): continue
+                    if not free_up(ex): continue
+                    lines, feet, exits = [line], [foot], [ex]
+                    l2 = [(c[0] - sx, c[1] - sz) for c in line]
+                    f2, e2 = (foot[0] - sx, foot[1] - sz), (ex[0] - sx, ex[1] - sz)
+                    if wide and start not in l2 and all(c in inner for c in l2 + [f2]) and all(c in inner_up for c in l2[1:] + [e2]) \
+                            and all(free(c, y0 + 1, y0 + H + 3) for c in l2) and free(f2, y0 + 1, y0 + 3, True) and free_up(e2):
+                        lines.append(l2); feet.append(f2); exits.append(e2)
+                    steps = {c for ln in lines for c in ln}
+                    # abajo: desde la entrada (o la llegada anterior) se llega al pie sin pasar por la escalera
+                    down = flood(start, inner | {start}, y0 + 1, steps)
+                    if feet[0] not in down and feet[0] != start: continue
+                    # y el tramo no deja aislada parte de este piso (con la boca y barandas del tramo de abajo)
+                    open_down = {c for c in inner if open_at(c, y0 + 1)} - steps
+                    ratio_down = len(down & open_down) / max(1, len(open_down))
+                    # arriba: desde la llegada se recorre casi todo el piso (la baranda no lo encierra)
+                    hole = {c for ln in lines for c in ln[:-1]}
+                    rails = {(x + a, z + b) for (x, z) in hole for a, b in DIRS4} - steps - set(exits)
+                    reach = flood(exits[0], up_free, y0 + H + 1, steps | rails)
+                    others = up_free - steps - rails
+                    ratio = len(reach) / max(1, len(others))
+                    if ratio < 0.3: continue
+                    back = (sz == -1 and dz == 0)
+                    dist = abs(foot[0] - start[0]) + abs(foot[1] - start[1])
+                    # lo primero es no partir el piso de arriba en dos; después, ancho y contra el muro del fondo
+                    score = (400 if ratio >= 0.95 else 250 if ratio >= 0.8 else 0) + (400 if ratio_down >= 0.95 else 250 if ratio_down >= 0.8 else 0) \
+                        + len(lines) * 100 + (40 if back else 0) \
+                        + (30 if against else 0) - dist * 0.5 + len(reach) * 0.5 + (5 if (dx > 0) == (f % 2 == 1) else 0)
+                    cands.append((score, lines, face, feet, exits))
+        if not cands: return None
+        cands.sort(key=lambda t: -t[0])
+        return cands[0][1:]
+
+    def reserve_path(self, inner, a, b, y0):
+        """Reserva (sin muebles) el camino más corto entre a y b por el interior del piso."""
+        from collections import deque
+        prev = {a: None}; q = deque([a])
+        while q:
+            c = q.popleft()
+            if c == b: break
+            for dx, dz in DIRS4:
+                n = (c[0] + dx, c[1] + dz)
+                if n in prev or n not in inner: continue
+                s = self.v.get(n[0], y0 + 1, n[1])
+                if s is not None and s.n != 'air': continue
+                prev[n] = c; q.append(n)
+        c = b if b in prev else None
+        while c is not None:
+            for yy in (y0 + 1, y0 + 2): self.reserved.add((c[0], yy, c[1]))
+            c = prev[c]
 
     def has_attic(self):
         return False
+
+    MOVABLE = ('chest', 'barrel', 'crafting_table', 'bookshelf', 'furnace', 'smoker', 'water_cauldron', 'composter', 'hay_block',
+               'flower_pot', 'lantern')
+
+    def unblock(self):
+        """Saca muebles que parten un piso: desde la entrada del piso (puerta o llegada de la escalera) hay que poder
+        recorrer casi todo; si un mueble (o una cama) corta el paso, se quita."""
+        v, H = self.v, self.H
+        def movable(s):
+            return s is not None and (s.n in self.MOVABLE or s.n.endswith(('_bed', '_stairs', '_fence', '_pressure_plate', '_carpet'))
+                                      or s.n.startswith('potted_'))
+        def walk_ok(x, y, z):
+            a, b = v.get(x, y, z), v.get(x, y + 1, z)
+            return (a is None or a.n == 'air' or a.n.endswith('_carpet')) and (b is None or b.n == 'air')
+        for f in range(self.floors):
+            y = f * H + 1
+            C, P = self.cells[f], self.per[f]
+            inner = {c for c in C if c not in P and (c[0], c[1], f) not in getattr(self, 'stair_cells', set())}
+            entry = self.arrival.get(f) if hasattr(self, 'arrival') else None
+            if entry is None: entry = (self.door[0], self.door[1] - 1)
+            def flood():
+                from collections import deque
+                if entry not in inner and f > 0: return set()
+                seen = {entry}; q = deque([entry])
+                while q:
+                    c = q.popleft()
+                    for a, b in DIRS4:
+                        n = (c[0] + a, c[1] + b)
+                        if n in seen or n not in inner or not walk_ok(n[0], y, n[1]): continue
+                        seen.add(n); q.append(n)
+                return seen
+            for _ in range(12):
+                got = flood()
+                cand = [c for c in inner if c not in got and walk_ok(c[0], y, c[1])]
+                if not cand: break
+                # el mueble más cercano a la zona alcanzada que separa una celda libre inalcanzable
+                best = None
+                for c in inner - got:
+                    s = v.get(c[0], y, c[1])
+                    if not movable(s): continue
+                    if any((c[0] + a, c[1] + b) in got for a, b in DIRS4) and any((c[0] + a, c[1] + b) in cand for a, b in DIRS4):
+                        best = c; break
+                if best is None: break
+                s = v.get(best[0], y, best[1])
+                if s.n.endswith('_bed'):
+                    for (k, t) in list(v.b.items()):
+                        if k[1] == y and t.n == s.n and abs(k[0] - best[0]) + abs(k[2] - best[1]) == 1: v.air(*k)
+                v.air(best[0], y, best[1])
+                above = v.get(best[0], y + 1, best[1])
+                if above is not None and (above.n.endswith('_pressure_plate') or above.n.startswith('potted_') or above.n in ('lantern', 'flower_pot')):
+                    v.air(best[0], y + 1, best[1])
 
     # ---------------------------------------------------------------- muebles
     def free(self, x, y, z):
@@ -352,7 +560,8 @@ class House:
                 return False
             if role in ('living', 'shop'):
                 tx, tz = cx, cz + (1 if role == 'shop' else 0)
-                if all(self.free(tx + a, y, tz + b) for a in (-1, 0, 1) for b in (-1, 0, 1)):
+                roomy = len(set(xs)) >= 7 and len(set(zs)) >= 7       # la mesa con sillas solo si queda lugar para circular
+                if roomy and all(self.free(tx + a, y, tz + b) and self.free(tx + a, y + 1, tz + b) for a in (-2, -1, 0, 1, 2) for b in (-1, 0, 1)):
                     v.fence(tx, y, tz, p['fence']); v.set(tx, y + 1, tz, p['wood'] + '_pressure_plate', powered='false')
                     self.reserved.add((tx, y, tz))
                     for a, b in DIRS4:
@@ -363,6 +572,7 @@ class House:
                 kit = [('crafting_table', {}), ('barrel', {'facing': 'up', 'open': 'false'}), ('furnace', {'lit': 'false'}),
                        ('water_cauldron', {'level': '3'}), ('chest', {'type': 'single', 'waterlogged': 'false'}), ('bookshelf', {}),
                        ('barrel', {'facing': 'up', 'open': 'false'}), ('smoker', {'lit': 'false'})]
+                kit = kit[:max(3, len(walls) // 3)]      # un mueble cada tres celdas de muro, no una pared corrida
                 i = 0
                 for c in walls:
                     if i >= len(kit): break
@@ -415,6 +625,84 @@ class House:
             for c in sorted(inner, key=lambda c: (c[1] != zmin, abs(c[0]))):
                 if self.free(c[0], 1, c[1]) and self.free(c[0], 2, c[1]):
                     v.set(c[0], 1, c[1], ws, **pp); self.reserved.add((c[0], 1, c[1])); break
+
+def library_hall(v, hw, hd, H, wood, deck, fence, ring=3, stair_w=2, lantern_every=4):
+    """Interior de biblioteca sobre un salón de un solo piso de alto H (muros en |x|=hw, z=-hd..hd, puerta al frente):
+    galería en U (fondo y costados) a y=4 con baranda, escalinata central que sube hacia el fondo, estanterías contra los
+    muros abajo y arriba (sin tapar ventanas), mesas de lectura, faroles bajo la galería y araña en el centro."""
+    ix0, ix1, iz0, iz1 = -hw + 1, hw - 1, -hd + 1, hd - 1
+    gy = 4
+    def ring_at(x, z): return (z - iz0) < ring or (x - ix0) < ring or (ix1 - x) < ring
+    xs = list(range(-(stair_w // 2), -(stair_w // 2) + stair_w))
+    zt = iz0 + ring                                   # escalón de arriba, pegado a la galería del fondo
+    steps = {(x, zt + (gy - 1 - i)): i for i in range(gy) for x in xs}
+    exits = {(x, zt - 1) for x in xs}
+    feet = {(x, zt + gy) for x in xs}
+    def is_ladder(x, y, z):
+        s = v.get(x, y, z); return s is not None and s.n == 'ladder'
+    # galería
+    for x in range(ix0, ix1 + 1):
+        for z in range(iz0, iz1 + 1):
+            if not ring_at(x, z) or is_ladder(x, gy, z): continue
+            v.set(x, gy, z, deck)
+            for y in range(gy + 1, H): v.air(x, y, z) if not is_ladder(x, y, z) else None
+    # escalinata (con relleno abajo) y cabeza libre
+    for (x, z), i in steps.items():
+        y = 1 + i
+        v.stair(x, y, z, wood, 'north', 'bottom')
+        for yy in range(1, y): v.set(x, yy, z, wood + '_planks')
+        for yy in range(y + 1, min(H, y + 4)): v.air(x, yy, z)
+    # baranda en el borde interior de la galería (salvo la llegada de la escalera)
+    rail = set()
+    for x in range(ix0, ix1 + 1):
+        for z in range(iz0, iz1 + 1):
+            if not ring_at(x, z) or (x, z) in exits or is_ladder(x, gy + 1, z): continue
+            if any(not ring_at(x + a, z + b) and ix0 <= x + a <= ix1 and iz0 <= z + b <= iz1 for a, b in DIRS4):
+                v.fence(x, gy + 1, z, fence); rail.add((x, z))
+    def wall_dirs(x, z): return [(a, b) for a, b in DIRS4 if not (ix0 <= x + a <= ix1 and iz0 <= z + b <= iz1)]
+    def shelf_ok(x, y, z):
+        if is_ladder(x, y, z): return False
+        for a, b in wall_dirs(x, z):
+            w = v.get(x + a, y, z + b)
+            if w is not None and (w.n.endswith('pane') or w.n.endswith('_door') or w.n == 'air'): return False
+        return True
+    # estanterías: bajo la galería (y 1..3) y en la galería (y 5..H-1), contra los muros
+    for x in range(ix0, ix1 + 1):
+        for z in range(iz0, iz1 + 1):
+            if not wall_dirs(x, z) or z == iz1 and abs(x) <= 1: continue
+            if not ring_at(x, z) and z != iz1: continue
+            for y in list(range(1, gy)) + list(range(gy + 1, H)):
+                if y > gy and (not ring_at(x, z) or (x, z) in rail): continue
+                if y < gy and (x, z) in feet: continue
+                s = v.get(x, y, z)
+                if (s is None or s.n == 'air') and shelf_ok(x, y, z): v.set(x, y, z, 'bookshelf')
+    # mesas de lectura en la nave: a los costados de la escalinata, dejando libre el pasillo central
+    for z in range(zt + gy + 1, iz1, 2):
+        for sx in (-1, 1):
+            tx = sx * (max(xs) + 2)
+            if (v.get(tx, 1, z) is not None and v.get(tx, 1, z).n != 'air'): continue
+            v.set(tx, 1, z, wood + '_slab', type='top', waterlogged='false')
+            v.set(tx, 2, z, 'candle', candles='3', lit='true', waterlogged='false')
+            v.stair(tx, 1, z - 1, wood, 'north', 'bottom') if (v.get(tx, 1, z - 1) is None or v.get(tx, 1, z - 1).n == 'air') else None
+    # luces
+    for x in range(ix0, ix1 + 1, lantern_every):
+        for z in range(iz0, iz1 + 1, lantern_every):
+            if ring_at(x, z) and (v.get(x, gy - 1, z) is None or v.get(x, gy - 1, z).n == 'air') and (x, z) not in steps:
+                v.lantern(x, gy - 1, z, hanging=True)
+            if ring_at(x, z) and (x, z) not in rail and (v.get(x, H - 1, z) is None or v.get(x, H - 1, z).n == 'air'):
+                v.lantern(x, H - 1, z, hanging=True)
+    cz = (zt + gy + iz1) // 2
+    for y in range(H - 2, H): v.set(0, y, cz, 'chain', axis='y', waterlogged='false')
+    v.lantern(0, H - 3, cz, hanging=True)
+    return dict(feet=feet, steps=steps, zt=zt)
+
+def tall_windows(v, y_from, y_to, ys):
+    """Repite hacia arriba las ventanas del muro: donde hay vidrio en y_from, también en cada y de ys."""
+    for (x, y, z), s in list(v.b.items()):
+        if y == y_from and s.n.endswith('pane'):
+            for yy in ys:
+                w = v.get(x, yy, z)
+                if w is not None and full(w): v.pane(x, yy, z)
 
 def cutaway(v, ymax=None, zmax=None, xmax=None):
     g = V(); g.b = {k: s for k, s in v.b.items() if (ymax is None or k[1] <= ymax) and (zmax is None or k[2] <= zmax) and (xmax is None or k[0] <= xmax)}

@@ -11,20 +11,21 @@ def merge(v, w, ox=0, oy=0, oz=0, only_new=False):
 
 # ------------------------------------------------------------------ casas
 def house(i, seed):
-    """0: casa de dos pisos con voladizo · 1: casa en L · 2: casa larga a cuatro aguas · 3: casa con ala trasera."""
+    """0: casa de dos pisos con voladizo · 1: casa en T (cuerpo frontal centrado) · 2: casa larga a cuatro aguas ·
+    3: casa con ala trasera centrada. Todas simétricas respecto del eje de la puerta."""
     pal = palette(i % 5)
     if i % 4 == 0:
         return House(seed, pal, [(-5, -4, 5, 4)], floors=2, rooms=['living', 'bed']).v
     if i % 4 == 1:
-        return House(seed, pal, [(-5, -4, 5, 3), (1, 3, 5, 8)], floors=2, rooms=['living', 'bed'], door=(-2, 3)).v
+        return House(seed, pal, [(-5, -4, 5, 3), (-2, 3, 2, 7)], floors=2, rooms=['living', 'bed']).v
     if i % 4 == 2:
         return House(seed, pal, [(-6, -3, 6, 3)], floors=2, hip=True, rooms=['living', 'bed'], jetty=False).v
-    return House(seed, pal, [(-4, -2, 4, 5), (-4, -7, 1, -2)], floors=2, rooms=['living', 'bed']).v
+    return House(seed, pal, [(-4, -2, 4, 5), (-2, -7, 2, -2)], floors=2, rooms=['living', 'bed']).v
 
 def house_small(i, seed):
     pal = palette((i + 2) % 5)
     if i % 2 == 0:
-        return House(seed, pal, [(-4, -3, 4, 3)], floors=2, rooms=['living', 'bed']).v
+        return House(seed, pal, [(-4, -4, 4, 4)], floors=2, rooms=['living', 'bed']).v
     return House(seed, pal, [(-3, -4, 3, 4)], floors=2, rooms=['living', 'bed'], gable_front=True, jetty=False).v
 
 # ------------------------------------------------------------------ talleres
@@ -50,11 +51,10 @@ def forge(v, x0, z0, pal, flip=1):
     for z in (z0 - 3, z0 - 2):
         for x in (hx, hx + flip):
             v.set(x, 1, z, 'stone_bricks'); v.set(x, 2, z, 'stone_bricks')
-    v.set(hx, 2, z0 - 2, 'campfire', facing='south', lit='true', signal_fire='false', waterlogged='false')
     v.set(hx + flip, 1, z0 - 2, 'blast_furnace', facing='south', lit='true')
-    for y in range(3, 10): v.set(hx, y, z0 - 3, pick([('stone_bricks', 3), ('cobblestone', 1)], hx, y, z0, 3))
-    v.set(hx, 10, z0 - 3, 'campfire', facing='south', lit='true', signal_fire='false', waterlogged='false')
-    v.set(hx, 3, z0 - 2, 'stone_brick_slab', type='bottom', waterlogged='false')
+    # chimenea de la fragua: conducto hueco, fuego en la base (se ve por la boca) y humo arriba
+    flue(v, hx, z0 - 3, 1, 11, lambda x, y, z: pick([('stone_bricks', 3), ('cobblestone', 1)], x, y, z, 3), mouth=(0, 1))
+    v.stair(hx, 3, z0 - 2, 'stone_brick', 'north', 'top')
     v.set(hx + 2 * flip, 1, z0, 'anvil', facing='north')
     v.set(hx + 2 * flip, 1, z0 + 2, 'grindstone', face='floor', facing='east')
     v.set(hx, 1, z0 + 2, 'water_cauldron', level='3')
@@ -103,7 +103,24 @@ def pen(v, x0, z0):
     v.set(x0 + 2, 1, z0 + 2, 'hay_block', axis='y')
     v.set(x0 + 3, 1, z0 + 3, 'water_cauldron', level='3')
 
-# ------------------------------------------------------------------ iglesia
+# ------------------------------------------------------------------ biblioteca (reemplaza a la iglesia)
+def library(seed, big=False):
+    """Biblioteca de piedra: salón de doble altura con galería en U, escalinata central, estanterías y mesas de lectura."""
+    pal = palette(2 if big else 0)
+    pal['found'] = [('stone_bricks', 6), ('cracked_stone_bricks', 1), ('mossy_stone_bricks', 1)]
+    pal['quoin'] = 'polished_andesite'
+    hw, hd = (8, 8) if big else (6, 6)
+    H = 8
+    h = House(seed, pal, [(-hw, -hd, hw, hd)], floors=1, H=H, jetty=False, hip=big, chimney=False, rooms=['none'], porch=True)
+    v = h.v
+    tall_windows(v, 2, 3, (5, 6))
+    info = library_hall(v, hw, hd, H, 'dark_oak', 'dark_oak_planks', 'dark_oak', ring=4 if big else 3, stair_w=3 if big else 2)
+    lx = max(x for x, _ in info['feet']) + 2
+    v.set(lx, 1, info['zt'] + 4, 'lectern', facing='west', has_book='false', powered='false')
+    v.core = (0, 1, hd + 1)
+    return v
+
+# ------------------------------------------------------------------ iglesia (ya no se usa en el catálogo)
 def church(seed, big=False):
     """Iglesia de piedra: nave con contrafuertes, ventanales, bancos, altar; torre campanario con aguja en el frente."""
     v = V()
@@ -217,7 +234,7 @@ def watchtower(seed, city=False):
     for y in range(4, Hs + 1, 5):
         for x in range(-r + 1, r):
             for z in range(-r + 1, r): v.set(x, y, z, 'spruce_planks')
-    for y in range(1, Hs + 6): v.set(0, y, -r + 1, 'ladder', facing='south', waterlogged='false')
+    for y in range(1, Hs + 2): v.set(0, y, -r + 1, 'ladder', facing='south', waterlogged='false')   # hasta la plataforma
     # saeteras
     for y in range(3, Hs, 4):
         for (x, z) in ((0, r), (r, 0), (-r, 0)):
@@ -232,6 +249,7 @@ def watchtower(seed, city=False):
             elif abs(x) <= r - 1 and abs(z) <= r - 1:
                 pass
     v.set(0, yt, -r + 1, 'ladder', facing='south', waterlogged='false')
+    for y in range(4, Hs + 1, 5): v.lantern(1, y - 1, 1, hanging=True)       # luz en cada piso
     for x in (-r - 1, r + 1):
         for z in (-r - 1, r + 1):
             v.stair(x, yt - 1, z, 'spruce', 'east' if x < 0 else 'west', 'top')
