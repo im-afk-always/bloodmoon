@@ -38,7 +38,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * consume comida, cobra impuestos, crece si hay comida y lugar, decide su próxima obra según lo que le falta y la
  * paga del tesoro. La obra avanza como datos; si sus chunks están cargados se ve subir bloque a bloque con un obrero,
  * y si no, se coloca entera cuando alguien se acerca. Un pueblo grande y próspero manda colonos a fundar otra aldea.
- * Modelo calibrado con una simulación offline (30 días: 31 → ~58 habitantes, sin hambre ni deuda).
+ * Modelo calibrado con una simulación offline y verificado en la prueba de humo (30 días: 22 → ~48 habitantes, sin hambre ni deuda).
  */
 public final class HumanityManager {
     public static final int CYCLE = 1200, CYCLES_PER_DAY = 20;
@@ -191,7 +191,9 @@ public final class HumanityManager {
     }
 
     public static double production(List<VillageLayout.Building> bs, int pop) {
-        return count(bs, VillageLayout.Kind.FARM) * 4.5 + 2.0 + pop * 0.25;
+        int fishers = 0;
+        for (VillageLayout.Building b : bs) if (b.job() == HumanJob.FISHERMAN || b.job() == HumanJob.BUTCHER) fishers++;
+        return count(bs, VillageLayout.Kind.FARM) * 7.0 + fishers * 3.0 + 2.0 + pop * 0.3;
     }
 
     static int cost(VillageLayout.Building b) {
