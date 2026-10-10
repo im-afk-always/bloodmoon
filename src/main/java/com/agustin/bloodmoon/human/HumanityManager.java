@@ -415,8 +415,9 @@ public final class HumanityManager {
         List<VillageLayout.Building> others = occupied(level, s, lay, null);
         Net nn = net(s, lay);
         List<VillageLayout.Road> roads = nn.blocking(lay.plaza());
+        java.util.function.Predicate<VillageLayout.Building> edge = kind == VillageLayout.Kind.TOWER ? VillageLayout.periphery(s.x, s.z, bs) : null;
         VillageLayout.Plot pl = VillageLayout.findPlot(level, s.site(), nn.roads(), nn.dist(), 1000, template, kind, job,
-                residents, others, roads, b -> !loaded(level, b) || VillageBuilder.artificial(level, b, 3) <= 3, true);
+                residents, others, roads, b -> (edge == null || edge.test(b)) && (!loaded(level, b) || VillageBuilder.artificial(level, b, 3) <= 3), true);
         if (pl == null) {
             // no hay lugar: se abren calles nuevas y se vuelve a mirar en un rato
             s.plotWait = extendNetwork(level, s, lay) > 0 ? 2 : CYCLES_PER_DAY;
@@ -696,7 +697,7 @@ public final class HumanityManager {
             }
             VillageLayout.Layout lay = VillageLayout.get(level, s.site());
             int[] ybox = {w.b.minX() - 3, w.b.minZ() - 3, w.b.maxX() + 3, w.b.maxZ() + 3};
-            VillageBuilder.clearTrees(level, ybox, List.of(w.b), List.of(), false);
+            VillageBuilder.clearTrees(level, ybox, List.of(w.b), List.of(), occupied(level, s, VillageLayout.get(level, s.site()), w.b), false);
             List<VillageLayout.Road> near = new ArrayList<>();
             near.add(lay.plaza());
             Net nn = net(s, lay);
@@ -772,7 +773,7 @@ public final class HumanityManager {
         for (VillageLayout.Road r : roads) {
             int[] box = {(int) Math.floor(Math.min(r.x0(), r.x1()) - r.half() - 3), (int) Math.floor(Math.min(r.z0(), r.z1()) - r.half() - 3),
                     (int) Math.ceil(Math.max(r.x0(), r.x1()) + r.half() + 3), (int) Math.ceil(Math.max(r.z0(), r.z1()) + r.half() + 3)};
-            VillageBuilder.clearTrees(level, box, List.of(), List.of(r), false);
+            VillageBuilder.clearTrees(level, box, List.of(), List.of(r), all, false);
             VillageBuilder.pave(level, box, List.of(r), all, desert, false, stoneNow);
         }
         if (stoneNow) {
@@ -937,6 +938,39 @@ public final class HumanityManager {
         for (boolean b : s.stone) if (b) st++;
         for (boolean b : s.wallDone) if (b) wd++;
         return new int[]{st, wd};
+    }
+
+    // ------------------------------------------------------------------ mapa
+
+    /** Radio de influencia: hasta el edificio más lejano + 24 bloques (entre 48 y 320). */
+    public static int influence(ServerLevel level, Settlement s) {
+        double r = 0;
+        for (VillageLayout.Building b : built(level, s)) {
+            for (int k = 0; k < 4; k++) {
+                int x = (k & 1) == 0 ? b.minX() : b.maxX(), z = (k & 2) == 0 ? b.minZ() : b.maxZ();
+                r = Math.max(r, Math.hypot(x - s.x, z - s.z));
+            }
+        }
+        return (int) Math.max(48, Math.min(320, r + 24));
+    }
+
+    /** Color propio de cada asentamiento (tono por clave; cálido en el desierto, fresco en la llanura). */
+    public static int color(Settlement s) {
+        long h = s.key * 0x9E3779B97F4A7C15L;
+        float hue = s.culture == Culture.DESERT ? 0.02F + ((h >>> 40) & 0xFF) / 255F * 0.13F : 0.25F + ((h >>> 40) & 0xFF) / 255F * 0.45F;
+        return java.awt.Color.HSBtoRGB(hue, 0.65F, 0.9F) & 0xFFFFFF;
+    }
+
+    public static void sendMap(ServerPlayer player) {
+        ServerLevel ow = player.server.overworld();
+        if (player.level() != ow) return;
+        List<com.agustin.bloodmoon.network.SettlementMapPayload.View> views = new ArrayList<>();
+        for (Settlement s : Data.get(ow).settlements.values()) {
+            if (player.distanceToSqr(s.x, player.getY(), s.z) > 6000.0 * 6000.0) continue;
+            views.add(new com.agustin.bloodmoon.network.SettlementMapPayload.View(s.name, s.x, s.z, influence(ow, s), s.level, s.pop,
+                    color(s), Port.has(s)));
+        }
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new com.agustin.bloodmoon.network.SettlementMapPayload(views));
     }
 
     // ------------------------------------------------------------------ colonias

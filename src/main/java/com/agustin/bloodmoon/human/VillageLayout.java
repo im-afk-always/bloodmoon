@@ -170,7 +170,12 @@ public final class VillageLayout {
         roads.add(plaza);
 
         Building well = place(level, gen, rs, c + "well", Kind.WELL, HumanJob.NONE, 0, site.x(), site.z(), Rotation.NONE, out, roads, true);
-        if (well != null) out.add(well);
+        if (well != null) {
+            // el pozo, a nivel de la plaza
+            well = new Building(well.template(), well.kind(), well.job(), well.residents(), well.x(), well.z(), well.rot(), cy - 1,
+                    well.minX(), well.minZ(), well.maxX(), well.maxZ(), well.coreX(), well.coreZ());
+            out.add(well);
+        }
 
         // qué se construye, en orden de cercanía a la plaza
         List<String[]> queue = new ArrayList<>();   // {template, kind, job, residents}
@@ -197,9 +202,9 @@ public final class VillageLayout {
             if (wi < works.size()) queue.add(works.get(wi++));
             if (hi < homes.size() && (rng.nextBoolean() || wi >= works.size())) queue.add(homes.get(hi++));
         }
-        queue.add(new String[]{c + "tower", "TOWER", "GUARD", "2"});
         int farms = 2 + rng.nextInt(2);
         for (int i = 0; i < farms; i++) queue.add(new String[]{c + "farm_" + rng.nextInt(2), "FARM", "FARMER", i == 0 ? "1" : "0"});
+        queue.add(new String[]{c + "tower", "TOWER", "GUARD", "2"});   // la torre de guardia, en el borde
 
         List<Road> blocking = new ArrayList<>(net);
         blocking.add(plaza);
@@ -210,8 +215,9 @@ public final class VillageLayout {
         spurs.add(null);
         boolean[] paved = new boolean[net.size()];
         for (String[] want : queue) {
-            Plot pl = findPlot(level, site, net, dist, MAX_DIST - 60, want[0], Kind.valueOf(want[1]), HumanJob.valueOf(want[2]),
-                    Integer.parseInt(want[3]), out, blocking, null, false);
+            Kind wk = Kind.valueOf(want[1]);
+            Plot pl = findPlot(level, site, net, dist, MAX_DIST - 60, want[0], wk, HumanJob.valueOf(want[2]),
+                    Integer.parseInt(want[3]), out, blocking, wk == Kind.TOWER ? periphery(site.x(), site.z(), out) : null, false);
             if (pl == null) {
                 rejects[0]++;
                 continue;
@@ -233,6 +239,25 @@ public final class VillageLayout {
         int[] bs = new int[bSeg.size()];
         for (int i = 0; i < bs.length; i++) bs[i] = bSeg.get(i);
         return new Layout(site, out, roads, lamps, stats, pattern, net, parent, dist, paved, bs, spurs);
+    }
+
+    /**
+     * Lotes de la periferia: a por lo menos el 85 % del radio de lo construido y a 40 bloques de otras torres (las
+     * torres de guardia vigilan desde el borde, no desde el medio del pueblo).
+     */
+    public static java.util.function.Predicate<Building> periphery(int cx, int cz, List<Building> built) {
+        double r = 0;
+        List<Building> towers = new ArrayList<>();
+        for (Building b : built) {
+            r = Math.max(r, Math.hypot(b.x() - cx, b.z() - cz));
+            if (b.kind() == Kind.TOWER) towers.add(b);
+        }
+        double min = r * 0.85;
+        return b -> {
+            if (Math.hypot(b.x() - cx, b.z() - cz) < min) return false;
+            for (Building t : towers) if (Math.hypot(b.x() - t.x(), b.z() - t.z()) < 40) return false;
+            return true;
+        };
     }
 
     /** Faroles cada ~12 bloques a lo largo de los tramos marcados, alternando de lado; nunca dentro de un edificio. */
@@ -314,9 +339,17 @@ public final class VillageLayout {
             int bx = (int) Math.round(rx + px * off), bz = (int) Math.round(rz + pz * off);
             Building b = place(level, gen, rs, template, kind, job, residents, bx, bz, rot, others, blocking, false, coarse);
             if (b == null) continue;
-            if (accept != null && !accept.test(b)) continue;
+            // la puerta queda a la altura de la calle: el piso se toma de la calle, no del terreno (los constructores
+            // nivelan el resto); si la diferencia con el terreno es mucha, el lote no sirve
             int ry = r.y(rx, rz);
-            return new Plot(b, new Road(b.coreX(), b.coreZ(), rx, rz, 0.6, b.floorY() + 1, ry == Integer.MIN_VALUE ? b.floorY() + 1 : ry), i, p[2]);
+            if (ry != Integer.MIN_VALUE) {
+                int floor = ry - 1;
+                if (Math.abs(floor - b.floorY()) > 5) continue;
+                b = new Building(b.template(), b.kind(), b.job(), b.residents(), b.x(), b.z(), b.rot(), floor, b.minX(), b.minZ(), b.maxX(),
+                        b.maxZ(), b.coreX(), b.coreZ());
+            }
+            if (accept != null && !accept.test(b)) continue;
+            return new Plot(b, new Road(b.coreX(), b.coreZ(), rx, rz, 0.6, b.floorY() + 1, b.floorY() + 1), i, p[2]);
         }
         return null;
     }

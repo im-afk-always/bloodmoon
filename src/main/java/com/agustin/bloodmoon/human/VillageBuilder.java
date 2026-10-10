@@ -49,6 +49,16 @@ public final class VillageBuilder {
 
     /** Tala árboles en las columnas cercanas a edificios o calles. */
     public static void clearTrees(WorldGenLevel level, int[] box, List<VillageLayout.Building> buildings, List<VillageLayout.Road> roads, boolean wg) {
+        clearTrees(level, box, buildings, roads, buildings, wg);
+    }
+
+    private static int top(WorldGenLevel level, VillageLayout.Building b) {
+        return VillageLayout.template(level.getLevel(), b.template()).t().maxY();
+    }
+
+    /** {@code protect}: edificios cuyos troncos y hojas no se tocan (solo se tala por encima de su techo). */
+    public static void clearTrees(WorldGenLevel level, int[] box, List<VillageLayout.Building> buildings, List<VillageLayout.Road> roads,
+                                  List<VillageLayout.Building> protect, boolean wg) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         BlockState air = Blocks.AIR.defaultBlockState();
         for (int x = box[0]; x <= box[2]; x++) {
@@ -71,7 +81,12 @@ public final class VillageBuilder {
                 if (!near) continue;
                 if (!wg && level instanceof ServerLevel sl && !sl.hasChunk(x >> 4, z >> 4)) continue;
                 int g = ground(level, x, z, wg);
-                for (int y = g + 40; y > g; y--) {
+                // lo que está dentro de un edificio (marcos de troncos, bordes de granjas) no es un árbol: solo por encima
+                int from = g + 1;
+                for (VillageLayout.Building b : protect) {
+                    if (b.contains(x, z, 0)) from = Math.max(from, b.floorY() + top(level, b) + 1);
+                }
+                for (int y = g + 40; y >= from; y--) {
                     p.set(x, y, z);
                     BlockState st = level.getBlockState(p);
                     if (st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS) || st.is(Blocks.VINE) || st.is(Blocks.COCOA)

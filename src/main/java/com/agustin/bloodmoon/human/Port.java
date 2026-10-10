@@ -309,7 +309,7 @@ public final class Port {
                 HumanityManager.occupied(level, s, lay, null), List.of(), 1);
         if (b == null || VillageBuilder.artificial(level, b, 3) > 3) return;
         int[] box = {b.minX() - 3, b.minZ() - 3, b.maxX() + 3, b.maxZ() + 3};
-        VillageBuilder.clearTrees(level, box, List.of(b), List.of(), false);
+        VillageBuilder.clearTrees(level, box, List.of(b), List.of(), HumanityManager.occupied(level, s, lay, b), false);
         VillageBuilder.yard(level, b, box, List.of(), HumanityManager.occupied(level, s, lay, null), desert, false);
         VillageBuilder.prepare(level, level, b, box, desert);
         VillageBuilder.place(level, level, b, box, 0, Integer.MAX_VALUE);
@@ -348,7 +348,7 @@ public final class Port {
         HumanityManager.Net after = HumanityManager.net(s, lay);
         s.paved[after.size() - 1] = true;
         int[] box = {(int) Math.min(tx, lx) - 4, (int) Math.min(tz, lz) - 4, (int) Math.max(tx, lx) + 4, (int) Math.max(tz, lz) + 4};
-        VillageBuilder.clearTrees(level, box, List.of(), List.of(road), false);
+        VillageBuilder.clearTrees(level, box, List.of(), List.of(road), HumanityManager.built(level, s), false);
         VillageBuilder.pave(level, box, List.of(road), HumanityManager.built(level, s), desert, false, s.streetTier >= 1);
     }
 

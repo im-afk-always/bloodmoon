@@ -251,7 +251,39 @@ public class DominionMapScreen extends Screen {
         }
     }
 
+    /** Zona de influencia de cada asentamiento humano: disco de su color, borde, casita y nombre con su nivel. */
+    private void drawSettlements(GuiGraphics g) {
+        int bpp = bpp();
+        for (com.agustin.bloodmoon.network.SettlementMapPayload.View v : com.agustin.bloodmoon.ClientSettlements.list) {
+            int cx = sx(v.x()), cy = sz(v.z());
+            int r = Math.max(3, v.radius() / Math.max(1, bpp));
+            if (cx + r < mapL || cx - r > mapL + mapW || cy + r < mapT || cy - r > mapT + mapH) continue;
+            int fillC = 0x40000000 | v.color(), edge = 0xD0000000 | v.color();
+            int prev = -1;
+            for (int dy = -r; dy <= r; dy++) {
+                int hw = (int) Math.round(Math.sqrt((double) r * r - (double) dy * dy));
+                g.fill(cx - hw, cy + dy, cx + hw + 1, cy + dy + 1, fillC);
+                int from = prev < 0 ? 0 : Math.min(prev, hw);
+                // borde continuo: de la fila anterior a esta en cada lado
+                g.fill(cx - hw, cy + dy, cx - from + 1, cy + dy + 1, edge);
+                g.fill(cx + from, cy + dy, cx + hw + 1, cy + dy + 1, edge);
+                prev = hw;
+            }
+            // casita
+            int c = 0xFF000000 | v.color();
+            g.fill(cx - 4, cy - 1, cx + 5, cy + 5, 0xFF000000);
+            g.fill(cx - 3, cy, cx + 4, cy + 4, c);
+            for (int k = 0; k <= 4; k++) g.fill(cx - k, cy - 5 + k, cx + k + 1, cy - 4 + k, k == 4 ? 0xFF000000 : 0xFF6A3A2A);
+            g.fill(cx, cy + 2, cx + 1, cy + 4, 0xFF2A1A10);
+            Component label = Component.translatable("bloodmoon.map.settlement", v.name(),
+                    Component.translatable("bloodmoon.map.settlement.level." + v.level()), v.pop());
+            g.drawCenteredString(font, label, cx, cy - 15, c);
+            if (v.port()) g.drawCenteredString(font, Component.literal("⚓"), cx + font.width(label) / 2 + 6, cy - 15, 0xFF80C0FF);
+        }
+    }
+
     private void drawIcons(GuiGraphics g) {
+        drawSettlements(g);
         int bpp = bpp();
         for (DominionMapPayload.FactionView f : ClientDominion.factions) {
             // caminos y estructuras
