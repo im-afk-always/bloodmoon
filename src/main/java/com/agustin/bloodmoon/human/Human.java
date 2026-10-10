@@ -65,6 +65,11 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
     private static final EntityDataAccessor<Integer> DATA_JOB = SynchedEntityData.defineId(Human.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_CULTURE = SynchedEntityData.defineId(Human.class, EntityDataSerializers.INT);
 
+    /** Radio en que los guardias acuden cuando alguien lastima a un humano. */
+    public static final double GUARD_ALERT = 48.0;
+    /** Radio en que un guardia detecta hostiles sin necesidad de verlos. */
+    public static final double GUARD_SENSE = 32.0;
+
     private int tradeLevel = 1;
     private int tradeXp;
     private int levelUpTimer;
@@ -103,7 +108,7 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         return net.minecraft.world.entity.Mob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 20.0)
                 .add(Attributes.MOVEMENT_SPEED, 0.5)
-                .add(Attributes.FOLLOW_RANGE, 40.0)
+                .add(Attributes.FOLLOW_RANGE, 64.0)
                 .add(Attributes.ATTACK_DAMAGE, 1.0);
     }
 
@@ -257,8 +262,11 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         targetSelector.addGoal(1, new HurtByTargetGoal(this) {
             @Override public boolean canUse() { return fights() && super.canUse(); }
         });
+        // los guardias ven a los hostiles que tienen a la vista (hasta FOLLOW_RANGE) y a los que están cerca aunque no los vean
         targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, net.minecraft.world.entity.Mob.class, 5, true, false,
                 e -> isGuard() && guardHates(e)));
+        targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, net.minecraft.world.entity.Mob.class, 10, false, false,
+                e -> isGuard() && guardHates(e) && distanceToSqr(e) < GUARD_SENSE * GUARD_SENSE && Math.abs(e.getY() - getY()) < 10));
         targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
                 e -> isBandit()));
         targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, AbstractVillager.class, 10, true, false,
@@ -280,7 +288,7 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         boolean hit = super.hurt(source, amount);
         if (hit && !level().isClientSide && !isBandit() && source.getEntity() instanceof LivingEntity attacker
                 && !(attacker instanceof Human h && h.isGuard())) {
-            for (Human guard : level().getEntitiesOfClass(Human.class, getBoundingBox().inflate(24.0), Human::isGuard)) {
+            for (Human guard : level().getEntitiesOfClass(Human.class, getBoundingBox().inflate(GUARD_ALERT), Human::isGuard)) {
                 if (guard != attacker && guard.getTarget() == null) guard.setTarget(attacker);
             }
         }

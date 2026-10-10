@@ -16,6 +16,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
 import net.neoforged.neoforge.network.PacketDistributor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -241,6 +242,32 @@ public class DominionMapScreen extends Screen {
         g.blit(EYE, eyeX() + 2, eyeY() + 1, 0, 0, 16, 16, 16, 16);
         if (hot) g.renderTooltip(font, Component.translatable("bloodmoon.map.hierarchy"), mouseX, mouseY);
         if (showHierarchy) drawHierarchy(g, f);
+        boolean overPanel = showHierarchy && mouseX >= eyeX() + 20 - 190 && mouseX < eyeX() + 20 && mouseY >= eyeY();
+        if (!hot && !overPanel) settlementTooltip(g, mouseX, mouseY);
+    }
+
+    /** Con el cursor sobre el territorio de un asentamiento: nombre, nivel, habitantes y soldados. */
+    private void settlementTooltip(GuiGraphics g, int mouseX, int mouseY) {
+        if (mouseX < mapL || mouseX >= mapL + mapW || mouseY < mapT || mouseY >= mapT + mapH) return;
+        int bpp = Math.max(1, bpp());
+        com.agustin.bloodmoon.network.SettlementMapPayload.View best = null;
+        double bd = Double.MAX_VALUE;
+        for (com.agustin.bloodmoon.network.SettlementMapPayload.View v : com.agustin.bloodmoon.ClientSettlements.list) {
+            // en píxeles, igual que el disco dibujado (radio mínimo de 3 en zoom lejano)
+            double dx = mouseX - sx(v.x()), dz = mouseY - sz(v.z());
+            double d = Math.sqrt(dx * dx + dz * dz);
+            int r = Math.max(3, v.radius() / bpp);
+            if (d <= r && d < bd) { bd = d; best = v; }
+        }
+        if (best == null) return;
+        List<Component> lines = new ArrayList<>();
+        lines.add(Component.literal(best.name()).withStyle(ChatFormatting.BOLD)
+                .append(Component.literal(" · ").withStyle(ChatFormatting.GRAY))
+                .append(Component.translatable("bloodmoon.map.settlement.level." + best.level())));
+        lines.add(Component.translatable("bloodmoon.map.settlement.pop", best.pop()).withStyle(ChatFormatting.GRAY));
+        lines.add(Component.translatable("bloodmoon.map.settlement.soldiers", best.soldiers()).withStyle(ChatFormatting.GRAY));
+        if (best.port()) lines.add(Component.translatable("bloodmoon.map.settlement.port").withStyle(ChatFormatting.AQUA));
+        g.renderComponentTooltip(font, lines, mouseX, mouseY);
     }
 
     private void line(GuiGraphics g, int x0, int y0, int x1, int y1, int w, int color) {

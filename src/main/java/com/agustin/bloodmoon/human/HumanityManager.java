@@ -1029,6 +1029,13 @@ public final class HumanityManager {
         return java.awt.Color.HSBtoRGB(hue, 0.65F, 0.9F) & 0xFFFFFF;
     }
 
+    /** Soldados del asentamiento: los guardias que viven en sus torres, ayuntamiento y castillo. */
+    public static int soldiers(ServerLevel level, Settlement s) {
+        int n = 0;
+        for (VillageLayout.Building b : built(level, s)) if (b.job() == HumanJob.GUARD) n += b.residents();
+        return Math.min(n, s.pop);
+    }
+
     public static void sendMap(ServerPlayer player) {
         ServerLevel ow = player.server.overworld();
         if (player.level() != ow) return;
@@ -1036,7 +1043,7 @@ public final class HumanityManager {
         for (Settlement s : Data.get(ow).settlements.values()) {
             if (player.distanceToSqr(s.x, player.getY(), s.z) > 6000.0 * 6000.0) continue;
             views.add(new com.agustin.bloodmoon.network.SettlementMapPayload.View(s.name, s.x, s.z, influence(ow, s), s.level, s.pop,
-                    color(s), Port.has(s)));
+                    soldiers(ow, s), color(s), Port.has(s)));
         }
         net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new com.agustin.bloodmoon.network.SettlementMapPayload(views));
     }

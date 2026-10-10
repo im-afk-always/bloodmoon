@@ -328,5 +328,8 @@
   "bloodmoon.map.settlement.level.0": "aldea",
   "bloodmoon.map.settlement.level.1": "pueblo",
   "bloodmoon.map.settlement.level.2": "ciudad",
-  "bloodmoon.map.settlement.level.3": "capital"
+  "bloodmoon.map.settlement.level.3": "capital",
+  "bloodmoon.map.settlement.pop": "Habitantes: %s",
+  "bloodmoon.map.settlement.soldiers": "Soldados: %s",
+  "bloodmoon.map.settlement.port": "Puerto"
 }

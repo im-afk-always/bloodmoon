@@ -14,7 +14,7 @@ import java.util.List;
 public record SettlementMapPayload(List<View> settlements) implements CustomPacketPayload {
     public static final Type<SettlementMapPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "settlement_map"));
 
-    public record View(String name, int x, int z, int radius, int level, int pop, int color, boolean port) {}
+    public record View(String name, int x, int z, int radius, int level, int pop, int soldiers, int color, boolean port) {}
 
     public static final StreamCodec<ByteBuf, SettlementMapPayload> STREAM_CODEC = StreamCodec.of(
             (buf, p) -> {
@@ -26,6 +26,7 @@ public record SettlementMapPayload(List<View> settlements) implements CustomPack
                     ByteBufCodecs.VAR_INT.encode(buf, v.radius());
                     ByteBufCodecs.VAR_INT.encode(buf, v.level());
                     ByteBufCodecs.VAR_INT.encode(buf, v.pop());
+                    ByteBufCodecs.VAR_INT.encode(buf, v.soldiers());
                     ByteBufCodecs.INT.encode(buf, v.color());
                     ByteBufCodecs.BOOL.encode(buf, v.port());
                 }
@@ -36,7 +37,7 @@ public record SettlementMapPayload(List<View> settlements) implements CustomPack
                 for (int i = 0; i < n; i++) {
                     list.add(new View(ByteBufCodecs.STRING_UTF8.decode(buf), ByteBufCodecs.INT.decode(buf), ByteBufCodecs.INT.decode(buf),
                             ByteBufCodecs.VAR_INT.decode(buf), ByteBufCodecs.VAR_INT.decode(buf), ByteBufCodecs.VAR_INT.decode(buf),
-                            ByteBufCodecs.INT.decode(buf), ByteBufCodecs.BOOL.decode(buf)));
+                            ByteBufCodecs.VAR_INT.decode(buf), ByteBufCodecs.INT.decode(buf), ByteBufCodecs.BOOL.decode(buf)));
                 }
                 return new SettlementMapPayload(list);
             });
