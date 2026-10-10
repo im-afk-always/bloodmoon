@@ -217,7 +217,7 @@ public final class DominionPresence {
                     case DominionStructures.NEST -> 16;                                   // afuera del borde de la fosa
                     case DominionStructures.TOWER -> 11 + level.random.nextDouble() * 2;    // alrededor del basamento
                     case DominionStructures.SPIRE -> 26 + level.random.nextDouble() * 3;
-                    case DominionStructures.SOUL -> 56 + level.random.nextDouble() * 6;     // explanada, entre la fosa y la muralla
+                    case DominionStructures.SOUL -> 58 + level.random.nextDouble() * 2;     // explanada, entre los braseros y las farolas
                     default -> 8 + level.random.nextDouble() * 2;                          // obelisco: fuera del basamento
                 };
                 sx = x + (int) Math.round(Math.cos(a) * rr);

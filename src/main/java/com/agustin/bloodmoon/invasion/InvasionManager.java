@@ -115,6 +115,7 @@ public final class InvasionManager {
         DominionTerraform.clear();
         ConstructionSites.clear();
         DominionTemplates.clear();
+        FirstSoul.clear();
         DominionPresence.clear();
         InvasionRaids.clear();
         cycleTimer = 0;

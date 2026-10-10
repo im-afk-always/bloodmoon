@@ -275,5 +275,6 @@
   "bloodmoon.map.soul.site": "sanctuary under construction",
   "bloodmoon.map.soul.feeding": "crystal at %s%%",
   "bloodmoon.map.soul.awake": "AWAKE",
-  "bloodmoon.map.soul.slain": "slain"
+  "bloodmoon.map.soul.slain": "slain",
+  "bloodmoon.soul.cracking": "The crystal of the First Soul of %s is cracking at %s, %s... something is waking up."
 }

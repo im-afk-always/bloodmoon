@@ -275,5 +275,6 @@
   "bloodmoon.map.soul.site": "santuario en obra",
   "bloodmoon.map.soul.feeding": "cristal al %s%%",
   "bloodmoon.map.soul.awake": "DESPIERTA",
-  "bloodmoon.map.soul.slain": "abatida"
+  "bloodmoon.map.soul.slain": "abatida",
+  "bloodmoon.soul.cracking": "El cristal de la Primera Alma de %s se está quebrando en %s, %s... algo despierta."
 }
