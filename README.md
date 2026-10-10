@@ -284,6 +284,7 @@ Las aldeas y aldeanos de Minecraft se reemplazan por **humanos**.
 - **Comercio en monedas**: cobre (1), plata (10) y oro (100). Los 13 oficios de aldeano venden y compran lo mismo que en vanilla, con niveles 1-5. El **mercader** cambia monedas hacia arriba y compra esmeraldas, lingotes y diamantes. Las monedas se parten en la mesa de crafteo (1 oro → 10 plata → 10 cobre).
 - **Guardias** defienden a cualquier humano atacado (también de vos). **Bandidos** (los antiguos saqueadores y vindicadores) atacan a jugadores y humanos y sueltan cobre.
 - Los aldeanos que aparezcan (curados, huevos, mundos viejos) se convierten en humanos con su oficio y nivel. El vendedor ambulante desaparece.
+- **Asentamientos vivos (fase 2):** cada aldea produce y consume comida, cobra impuestos, crece si hay comida y vivienda y decide sus obras (granjas, casas, torres, puestos, talleres) que paga de su tesoro. Las obras se levantan a la vista con un albañil, las calles se estiran y nacen bebés en las casas. A los 40 habitantes es un **pueblo**; con 60 y un tesoro sano manda **colonos** a fundar una aldea nueva. Nunca construye encima de lo que construiste vos.
 
 ## Comandos (OP)
 - `/bloodmoon force [super|golden|moonless]`
@@ -300,7 +301,7 @@ Las aldeas y aldeanos de Minecraft se reemplazan por **humanos**.
 - `/bloodmoon summon unbound` (la forma final, donde estés)
 - `/bloodmoon locate coliseum`
 - `/bloodmoon intro`
-- `/bloodmoon village` (aldea humana más cercana)
+- `/bloodmoon village` (estado del asentamiento más cercano) · `village grow <días>` (adelantar su simulación) · `village colony` (forzar una colonia)
 - `/bloodmoon human <oficio> [plains|desert]` (un humano de ese oficio donde estás; `bandit` y `guard` también)
 - `/summon bloodmoon:cursed_creeper`
 
