@@ -77,6 +77,37 @@ public class VillageFeature extends Feature<NoneFeatureConfiguration> {
         BlockState air = Blocks.AIR.defaultBlockState();
         BlockState found = (desert ? Blocks.SANDSTONE : Blocks.COBBLESTONE).defaultBlockState();
 
+        // tala: sin árboles encima de calles, edificios y sus alrededores
+        for (int x = x0; x <= x1; x++) {
+            for (int z = z0; z <= z1; z++) {
+                boolean near = false;
+                for (VillageLayout.Building b : layout.buildings()) {
+                    if (b.contains(x, z, 3)) {
+                        near = true;
+                        break;
+                    }
+                }
+                if (!near) {
+                    for (VillageLayout.Road r : layout.roads()) {
+                        if (r.dist(x, z) <= r.half() + 2.5) {
+                            near = true;
+                            break;
+                        }
+                    }
+                }
+                if (!near) continue;
+                int g = ground(level, x, z);
+                for (int y = g + 40; y > g; y--) {
+                    p.set(x, y, z);
+                    BlockState st = level.getBlockState(p);
+                    if (st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS) || st.is(Blocks.VINE) || st.is(Blocks.COCOA)
+                            || st.is(Blocks.BEE_NEST) || st.is(Blocks.SNOW)) {
+                        level.setBlock(p, air, FLAGS);
+                    }
+                }
+            }
+        }
+
         // calles y plaza (antes que los edificios: lo que pisa un edificio lo tapa el edificio)
         for (int x = x0; x <= x1; x++) {
             for (int z = z0; z <= z1; z++) {
