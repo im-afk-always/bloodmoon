@@ -224,6 +224,27 @@ public final class SmokeTest {
         } catch (Exception e) {
             BloodMoonMod.LOGGER.warn("SMOKETEST village map failed", e);
         }
+        // puertas a nivel de la calle y granjas con su borde completo
+        int doors = 0, doorsOk = 0, farms = 0, farmsOk = 0;
+        for (var b : lay.buildings()) {
+            if (b.kind() == com.agustin.bloodmoon.human.VillageLayout.Kind.WELL) continue;
+            doors++;
+            BlockPos front = new BlockPos(b.coreX(), b.floorY(), b.coreZ());
+            if (!level.getBlockState(front).isAir() && level.getBlockState(front.above()).isAir() && level.getBlockState(front.above(2)).isAir()) doorsOk++;
+            if (b.kind() == com.agustin.bloodmoon.human.VillageLayout.Kind.FARM) {
+                farms++;
+                var vt = com.agustin.bloodmoon.human.VillageLayout.template(level, b.template());
+                boolean ok = true;
+                for (var e : vt.t().blocks()) {
+                    if (e.y() != 0 || !(e.state().getBlock() instanceof net.minecraft.world.level.block.RotatedPillarBlock
+                            || e.state().is(net.minecraft.world.level.block.Blocks.CUT_SANDSTONE))) continue;
+                    int[] w = com.agustin.bloodmoon.invasion.DominionTemplates.rotate(e.x(), e.z(), b.rot());
+                    if (level.getBlockState(new BlockPos(b.x() + w[0], b.floorY(), b.z() + w[1])).getBlock() != e.state().getBlock()) ok = false;
+                }
+                if (ok) farmsOk++;
+            }
+        }
+        BloodMoonMod.LOGGER.info("SMOKETEST village {} doors at street level {}/{} farms with full border {}/{}", s.culture(), doorsOk, doors, farmsOk, farms);
         double rate = total == 0 ? 0 : (double) match / total;
         BloodMoonMod.LOGGER.info("SMOKETEST village {} at {} {} {} buildings={} [{}] blocks {}/{} ({}%) paths={} in {} ms", s.culture(), s.x(), s.y(), s.z(),
                 lay.buildings().size(), lay.stats(), match, total, (int) (rate * 100), paths, (System.nanoTime() - t0) / 1_000_000);
