@@ -572,7 +572,7 @@ public final class HumanityManager {
                 for (Old o : olds) {
                     if (o.dist() > 60 || city(o.b()) || o.b().kind() == VillageLayout.Kind.WELL) continue;
                     VillageLayout.Building nb = VillageLayout.placeAt(level, cv[0], kind, job, res, o.b().coreX(), o.b().coreZ(), o.b().rot(),
-                            o.b().floorY(), occupied(level, s, lay, o.b()), roads, 2);
+                            o.b().floorY(), occupied(level, s, lay, o.b()), roads, 1);
                     if (nb != null) return replace(s, lay, o, nb, false);
                 }
             }
@@ -610,7 +610,7 @@ public final class HumanityManager {
             if (nt == null) continue;
             int res = b.kind() == VillageLayout.Kind.TOWER ? 3 : b.kind() == VillageLayout.Kind.WORK ? 1 : 0;
             VillageLayout.Building nb = VillageLayout.placeAt(level, nt, b.kind(), b.job(), res, b.coreX(), b.coreZ(), b.rot(), b.floorY(),
-                    occupied(level, s, lay, b), roads, 2);
+                    occupied(level, s, lay, b), roads, 1);
             if (nb == null) {
                 s.skipRenew.add(VillageBuilder.key(b.coreX(), b.coreZ()));   // no entra: queda como está
                 continue;
