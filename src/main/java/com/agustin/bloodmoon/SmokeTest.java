@@ -44,12 +44,60 @@ public final class SmokeTest {
             ok &= dominion(server);
             ok &= humans(server);
             ok &= village(server);
+            ok &= settlement(server);
         } catch (Throwable t) {
             BloodMoonMod.LOGGER.error("SMOKETEST FAIL exception", t);
             ok = false;
         }
         BloodMoonMod.LOGGER.info(ok ? "SMOKETEST PASS" : "SMOKETEST FAIL");
         server.halt(false);
+    }
+
+    /** Fase 2: un asentamiento real crece 30 días como datos, coloca sus obras y quizá funda una colonia. */
+    private static boolean settlement(MinecraftServer server) {
+        ServerLevel level = server.overworld();
+        var site = com.agustin.bloodmoon.human.VillageSites.nearest(level, BlockPos.ZERO, 12);
+        if (site.isEmpty()) return false;
+        var data = com.agustin.bloodmoon.human.HumanityManager.Data.get(level);
+        var s = com.agustin.bloodmoon.human.HumanityManager.register(level, data, site.get());
+        int pop0 = s.pop, h0 = com.agustin.bloodmoon.human.HumanityManager.housing(level, s);
+        long t0 = System.nanoTime();
+        int cycles = 30 * com.agustin.bloodmoon.human.HumanityManager.CYCLES_PER_DAY;
+        double minFood = Double.MAX_VALUE;
+        for (int i = 0; i < cycles; i++) {
+            com.agustin.bloodmoon.human.HumanityManager.cycle(level, data, s);
+            minFood = Math.min(minFood, s.food);
+        }
+        double msPerCycle = (System.nanoTime() - t0) / 1e6 / cycles;
+        int works = s.works.size();
+        long t1 = System.nanoTime();
+        int placed = com.agustin.bloodmoon.human.HumanityManager.placeAll(level, data, s);
+        long placeMs = (System.nanoTime() - t1) / 1_000_000;
+        // los bloques de la primera obra en pie
+        int total = 0, match = 0;
+        for (var w : s.works) {
+            if (w.state != 2) continue;
+            var vt = com.agustin.bloodmoon.human.VillageLayout.template(level, w.b.template());
+            for (var e : vt.t().blocks()) {
+                if (e.state().isAir()) continue;
+                int[] r = com.agustin.bloodmoon.invasion.DominionTemplates.rotate(e.x(), e.z(), w.b.rot());
+                total++;
+                if (level.getBlockState(new BlockPos(w.b.x() + r[0], w.b.floorY() + e.y(), w.b.z() + r[1])).getBlock() == e.state().getBlock()) match++;
+            }
+            break;
+        }
+        try {
+            topDown(level, s.x, s.z, 128, "village_grown_30d");
+        } catch (Exception e) {
+            BloodMoonMod.LOGGER.warn("SMOKETEST grown map failed", e);
+        }
+        var colony = s.level >= com.agustin.bloodmoon.human.Settlement.TOWN
+                ? com.agustin.bloodmoon.human.HumanityManager.foundColony(level, data, s) : null;
+        BloodMoonMod.LOGGER.info("SMOKETEST humanity {} pop {}->{} housing {}->{} level={} food(min)={} treasury={} works={} placed={} blocks {}/{} cycle={}ms place={}ms colony={}",
+                s.name, pop0, s.pop, h0, com.agustin.bloodmoon.human.HumanityManager.housing(level, s), s.level, (int) minFood,
+                (int) s.treasury, works, placed, match, total, String.format(java.util.Locale.ROOT, "%.2f", msPerCycle), placeMs,
+                colony == null ? "none" : colony.name + "@" + colony.x + "," + colony.z);
+        return s.pop > pop0 && s.pop < 200 && works > 3 && placed > 0 && total > 0 && match >= total * 9 / 10 && msPerCycle < 5;
     }
 
     /** Aldea humana: se ubica, se generan sus chunks y los edificios quedan en pie (bloques de la plantilla en su lugar). */

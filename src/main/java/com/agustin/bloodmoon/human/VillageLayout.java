@@ -46,7 +46,11 @@ public final class VillageLayout {
         }
     }
 
-    public record Layout(VillageSites.Site site, List<Building> buildings, List<Road> roads, List<int[]> lamps, String stats) {}
+    public record Layout(VillageSites.Site site, List<Building> buildings, List<Road> roads, List<int[]> lamps, String stats,
+                         double[][] dirs, int[] lens) {}
+
+    /** Hasta dónde puede estirarse una calle cuando la aldea crece. */
+    public static final int MAX_LEN = 120;
 
     /** Contadores de rechazos (solo para diagnóstico). */
     private static final int[] REJ = new int[4];
@@ -140,55 +144,16 @@ public final class VillageLayout {
         int farms = 2 + rng.nextInt(2);
         for (int i = 0; i < farms; i++) queue.add(new String[]{c + "farm_" + rng.nextInt(2), "FARM", "FARMER", i == 0 ? "1" : "0"});
 
-        // lotes a los costados de las calles, de adentro hacia afuera
-        List<double[]> plots = new ArrayList<>();   // {d, arm, side}
-        for (int i = 0; i < arms; i++) {
-            for (int d = 9; d < lens[i] - 3; d += 2) {
-                plots.add(new double[]{d, i, -1});
-                plots.add(new double[]{d, i, 1});
-            }
-        }
-        plots.sort((p, q) -> Double.compare(p[0] + p[1] * 0.01 + p[2] * 0.001, q[0] + q[1] * 0.01 + q[2] * 0.001));
-
         int[] rejects = new int[1];
-        int qi = 0;
-        boolean[] used = new boolean[plots.size()];
-        int towers = 0;
-        while (qi < queue.size()) {
-            String[] want = queue.get(qi);
-            boolean placed = false;
-            for (int pi = 0; pi < plots.size() && !placed; pi++) {
-                if (used[pi]) continue;
-                double[] p = plots.get(pi);
-                int arm = (int) p[1];
-                double side = p[2];
-                double rx = site.x() + dirs[arm][0] * p[0], rz = site.z() + dirs[arm][1] * p[0];
-                double px = -dirs[arm][1] * side, pz = dirs[arm][0] * side;   // perpendicular
-                VTemplate vt = template(level, want[0]);
-                if (vt.t().blocks().isEmpty()) break;
-                // orientación: la puerta (+z de la plantilla) mira hacia la calle
-                Rotation rot = DominionTemplates.facing(0, 0, (int) Math.round(-px * 100), (int) Math.round(-pz * 100));
-                // distancia mínima para que ninguna esquina pise la calle
-                double minProj = Double.MAX_VALUE;
-                for (int cxz = 0; cxz < 4; cxz++) {
-                    int[] cr = DominionTemplates.rotate((cxz & 1) == 0 ? vt.minX() : vt.maxX(), (cxz & 2) == 0 ? vt.minZ() : vt.maxZ(), rot);
-                    minProj = Math.min(minProj, cr[0] * px + cr[1] * pz);
-                }
-                double off = Math.max(2.5 + vt.t().coreZ(), 2.6 - minProj);
-                int bx = (int) Math.round(rx + px * off), bz = (int) Math.round(rz + pz * off);
-                Building b = place(level, gen, rs, want[0], Kind.valueOf(want[1]), HumanJob.valueOf(want[2]),
-                        Integer.parseInt(want[3]), bx, bz, rot, out, roads, false);
-                if (b == null) {
-                    rejects[0]++;
-                    continue;
-                }
-                out.add(b);
-                used[pi] = true;
-                placed = true;
-                roads.add(new Road(b.coreX(), b.coreZ(), rx, rz, 0.6));
-                if (b.kind() == Kind.TOWER) towers++;
+        for (String[] want : queue) {
+            Plot pl = findPlot(level, site, dirs, lens, 3, want[0], Kind.valueOf(want[1]), HumanJob.valueOf(want[2]),
+                    Integer.parseInt(want[3]), out, roads, null);
+            if (pl == null) {
+                rejects[0]++;
+                continue;
             }
-            qi++;
+            out.add(pl.building());
+            roads.add(pl.spur());
         }
         // faroles a lo largo de las calles
         for (int i = 0; i < arms; i++) {
@@ -203,7 +168,52 @@ public final class VillageLayout {
         }
         String stats = "queued=" + queue.size() + " placed=" + (out.size() - 1) + " tries=" + rejects[0]
                 + " wet=" + REJ[0] + " slope=" + REJ[1] + " overlap=" + REJ[2] + " road=" + REJ[3];
-        return new Layout(site, out, roads, lamps, stats);
+        return new Layout(site, out, roads, lamps, stats, dirs, lens);
+    }
+
+    public record Plot(Building building, Road spur, int arm, double d) {}
+
+    /**
+     * Primer lote libre (de la plaza hacia afuera) donde entra la plantilla, con la puerta hacia la calle.
+     * {@code limits[arm] - margin} es hasta dónde se busca en cada calle; {@code accept} puede vetar un lote (p. ej. si
+     * el jugador construyó ahí).
+     */
+    public static Plot findPlot(ServerLevel level, VillageSites.Site site, double[][] dirs, int[] limits, int margin, String template,
+                                Kind kind, HumanJob job, int residents, List<Building> others, List<Road> roads,
+                                java.util.function.Predicate<Building> accept) {
+        ChunkGenerator gen = level.getChunkSource().getGenerator();
+        RandomState rs = level.getChunkSource().randomState();
+        VTemplate vt = template(level, template);
+        if (vt.t().blocks().isEmpty()) return null;
+        List<double[]> plots = new ArrayList<>();   // {d, arm, side}
+        for (int i = 0; i < dirs.length; i++) {
+            for (int d = 9; d < limits[i] - margin; d += 2) {
+                plots.add(new double[]{d, i, -1});
+                plots.add(new double[]{d, i, 1});
+            }
+        }
+        plots.sort((p, q) -> Double.compare(p[0] + p[1] * 0.01 + p[2] * 0.001, q[0] + q[1] * 0.01 + q[2] * 0.001));
+        for (double[] p : plots) {
+            int arm = (int) p[1];
+            double side = p[2];
+            double rx = site.x() + dirs[arm][0] * p[0], rz = site.z() + dirs[arm][1] * p[0];
+            double px = -dirs[arm][1] * side, pz = dirs[arm][0] * side;   // perpendicular
+            // orientación: la puerta (+z de la plantilla) mira hacia la calle
+            Rotation rot = DominionTemplates.facing(0, 0, (int) Math.round(-px * 100), (int) Math.round(-pz * 100));
+            // distancia mínima para que ninguna esquina pise la calle
+            double minProj = Double.MAX_VALUE;
+            for (int cxz = 0; cxz < 4; cxz++) {
+                int[] cr = DominionTemplates.rotate((cxz & 1) == 0 ? vt.minX() : vt.maxX(), (cxz & 2) == 0 ? vt.minZ() : vt.maxZ(), rot);
+                minProj = Math.min(minProj, cr[0] * px + cr[1] * pz);
+            }
+            double off = Math.max(2.5 + vt.t().coreZ(), 2.6 - minProj);
+            int bx = (int) Math.round(rx + px * off), bz = (int) Math.round(rz + pz * off);
+            Building b = place(level, gen, rs, template, kind, job, residents, bx, bz, rot, others, roads, false);
+            if (b == null) continue;
+            if (accept != null && !accept.test(b)) continue;
+            return new Plot(b, new Road(b.coreX(), b.coreZ(), rx, rz, 0.6), arm, p[0]);
+        }
+        return null;
     }
 
     /** Intenta ubicar un edificio: sin pisar otros ni las calles, en seco y sin pendiente excesiva. */

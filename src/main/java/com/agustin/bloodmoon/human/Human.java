@@ -75,6 +75,10 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
     private net.minecraft.core.BlockPos home;
     /** Creado durante la generación del mundo: no se calculan ofertas (podrían buscar estructuras y trabar la generación). */
     private boolean worldgen;
+    /** Asentamiento al que pertenece (clave = posición del centro); 0 = ninguno. */
+    private long settlement;
+    /** Obrero temporal de una obra del asentamiento: se va cuando termina. */
+    private boolean builder;
 
     /** Rasgos calculados del lado del cliente (sexo, brazos finos); se recalculan si cambia la semilla. */
     private HumanSkin.Traits traits;
@@ -314,6 +318,27 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         return InteractionResult.sidedSuccess(level().isClientSide);
     }
 
+    public long settlement() {
+        return settlement;
+    }
+
+    public void setSettlement(long key) {
+        this.settlement = key;
+    }
+
+    public boolean isBuilder() {
+        return builder;
+    }
+
+    public void setBuilder(boolean b) {
+        this.builder = b;
+    }
+
+    @Nullable
+    public net.minecraft.core.BlockPos home() {
+        return home;
+    }
+
     public void prepareForWorldgen() {
         this.worldgen = true;
     }
@@ -373,7 +398,11 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
     protected void customServerAiStep() {
         super.customServerAiStep();
         worldgen = false;
-        if (home != null && !hasRestriction()) restrictTo(home, 24);
+        if (home != null && !hasRestriction()) restrictTo(home, builder ? 10 : 24);
+        if (builder && home != null && tickCount % 25 == 0 && distanceToSqr(home.getX() + 0.5, home.getY(), home.getZ() + 0.5) < 100) {
+            getLookControl().setLookAt(home.getX() + 0.5, home.getY() + 1, home.getZ() + 0.5);
+            swing(InteractionHand.MAIN_HAND);
+        }
         if (!isTrading() && levelUpPending && --levelUpTimer <= 0) {
             levelUpPending = false;
             if (tradeLevel < 5) {
@@ -466,6 +495,8 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         tag.putInt("TradeLevel", tradeLevel);
         tag.putInt("TradeXp", tradeXp);
         if (home != null) tag.putLong("HumanHome", home.asLong());
+        if (settlement != 0) tag.putLong("Settlement", settlement);
+        if (builder) tag.putBoolean("Builder", true);
     }
 
     @Override
@@ -477,6 +508,8 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         tradeLevel = Math.max(1, tag.getInt("TradeLevel"));
         tradeXp = tag.getInt("TradeXp");
         if (tag.contains("HumanHome")) home = net.minecraft.core.BlockPos.of(tag.getLong("HumanHome"));
+        settlement = tag.getLong("Settlement");
+        builder = tag.getBoolean("Builder");
     }
 
     /** Copia el progreso de comercio de un aldeano convertido (nivel y experiencia). */

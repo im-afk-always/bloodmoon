@@ -96,7 +96,7 @@ public final class VillageSites {
         return Optional.empty();
     }
 
-    private static boolean nearColiseum(ServerLevel level, int x, int z) {
+    static boolean nearColiseum(ServerLevel level, int x, int z) {
         int size = ColiseumSites.REGION * 16;
         int rx = Math.floorDiv(x, size), rz = Math.floorDiv(z, size);
         int keep = ColiseumSites.reach() + 120;

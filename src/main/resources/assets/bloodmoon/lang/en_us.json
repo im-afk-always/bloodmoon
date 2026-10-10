@@ -318,5 +318,8 @@
   "human.bloodmoon.job.guard": "Guard",
   "human.bloodmoon.job.guard.f": "Guard",
   "human.bloodmoon.job.bandit": "Bandit",
-  "human.bloodmoon.job.bandit.f": "Bandit"
+  "human.bloodmoon.job.bandit.f": "Bandit",
+  "message.bloodmoon.humanity.town": "%s has grown into a town.",
+  "message.bloodmoon.humanity.village": "%s has shrunk back into a village.",
+  "message.bloodmoon.humanity.colony": "Settlers from %s set out to found %s (%s, %s)."
 }

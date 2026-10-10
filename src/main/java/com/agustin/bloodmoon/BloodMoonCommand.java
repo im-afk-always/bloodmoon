@@ -108,19 +108,25 @@ public final class BloodMoonCommand {
                             return had ? 1 : 0;
                         })))
                 .then(Commands.literal("status").executes(BloodMoonCommand::status))
-                .then(Commands.literal("village").executes(ctx -> {
-                    var src = ctx.getSource();
-                    var s = com.agustin.bloodmoon.human.VillageSites.nearest(src.getLevel(), net.minecraft.core.BlockPos.containing(src.getPosition()), 12);
-                    if (s.isEmpty()) {
-                        src.sendFailure(Component.literal("No hay aldeas humanas cerca"));
-                        return 0;
-                    }
-                    var v = s.get();
-                    var lay = com.agustin.bloodmoon.human.VillageLayout.get(src.getLevel(), v);
-                    src.sendSuccess(() -> Component.literal("Aldea (" + v.culture() + ") en " + v.x() + " " + v.y() + " " + v.z()
-                            + " — " + lay.buildings().size() + " edificios"), false);
-                    return 1;
-                }))
+                .then(Commands.literal("village").executes(BloodMoonCommand::villageInfo)
+                        .then(Commands.literal("grow").then(Commands.argument("days", IntegerArgumentType.integer(1, 60))
+                                .executes(ctx -> villageGrow(ctx, IntegerArgumentType.getInteger(ctx, "days")))))
+                        .then(Commands.literal("colony").executes(ctx -> {
+                            var src = ctx.getSource();
+                            var lvl = src.getLevel();
+                            var st = com.agustin.bloodmoon.human.HumanityManager.nearest(lvl, net.minecraft.core.BlockPos.containing(src.getPosition()));
+                            if (st == null) {
+                                src.sendFailure(Component.literal("No hay asentamientos registrados"));
+                                return 0;
+                            }
+                            var col = com.agustin.bloodmoon.human.HumanityManager.foundColony(lvl, com.agustin.bloodmoon.human.HumanityManager.Data.get(lvl), st);
+                            if (col == null) {
+                                src.sendFailure(Component.literal("No se encontró tierra libre para una colonia"));
+                                return 0;
+                            }
+                            src.sendSuccess(() -> Component.literal("Colonia " + col.name + " en " + col.x + " " + col.z), false);
+                            return 1;
+                        })))
                 .then(Commands.literal("human")
                         .then(Commands.argument("job", com.mojang.brigadier.arguments.StringArgumentType.word())
                                 .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
@@ -362,6 +368,44 @@ public final class BloodMoonCommand {
                 : com.agustin.bloodmoon.human.HumanWorld.cultureAt(level, net.minecraft.core.BlockPos.containing(pos)));
         level.addFreshEntity(h);
         src.sendSuccess(() -> Component.literal("Humano: " + h.describe()), false);
+        return 1;
+    }
+
+    private static int villageInfo(com.mojang.brigadier.context.CommandContext<CommandSourceStack> ctx) {
+        var src = ctx.getSource();
+        var level = src.getLevel();
+        var pos = net.minecraft.core.BlockPos.containing(src.getPosition());
+        var st = com.agustin.bloodmoon.human.HumanityManager.nearest(level, pos);
+        if (st != null && pos.distSqr(new net.minecraft.core.BlockPos(st.x, pos.getY(), st.z)) < 600 * 600) {
+            String text = com.agustin.bloodmoon.human.HumanityManager.describe(level, st);
+            src.sendSuccess(() -> Component.literal(text), false);
+            return 1;
+        }
+        var s = com.agustin.bloodmoon.human.VillageSites.nearest(level, pos, 12);
+        if (s.isEmpty()) {
+            src.sendFailure(Component.literal("No hay aldeas humanas cerca"));
+            return 0;
+        }
+        var v = s.get();
+        src.sendSuccess(() -> Component.literal("Aldea sin visitar (" + v.culture() + ") en " + v.x() + " " + v.y() + " " + v.z()), false);
+        return 1;
+    }
+
+    private static int villageGrow(com.mojang.brigadier.context.CommandContext<CommandSourceStack> ctx, int days) {
+        var src = ctx.getSource();
+        var level = src.getLevel();
+        var st = com.agustin.bloodmoon.human.HumanityManager.nearest(level, net.minecraft.core.BlockPos.containing(src.getPosition()));
+        if (st == null) {
+            src.sendFailure(Component.literal("No hay asentamientos registrados"));
+            return 0;
+        }
+        var data = com.agustin.bloodmoon.human.HumanityManager.Data.get(level);
+        for (int i = 0; i < days * com.agustin.bloodmoon.human.HumanityManager.CYCLES_PER_DAY; i++) {
+            com.agustin.bloodmoon.human.HumanityManager.cycle(level, data, st);
+        }
+        data.setDirty();
+        String text = com.agustin.bloodmoon.human.HumanityManager.describe(level, st);
+        src.sendSuccess(() -> Component.literal(text), false);
         return 1;
     }
 }
