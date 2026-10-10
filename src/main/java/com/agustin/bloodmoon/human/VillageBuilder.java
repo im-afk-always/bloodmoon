@@ -127,7 +127,8 @@ public final class VillageBuilder {
                 if (!wg && level instanceof ServerLevel sl && !sl.hasChunk(x >> 4, z >> 4)) continue;
                 boolean inside = false;
                 for (VillageLayout.Building b : buildings) {
-                    if (b.contains(x, z, 0)) {
+                    // el umbral de la puerta queda bajo el alero pero es calle: se pavimenta
+                    if (b.contains(x, z, 0) && !(x == b.coreX() && z == b.coreZ())) {
                         inside = true;
                         break;
                     }

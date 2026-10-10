@@ -230,7 +230,13 @@ public final class SmokeTest {
             if (b.kind() == com.agustin.bloodmoon.human.VillageLayout.Kind.WELL) continue;
             doors++;
             BlockPos front = new BlockPos(b.coreX(), b.floorY(), b.coreZ());
-            if (!level.getBlockState(front).isAir() && level.getBlockState(front.above()).isAir() && level.getBlockState(front.above(2)).isAir()) doorsOk++;
+            var fs = level.getBlockState(front);
+            boolean path = fs.is(net.minecraft.world.level.block.Blocks.DIRT_PATH) || fs.is(net.minecraft.world.level.block.Blocks.SMOOTH_SANDSTONE)
+                    || fs.is(net.minecraft.world.level.block.Blocks.SANDSTONE) || fs.is(net.minecraft.world.level.block.Blocks.CUT_SANDSTONE)
+                    || fs.is(net.minecraft.world.level.block.Blocks.GRAVEL) || fs.is(net.minecraft.world.level.block.Blocks.COARSE_DIRT);
+            if (path && level.getBlockState(front.above()).getCollisionShape(level, front.above()).isEmpty()
+                    && level.getBlockState(front.above(2)).getCollisionShape(level, front.above(2)).isEmpty()) doorsOk++;
+            else if (doors - doorsOk <= 3) BloodMoonMod.LOGGER.info("SMOKETEST village door miss {} front={} above={}", b.template(), fs, level.getBlockState(front.above()));
             if (b.kind() == com.agustin.bloodmoon.human.VillageLayout.Kind.FARM) {
                 farms++;
                 var vt = com.agustin.bloodmoon.human.VillageLayout.template(level, b.template());
