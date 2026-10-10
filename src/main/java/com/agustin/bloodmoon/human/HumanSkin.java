@@ -195,7 +195,7 @@ public final class HumanSkin {
         set(fx + 3, fy + er + 1, argb(shade(t.skin, 0.86)));
         set(fx + 4, fy + er + 1, argb(shade(t.skin, 0.9)));
         // boca
-        int my = fy + er + 3 > fy + 7 ? fy + 7 : fy + er + 3;
+        int my = fy + Math.min(6, er + 2);   // la boca nunca en la última fila: siempre queda a la vista
         int m0 = 4 - t.mouthW / 2 - (t.mouthW % 2 == 1 ? 0 : 0);
         for (int k = 0; k < t.mouthW; k++) set(fx + m0 + k, my, argb(k == 0 || k == t.mouthW - 1 ? shade(t.lip, 0.85) : t.lip));
         // mejillas, pecas, arrugas
@@ -234,30 +234,36 @@ public final class HumanSkin {
     private void beard() {
         int c = argb(t.old ? 0xBEB8B0 : t.hair), d = argb(t.old ? 0x9A948C : t.hairDark);
         int fx = 8, fy = 8, er = t.eyeRow;
-        int my = Math.min(fy + 7, fy + er + 3);
+        int my = fy + Math.min(6, er + 2);
+        int m0 = 4 - t.mouthW / 2, m1 = m0 + t.mouthW - 1;
         switch (t.beard) {
             case 1 -> { // barba de pocos días
                 for (int x = 1; x <= 6; x++) for (int y = my; y <= fy + 7; y++) if (get(fx + x, y) != 0 && r.nextFloat() < 0.5F) set(fx + x, y, mixArgb(get(fx + x, y), d, 0.45));
             }
-            case 2 -> { // bigote
-                for (int x = 2; x <= 5; x++) set(fx + x, my - 1, c);
+            case 2 -> { // bigote: bajo la nariz, la boca libre
+                for (int x = Math.max(1, m0 - 1); x <= Math.min(6, m1 + 1); x++) set(fx + x, my - 1, c);
             }
-            case 3 -> { // candado
-                for (int x = 2; x <= 5; x++) set(fx + x, my - 1, c);
-                for (int x = 3; x <= 4; x++) set(fx + x, fy + 7, c);
-                set(fx + 2, my, c);
-                set(fx + 5, my, c);
+            case 3 -> { // candado: bigote y perilla, la boca libre
+                for (int x = Math.max(1, m0 - 1); x <= Math.min(6, m1 + 1); x++) set(fx + x, my - 1, c);
+                for (int y = my + 1; y <= fy + 7; y++) for (int x = 3; x <= 4; x++) set(fx + x, y, c);
+                if (m0 - 1 >= 1) set(fx + m0 - 1, my, c);
+                if (m1 + 1 <= 6) set(fx + m1 + 1, my, c);
             }
-            case 4, 5 -> { // barba completa (y larga en la capa del sombrero)
+            case 4, 5 -> { // barba completa: rodea la boca sin taparla (la larga cae sobre el pecho)
                 for (int x = 0; x <= 7; x++) for (int y = my - 1; y <= fy + 7; y++) {
-                    if (y == my && x >= 4 - t.mouthW / 2 && x < 4 - t.mouthW / 2 + t.mouthW) continue;   // boca
+                    if (y == my && x >= m0 && x <= m1) continue;          // boca
+                    if (y == my - 1 && (x == 0 || x == 7)) continue;
                     set(fx + x, y, (x + y) % 3 == 0 ? d : c);
                 }
                 for (int y = fy + er + 1; y <= fy + 7; y++) { set(fx, y, c); set(fx + 7, y, c); }
                 // costados y debajo
                 for (int y = 8 + er + 1; y < 16; y++) { set(0 + 7, y, c); set(16, y, c); }
                 for (int x = 16; x < 24; x++) for (int y = 0; y < 8; y++) if (y >= 5) set(x, y, d);   // abajo
-                if (t.beard == 5) for (int x = 41; x <= 46; x++) for (int y = 15; y <= 15; y++) set(x, y, c);
+                if (t.beard == 5) {
+                    // barba larga: sobre el pecho (capa de la chaqueta), nunca sobre la cara
+                    for (int x = 21; x <= 26; x++) for (int y = 36; y <= 37; y++) set(x, y, (x + y) % 3 == 0 ? d : c);
+                    for (int x = 22; x <= 25; x++) set(x, 38, c);
+                }
             }
             default -> { }
         }

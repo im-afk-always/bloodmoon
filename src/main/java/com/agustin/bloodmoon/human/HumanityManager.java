@@ -311,6 +311,12 @@ public final class HumanityManager {
             planWall(level, s, bs);
             if (!s.wall.isEmpty()) s.treasury -= 3000;
         }
+        // la ciudad desbordó la muralla: otro anillo por fuera
+        if (!s.wall.isEmpty() && s.wallProgress >= 1 && s.treasury >= 5000 && outsideWall(s, bs) > 8) {
+            int before = s.wall.size();
+            planWall(level, s, bs);
+            if (s.wall.size() > before) s.treasury -= 5000;
+        }
         if (!s.wall.isEmpty() && s.wallProgress < 1) s.wallProgress = Math.min(1, s.wallProgress + 1.0 / 6 / CYCLES_PER_DAY);
         // obras: varias a la vez según el nivel (una aldea levanta una casa; una ciudad rica, varias)
         boolean mason = false;
@@ -414,7 +420,7 @@ public final class HumanityManager {
         // lote
         List<VillageLayout.Building> others = occupied(level, s, lay, null);
         Net nn = net(s, lay);
-        List<VillageLayout.Road> roads = nn.blocking(lay.plaza());
+        List<VillageLayout.Road> roads = nn.blocking(lay.plaza(), s);
         java.util.function.Predicate<VillageLayout.Building> edge = kind == VillageLayout.Kind.TOWER ? VillageLayout.periphery(s.x, s.z, bs) : null;
         VillageLayout.Plot pl = VillageLayout.findPlot(level, s.site(), nn.roads(), nn.dist(), 1000, template, kind, job,
                 residents, others, roads, b -> (edge == null || edge.test(b)) && (!loaded(level, b) || VillageBuilder.artificial(level, b, 3) <= 3), true);
@@ -440,9 +446,11 @@ public final class HumanityManager {
         }
 
         /** Calles que bloquean lotes: toda la red y la plaza. */
-        List<VillageLayout.Road> blocking(VillageLayout.Road plaza) {
+        List<VillageLayout.Road> blocking(VillageLayout.Road plaza, Settlement s) {
             List<VillageLayout.Road> out = new ArrayList<>(roads);
             out.add(plaza);
+            // la muralla (y una franja de 4 bloques a cada lado) tampoco se pisa
+            for (VillageLayout.Road w : s.wall) out.add(new VillageLayout.Road(w.x0(), w.z0(), w.x1(), w.z1(), 5.5));
             return out;
         }
     }
@@ -512,7 +520,7 @@ public final class HumanityManager {
      */
     private static boolean renewal(ServerLevel level, Settlement s, VillageLayout.Layout lay, List<VillageLayout.Building> bs, String c, Random rng) {
         Net nn = net(s, lay);
-        List<VillageLayout.Road> roads = nn.blocking(lay.plaza());
+        List<VillageLayout.Road> roads = nn.blocking(lay.plaza(), s);
         // candidatos viejos, del centro hacia afuera
         List<Old> olds = new ArrayList<>();
         if (!s.colony) {
@@ -564,7 +572,7 @@ public final class HumanityManager {
                 for (Old o : olds) {
                     if (o.dist() > 60 || city(o.b()) || o.b().kind() == VillageLayout.Kind.WELL) continue;
                     VillageLayout.Building nb = VillageLayout.placeAt(level, cv[0], kind, job, res, o.b().coreX(), o.b().coreZ(), o.b().rot(),
-                            o.b().floorY(), occupied(level, s, lay, o.b()), roads, 1);
+                            o.b().floorY(), occupied(level, s, lay, o.b()), roads, 2);
                     if (nb != null) return replace(s, lay, o, nb, false);
                 }
             }
@@ -602,7 +610,7 @@ public final class HumanityManager {
             if (nt == null) continue;
             int res = b.kind() == VillageLayout.Kind.TOWER ? 3 : b.kind() == VillageLayout.Kind.WORK ? 1 : 0;
             VillageLayout.Building nb = VillageLayout.placeAt(level, nt, b.kind(), b.job(), res, b.coreX(), b.coreZ(), b.rot(), b.floorY(),
-                    occupied(level, s, lay, b), roads, 1);
+                    occupied(level, s, lay, b), roads, 2);
             if (nb == null) {
                 s.skipRenew.add(VillageBuilder.key(b.coreX(), b.coreZ()));   // no entra: queda como está
                 continue;
@@ -774,6 +782,7 @@ public final class HumanityManager {
             int[] box = {(int) Math.floor(Math.min(r.x0(), r.x1()) - r.half() - 3), (int) Math.floor(Math.min(r.z0(), r.z1()) - r.half() - 3),
                     (int) Math.ceil(Math.max(r.x0(), r.x1()) + r.half() + 3), (int) Math.ceil(Math.max(r.z0(), r.z1()) + r.half() + 3)};
             VillageBuilder.clearTrees(level, box, List.of(), List.of(r), all, false);
+            if (!s.wall.isEmpty()) gates(level, s, r);
             VillageBuilder.pave(level, box, List.of(r), all, desert, false, stoneNow);
         }
         if (stoneNow) {
@@ -845,6 +854,7 @@ public final class HumanityManager {
             if (!loadedBox(level, box)) continue;
             boolean desert = s.culture == Culture.DESERT;
             List<VillageLayout.Building> all = built(level, s);
+            if (!s.wall.isEmpty()) gates(level, s, r);
             VillageBuilder.pave(level, box, List.of(r), all, desert, false, true);
             if (i >= 0) {
                 boolean[] one = new boolean[n];
@@ -861,38 +871,81 @@ public final class HumanityManager {
         }
     }
 
+    static final int WALL_RAYS = 48;
+
+    /** Radio del anillo exterior de la muralla en cada rayo (vacío si no hay muralla). */
+    static double[] outerRing(Settlement s) {
+        int n = WALL_RAYS;
+        if (s.wall.size() < n) return new double[0];
+        double[] r = new double[n];
+        for (int i = 0; i < n; i++) {
+            VillageLayout.Road g = s.wall.get(s.wall.size() - n + i);
+            r[i] = Math.hypot(g.x0() - s.x, g.z0() - s.z);
+        }
+        return r;
+    }
+
+    private static int ray(Settlement s, double x, double z) {
+        double a = Math.atan2(z - s.z, x - s.x);
+        return Math.floorMod((int) Math.round(a / (Math.PI * 2) * WALL_RAYS), WALL_RAYS);
+    }
+
+    /** Edificios que quedaron fuera del anillo exterior (o pegados a él). */
+    static int outsideWall(Settlement s, List<VillageLayout.Building> bs) {
+        double[] r = outerRing(s);
+        if (r.length == 0) return 0;
+        int out = 0;
+        for (VillageLayout.Building b : bs) {
+            double d = Math.hypot(b.x() - s.x, b.z() - s.z);
+            if (d > r[ray(s, b.x(), b.z())] - 6) out++;
+        }
+        return out;
+    }
+
     /**
-     * Traza la muralla: un anillo de 48 rayos alrededor de todo lo construido (+8 bloques), suavizado, con torres cada
-     * 4 tramos. Las puertas se abren solas donde la muralla cruza una calle.
+     * Traza un anillo de muralla (48 rayos) a 20 bloques de todo lo construido, nunca a través de un edificio; si ya hay
+     * muralla, el anillo nuevo va por fuera del anterior (al menos 24 bloques más lejos). Las puertas se abren solas donde
+     * cruza una calle, con arco y torres a los lados.
      */
     static void planWall(ServerLevel level, Settlement s, List<VillageLayout.Building> bs) {
-        int n = 48;
+        int n = WALL_RAYS;
+        double[] prev = outerRing(s);
         double[] r = new double[n];
-        java.util.Arrays.fill(r, 36);
+        for (int i = 0; i < n; i++) r[i] = prev.length == 0 ? 48 : prev[i] + 24;
         for (VillageLayout.Building b : bs) {
-            if (Math.hypot(b.x() - s.x, b.z() - s.z) > 110) continue;   // los arrabales quedan afuera, como en toda ciudad
             for (int k = 0; k < 4; k++) {
                 int x = (k & 1) == 0 ? b.minX() : b.maxX(), z = (k & 2) == 0 ? b.minZ() : b.maxZ();
-                double a = Math.atan2(z - s.z, x - s.x);
-                int i = Math.floorMod((int) Math.round(a / (Math.PI * 2) * n), n);
-                double d = Math.hypot(x - s.x, z - s.z) + 8;
-                for (int j = -1; j <= 1; j++) r[Math.floorMod(i + j, n)] = Math.max(r[Math.floorMod(i + j, n)], d);
+                int i = ray(s, x, z);
+                double d = Math.hypot(x - s.x, z - s.z) + 20;
+                for (int j = -2; j <= 2; j++) r[Math.floorMod(i + j, n)] = Math.max(r[Math.floorMod(i + j, n)], d);
             }
         }
+        // suavizado hacia afuera: nunca entra más que el rayo crudo
         double[] sm = new double[n];
         for (int i = 0; i < n; i++) sm[i] = Math.max(r[i], (r[Math.floorMod(i - 1, n)] + r[i] * 2 + r[(i + 1) % n]) / 4);
         double max = 0;
         for (double v : sm) max = Math.max(max, v);
-        for (int i = 0; i < n; i++) sm[i] = Math.min(sm[i], 135);
-        if (max > 200) return;
-        s.wall.clear();
+        if (max > 340) return;
+        int base = s.wall.size();
         for (int i = 0; i < n; i++) {
             double a0 = i * Math.PI * 2 / n, a1 = (i + 1) * Math.PI * 2 / n;
             s.wall.add(new VillageLayout.Road(s.x + Math.cos(a0) * sm[i], s.z + Math.sin(a0) * sm[i],
                     s.x + Math.cos(a1) * sm[(i + 1) % n], s.z + Math.sin(a1) * sm[(i + 1) % n], 1.5));
         }
-        s.wallDone = new boolean[n];
-        s.wallProgress = 0;
+        s.wallDone = java.util.Arrays.copyOf(s.wallDone, s.wall.size());
+        s.wallProgress = (double) base / s.wall.size();
+    }
+
+    /** Abre una puerta en los tramos de muralla ya levantados que cruza una calle nueva. */
+    private static void gates(ServerLevel level, Settlement s, VillageLayout.Road road) {
+        for (int i = 0; i < s.wall.size() && i < s.wallDone.length; i++) {
+            if (!s.wallDone[i]) continue;
+            VillageLayout.Road w = s.wall.get(i);
+            double pad = road.half() + 3;
+            if (Math.max(w.x0(), w.x1()) < Math.min(road.x0(), road.x1()) - pad || Math.min(w.x0(), w.x1()) > Math.max(road.x0(), road.x1()) + pad
+                    || Math.max(w.z0(), w.z1()) < Math.min(road.z0(), road.z1()) - pad || Math.min(w.z0(), w.z1()) > Math.max(road.z0(), road.z1()) + pad) continue;
+            VillageBuilder.gate(level, w, road, s.culture == Culture.DESERT);
+        }
     }
 
     private static void buildWall(ServerLevel level, Data data, Settlement s) {
@@ -909,7 +962,7 @@ public final class HumanityManager {
             List<VillageLayout.Road> streets = new ArrayList<>();
             Net nn = net(s, lay);
             for (int k = 0; k < nn.size(); k++) if (s.paved[k]) streets.add(nn.roads().get(k));
-            VillageBuilder.wall(level, r, s.x, s.z, i % 4 == 0, streets, built(level, s), s.culture == Culture.DESERT);
+            VillageBuilder.wall(level, r, s.x, s.z, (i % WALL_RAYS) % 4 == 0, streets, built(level, s), s.culture == Culture.DESERT);
             s.wallDone[i] = true;
             data.setDirty();
             return;

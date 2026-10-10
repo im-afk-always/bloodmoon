@@ -221,7 +221,19 @@ public final class VillageBuilder {
                 BlockState top = level.getBlockState(p.set(x, g, z));
                 if (!top.getFluidState().isEmpty()) continue;
                 if (!wg && !natural(top)) continue;
-                int target = b.floorY() + (int) Math.round((g - b.floorY()) * k / (double) (m + 1));
+                // terraza plana hasta 2 bloques del edificio; en el borde, muro de contención de piedra (nada de barrancos de tierra)
+                int target = k < m ? b.floorY() : g;
+                if (k == m && Math.abs(g - b.floorY()) >= 2) {
+                    int lo = Math.min(g, b.floorY()), hi = Math.max(g, b.floorY());
+                    for (int y = Math.max(lo - 1, hi - 7); y <= hi; y++) {
+                        BlockState st = level.getBlockState(p.set(x, y, z));
+                        if (!wg && !natural(st)) continue;
+                        if (y > lo && g > b.floorY() && st.isAir()) continue;   // un hueco en la loma no se rellena
+                        level.setBlock(p, retaining(desert, x, y, z), FLAGS);
+                    }
+                    continue;
+                }
+                if (k == m) target = b.floorY() + (g > b.floorY() ? 1 : g < b.floorY() ? -1 : 0);
                 if (g > target) {
                     for (int y = target + 1; y <= g + 2; y++) {
                         p.set(x, y, z);
@@ -239,6 +251,12 @@ public final class VillageBuilder {
                 }
             }
         }
+    }
+
+    private static BlockState retaining(boolean desert, int x, int y, int z) {
+        long h = hash(x, z + y * 31);
+        if (desert) return (h % 5 == 0 ? Blocks.SANDSTONE : Blocks.CUT_SANDSTONE).defaultBlockState();
+        return (h % 4 == 0 ? Blocks.MOSSY_COBBLESTONE : h % 3 == 0 ? Blocks.STONE_BRICKS : Blocks.COBBLESTONE).defaultBlockState();
     }
 
     private static boolean isPath(BlockState st) {
@@ -369,27 +387,42 @@ public final class VillageBuilder {
             ox = -ox;
             oz = -oz;
         }
-        if (tower) tower(level, seg, streets, body, air);
+        if (tower) tower(level, seg.x0(), seg.z0(), streets, buildings, body, cap, air, 5, 11);
         java.util.Set<Long> done = new java.util.HashSet<>();
+        boolean wasGate = false;
         for (double t = 0; t <= len; t += 0.5) {
+            int x0 = (int) Math.round(seg.x0() + dx * t), z0 = (int) Math.round(seg.z0() + dz * t);
+            boolean gateHere = false;
+            for (VillageLayout.Road r : streets) if (r.dist(x0, z0) <= r.half() + 0.6) gateHere = true;
+            // torres a los dos lados de cada puerta
+            if (gateHere != wasGate && t > 0) {
+                double tt = gateHere ? t - 2.5 : t + 2;
+                tower(level, seg.x0() + dx * tt, seg.z0() + dz * tt, List.of(), buildings, body, cap, air, 3, 9);
+            }
+            wasGate = gateHere;
             for (int off = -1; off <= 1; off++) {
                 int x = (int) Math.round(seg.x0() + dx * t + ox * off), z = (int) Math.round(seg.z0() + dz * t + oz * off);
                 if (!done.add(key(x, z))) continue;
                 if (!level.hasChunk(x >> 4, z >> 4)) continue;
-                boolean gate = false;
-                for (VillageLayout.Road r : streets) {
-                    if (r.dist(x, z) <= r.half() + 1.5) {
-                        gate = true;
-                        break;
-                    }
-                }
-                if (gate) continue;
                 boolean inside = false;
-                for (VillageLayout.Building b : buildings) if (b.contains(x, z, 0)) inside = true;
+                for (VillageLayout.Building b : buildings) if (b.contains(x, z, 2)) inside = true;
                 if (inside) continue;
                 int g = ground(level, x, z, false);
                 BlockState top = level.getBlockState(p.set(x, g, z));
-                if (!top.getFluidState().isEmpty() || !natural(top)) continue;
+                if (!top.getFluidState().isEmpty()) continue;
+                if (gateHere) {
+                    // arco sobre la calle: 4 bloques libres de paso
+                    if (!natural(top) && !isPath(top) && !isStone(top)) continue;
+                    for (int y = g + 1; y <= g + 4; y++) {
+                        BlockState st = level.getBlockState(p.set(x, y, z));
+                        if (!st.isAir() && (natural(st) || st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS))) level.setBlock(p, air, FLAGS);
+                    }
+                    level.setBlock(p.set(x, g + 5, z), body, FLAGS);
+                    level.setBlock(p.set(x, g + 6, z), off == 0 ? cap : body, FLAGS);
+                    if (off == 1 && (x + z) % 2 == 0) level.setBlock(p.set(x, g + 7, z), body, FLAGS);
+                    continue;
+                }
+                if (!natural(top)) continue;
                 for (int y = g + 1; y <= g + 6; y++) level.setBlock(p.set(x, y, z), hash(x, z + y) % 6 == 0 ? body2 : body, FLAGS);
                 if (off == 0) level.setBlock(p.set(x, g + 6, z), cap, FLAGS);
                 if (off == 1 && (x + z) % 2 == 0) level.setBlock(p.set(x, g + 7, z), body, FLAGS);
@@ -401,24 +434,63 @@ public final class VillageBuilder {
         }
     }
 
-    /** Torre de 5×5 y 10 de alto con almenas y farol, en el arranque de un tramo de muralla (no sobre una calle). */
-    private static void tower(ServerLevel level, VillageLayout.Road seg, List<VillageLayout.Road> streets, BlockState body, BlockState air) {
+    /** Puerta abierta después en un tramo ya levantado: se vacía el paso (4 de alto) y queda el arco encima. */
+    public static void gate(ServerLevel level, VillageLayout.Road seg, VillageLayout.Road road, boolean desert) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-        int tx = (int) Math.round(seg.x0()), tz = (int) Math.round(seg.z0());
-        if (!level.hasChunk(tx >> 4, tz >> 4)) return;
-        for (VillageLayout.Road r : streets) if (r.dist(tx, tz) <= r.half() + 3) return;
-        int g = ground(level, tx, tz, false);
-        for (int x = tx - 2; x <= tx + 2; x++) {
-            for (int z = tz - 2; z <= tz + 2; z++) {
-                boolean ring = Math.abs(x - tx) == 2 || Math.abs(z - tz) == 2;
-                int gg = ground(level, x, z, false);
-                BlockState top = level.getBlockState(p.set(x, gg, z));
-                if (!top.getFluidState().isEmpty() || !natural(top)) continue;
-                for (int y = gg + 1; y <= g + 10; y++) level.setBlock(p.set(x, y, z), ring || y == g + 10 ? body : air, FLAGS);
-                if (ring && (x + z) % 2 == 0) level.setBlock(p.set(x, g + 11, z), body, FLAGS);
+        BlockState air = Blocks.AIR.defaultBlockState();
+        double len = seg.length();
+        if (len < 0.5) return;
+        double dx = (seg.x1() - seg.x0()) / len, dz = (seg.z1() - seg.z0()) / len;
+        java.util.Set<Long> done = new java.util.HashSet<>();
+        for (double t = 0; t <= len; t += 0.5) {
+            for (int off = -1; off <= 1; off++) {
+                int x = (int) Math.round(seg.x0() + dx * t - dz * off), z = (int) Math.round(seg.z0() + dz * t + dx * off);
+                if (!done.add(key(x, z)) || road.dist(x, z) > road.half() + 0.6) continue;
+                if (!level.hasChunk(x >> 4, z >> 4)) continue;
+                int g = ground(level, x, z, false);
+                int base = g;
+                while (base > g - 9 && isWall(level.getBlockState(p.set(x, base, z)))) base--;
+                if (base == g) continue;   // acá no había muralla
+                int want = road.y(x, z);
+                int floor = want == Integer.MIN_VALUE ? base : Math.max(base, want - 1);
+                for (int y = floor + 1; y <= floor + 4; y++) {
+                    if (isWall(level.getBlockState(p.set(x, y, z)))) level.setBlock(p, air, FLAGS);
+                }
             }
         }
-        level.setBlock(p.set(tx, g + 11, tz), Blocks.LANTERN.defaultBlockState(), FLAGS);
+    }
+
+    private static boolean isWall(BlockState st) {
+        return st.is(Blocks.STONE_BRICKS) || st.is(Blocks.CRACKED_STONE_BRICKS) || st.is(Blocks.POLISHED_ANDESITE)
+                || st.is(Blocks.CUT_SANDSTONE) || st.is(Blocks.SANDSTONE) || st.is(Blocks.SMOOTH_SANDSTONE);
+    }
+
+    /** Torre cuadrada ({@code size} de lado, hueca) con almenas y farol; no sobre calles ni edificios. */
+    private static void tower(ServerLevel level, double cxd, double czd, List<VillageLayout.Road> streets, List<VillageLayout.Building> buildings,
+                              BlockState body, BlockState cap, BlockState air, int size, int height) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        int tx = (int) Math.round(cxd), tz = (int) Math.round(czd);
+        if (!level.hasChunk(tx >> 4, tz >> 4)) return;
+        int h = size / 2;
+        for (VillageLayout.Road r : streets) if (r.dist(tx, tz) <= r.half() + h + 1) return;
+        for (VillageLayout.Building b : buildings) if (b.contains(tx, tz, h + 2)) return;
+        int g = ground(level, tx, tz, false);
+        for (int x = tx - h; x <= tx + h; x++) {
+            for (int z = tz - h; z <= tz + h; z++) {
+                boolean ring = Math.abs(x - tx) == h || Math.abs(z - tz) == h;
+                int gg = ground(level, x, z, false);
+                BlockState top = level.getBlockState(p.set(x, gg, z));
+                if (!top.getFluidState().isEmpty()) continue;
+                if (!natural(top) && !isWall(top)) continue;
+                if (gg > g + 6) continue;
+                for (int y = Math.min(gg + 1, g + 1); y <= g + height; y++) {
+                    level.setBlock(p.set(x, y, z), ring || y == g + height || y <= g ? body : air, FLAGS);
+                }
+                if (ring && (x + z) % 2 == 0) level.setBlock(p.set(x, g + height + 1, z), body, FLAGS);
+                else if (ring) level.setBlock(p.set(x, g + height + 1, z), cap, FLAGS);
+            }
+        }
+        level.setBlock(p.set(tx, g + height + 1, tz), Blocks.LANTERN.defaultBlockState(), FLAGS);
     }
 
     public static int size(ServerLevel server, VillageLayout.Building b) {

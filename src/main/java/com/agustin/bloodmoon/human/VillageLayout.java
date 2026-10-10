@@ -25,6 +25,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class VillageLayout {
     public static final int RADIUS = 130;
 
+    /** Radio de la plaza: amplia, con la fuente o el pozo en el medio y lugar para pasar alrededor. */
+    public static final double PLAZA = 11.5, PLAZA_DESERT = 12.5;
+    /** Separación mínima entre edificios (hay lugar de sobra: que no se amontonen). */
+    public static final int GAP = 4;
+
     public enum Kind { WELL, STALL, WORK, HOUSE, FARM, TOWER, HALL, MARKET, CASTLE }
 
     /** Plantilla con su huella por columna (para despejar y cimentar). */
@@ -166,7 +171,7 @@ public final class VillageLayout {
             dist[i] = g.dist();
         }
         int cy = terrain.height(site.x(), site.z());
-        Road plaza = new Road(site.x(), site.z(), site.x(), site.z(), site.culture() == Culture.DESERT ? 6.5 : 5.5, cy, cy);
+        Road plaza = new Road(site.x(), site.z(), site.x(), site.z(), site.culture() == Culture.DESERT ? PLAZA_DESERT : PLAZA, cy, cy);
         roads.add(plaza);
 
         Building well = place(level, gen, rs, c + "well", Kind.WELL, HumanJob.NONE, 0, site.x(), site.z(), Rotation.NONE, out, roads, true);
@@ -402,7 +407,7 @@ public final class VillageLayout {
         int minX = bx + Math.min(a[0], b[0]), maxX = bx + Math.max(a[0], b[0]);
         int minZ = bz + Math.min(a[1], b[1]), maxZ = bz + Math.max(a[1], b[1]);
         for (Building o : others) {
-            if (minX <= o.maxX() + 2 && maxX >= o.minX() - 2 && minZ <= o.maxZ() + 2 && maxZ >= o.minZ() - 2) {
+            if (minX <= o.maxX() + GAP && maxX >= o.minX() - GAP && minZ <= o.maxZ() + GAP && maxZ >= o.minZ() - GAP) {
                 REJ[2]++;
                 return null;
             }
