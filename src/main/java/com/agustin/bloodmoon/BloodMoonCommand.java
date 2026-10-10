@@ -108,6 +108,19 @@ public final class BloodMoonCommand {
                             return had ? 1 : 0;
                         })))
                 .then(Commands.literal("status").executes(BloodMoonCommand::status))
+                .then(Commands.literal("village").executes(ctx -> {
+                    var src = ctx.getSource();
+                    var s = com.agustin.bloodmoon.human.VillageSites.nearest(src.getLevel(), net.minecraft.core.BlockPos.containing(src.getPosition()), 12);
+                    if (s.isEmpty()) {
+                        src.sendFailure(Component.literal("No hay aldeas humanas cerca"));
+                        return 0;
+                    }
+                    var v = s.get();
+                    var lay = com.agustin.bloodmoon.human.VillageLayout.get(src.getLevel(), v);
+                    src.sendSuccess(() -> Component.literal("Aldea (" + v.culture() + ") en " + v.x() + " " + v.y() + " " + v.z()
+                            + " — " + lay.buildings().size() + " edificios"), false);
+                    return 1;
+                }))
                 .then(Commands.literal("human")
                         .then(Commands.argument("job", com.mojang.brigadier.arguments.StringArgumentType.word())
                                 .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(

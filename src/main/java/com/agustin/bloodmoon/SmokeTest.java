@@ -43,12 +43,53 @@ public final class SmokeTest {
             ok &= beyond(server);
             ok &= dominion(server);
             ok &= humans(server);
+            ok &= village(server);
         } catch (Throwable t) {
             BloodMoonMod.LOGGER.error("SMOKETEST FAIL exception", t);
             ok = false;
         }
         BloodMoonMod.LOGGER.info(ok ? "SMOKETEST PASS" : "SMOKETEST FAIL");
         server.halt(false);
+    }
+
+    /** Aldea humana: se ubica, se generan sus chunks y los edificios quedan en pie (bloques de la plantilla en su lugar). */
+    private static boolean village(MinecraftServer server) {
+        ServerLevel level = server.overworld();
+        var site = com.agustin.bloodmoon.human.VillageSites.nearest(level, BlockPos.ZERO, 12);
+        if (site.isEmpty()) {
+            BloodMoonMod.LOGGER.error("SMOKETEST FAIL no human village within 12 regions");
+            return false;
+        }
+        var s = site.get();
+        var lay = com.agustin.bloodmoon.human.VillageLayout.get(level, s);
+        long t0 = System.nanoTime();
+        int r = com.agustin.bloodmoon.human.VillageLayout.RADIUS / 16 + 1;
+        int cx = s.x() >> 4, cz = s.z() >> 4;
+        for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) level.getChunk(cx + dx, cz + dz);
+        int total = 0, match = 0;
+        for (var b : lay.buildings()) {
+            var vt = com.agustin.bloodmoon.human.VillageLayout.template(level, b.template());
+            for (var e : vt.t().blocks()) {
+                if (e.state().isAir()) continue;
+                int[] w = com.agustin.bloodmoon.invasion.DominionTemplates.rotate(e.x(), e.z(), b.rot());
+                BlockPos p = new BlockPos(b.x() + w[0], b.floorY() + e.y(), b.z() + w[1]);
+                total++;
+                if (level.getBlockState(p).getBlock() == e.state().getBlock()) match++;
+            }
+        }
+        int paths = 0;
+        for (int dx = -40; dx <= 40; dx++) {
+            for (int dz = -40; dz <= 40; dz++) {
+                int x = s.x() + dx, z = s.z() + dz;
+                int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
+                Block bl = level.getBlockState(new BlockPos(x, y, z)).getBlock();
+                if (bl == net.minecraft.world.level.block.Blocks.DIRT_PATH || bl == net.minecraft.world.level.block.Blocks.SMOOTH_SANDSTONE) paths++;
+            }
+        }
+        double rate = total == 0 ? 0 : (double) match / total;
+        BloodMoonMod.LOGGER.info("SMOKETEST village {} at {} {} {} buildings={} blocks {}/{} ({}%) paths={} in {} ms", s.culture(), s.x(), s.y(), s.z(),
+                lay.buildings().size(), match, total, (int) (rate * 100), paths, (System.nanoTime() - t0) / 1_000_000);
+        return lay.buildings().size() >= 6 && rate > 0.9 && paths > 30;
     }
 
     /** Humanos: cada oficio que comercia tiene ofertas en monedas (ninguna esmeralda) y un aldeano se convierte. */

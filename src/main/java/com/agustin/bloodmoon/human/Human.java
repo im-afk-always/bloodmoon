@@ -70,6 +70,11 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
     private int levelUpTimer;
     private boolean levelUpPending;
     private int restockTimer = 6000;
+    /** Puerta de su casa o taller: no se aleja demasiado de ella. */
+    @Nullable
+    private net.minecraft.core.BlockPos home;
+    /** Creado durante la generación del mundo: no se calculan ofertas (podrían buscar estructuras y trabar la generación). */
+    private boolean worldgen;
 
     /** Rasgos calculados del lado del cliente (sexo, brazos finos); se recalculan si cambia la semilla. */
     private HumanSkin.Traits traits;
@@ -309,6 +314,21 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         return InteractionResult.sidedSuccess(level().isClientSide);
     }
 
+    public void prepareForWorldgen() {
+        this.worldgen = true;
+    }
+
+    public void setHome(net.minecraft.core.BlockPos pos) {
+        this.home = pos.immutable();
+        restrictTo(home, 24);
+    }
+
+    @Override
+    public MerchantOffers getOffers() {
+        if (worldgen && offers == null) return new MerchantOffers();
+        return super.getOffers();
+    }
+
     @Override
     protected void updateTrades() {
         addLevelTrades(tradeLevel);
@@ -352,6 +372,8 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
     @Override
     protected void customServerAiStep() {
         super.customServerAiStep();
+        worldgen = false;
+        if (home != null && !hasRestriction()) restrictTo(home, 24);
         if (!isTrading() && levelUpPending && --levelUpTimer <= 0) {
             levelUpPending = false;
             if (tradeLevel < 5) {
@@ -443,6 +465,7 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         tag.putInt("HumanCulture", entityData.get(DATA_CULTURE));
         tag.putInt("TradeLevel", tradeLevel);
         tag.putInt("TradeXp", tradeXp);
+        if (home != null) tag.putLong("HumanHome", home.asLong());
     }
 
     @Override
@@ -453,6 +476,7 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         entityData.set(DATA_CULTURE, tag.getInt("HumanCulture"));
         tradeLevel = Math.max(1, tag.getInt("TradeLevel"));
         tradeXp = tag.getInt("TradeXp");
+        if (tag.contains("HumanHome")) home = net.minecraft.core.BlockPos.of(tag.getLong("HumanHome"));
     }
 
     /** Copia el progreso de comercio de un aldeano convertido (nivel y experiencia). */

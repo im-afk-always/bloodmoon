@@ -14,5 +14,8 @@ public final class ModFeatures {
     public static final DeferredHolder<Feature<?>, ColiseumFeature> VOID_COLISEUM =
             FEATURES.register("void_coliseum", () -> new ColiseumFeature(NoneFeatureConfiguration.CODEC));
 
+    public static final DeferredHolder<Feature<?>, com.agustin.bloodmoon.human.VillageFeature> HUMAN_VILLAGE =
+            FEATURES.register("human_village", () -> new com.agustin.bloodmoon.human.VillageFeature(NoneFeatureConfiguration.CODEC));
+
     private ModFeatures() {}
 }

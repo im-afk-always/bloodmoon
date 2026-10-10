@@ -89,6 +89,7 @@ public class BloodMoonMod {
         NeoForge.EVENT_BUS.addListener(com.agustin.bloodmoon.human.HumanWorld::onEntityJoin);
         NeoForge.EVENT_BUS.addListener(com.agustin.bloodmoon.human.HumanWorld::onLevelTick);
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.server.ServerStoppedEvent e) -> com.agustin.bloodmoon.human.HumanWorld.clear());
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.server.ServerStoppedEvent e) -> com.agustin.bloodmoon.human.VillageSites.clear());
         NeoForge.EVENT_BUS.addListener(SmokeTest::onServerStarted);
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.server.ServerStoppedEvent e) -> ColiseumSites.clear());
     }

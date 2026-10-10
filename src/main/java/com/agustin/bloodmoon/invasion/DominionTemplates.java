@@ -54,7 +54,13 @@ public final class DominionTemplates {
     }
 
     private static Template load(ServerLevel level, String name) {
-        ResourceLocation loc = ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "dominion/" + name + ".txt");
+        return loadPath(level, "dominion/" + name);
+    }
+
+    /** Lee una plantilla de {@code data/bloodmoon/<path>.txt} (sin cache; también la usan las aldeas humanas). */
+    public static Template loadPath(ServerLevel level, String path) {
+        String name = path;
+        ResourceLocation loc = ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, path + ".txt");
         List<Entry> out = new ArrayList<>();
         List<BlockState> palette = new ArrayList<>();
         int[] core = {0, 0, 0};
