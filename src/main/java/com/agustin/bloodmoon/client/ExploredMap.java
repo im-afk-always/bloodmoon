@@ -87,7 +87,12 @@ public final class ExploredMap {
     private static String currentKey() {
         Minecraft mc = Minecraft.getInstance();
         String k;
-        if (mc.getSingleplayerServer() != null) k = "sp_" + mc.getSingleplayerServer().getWorldData().getLevelName();
+        if (mc.getSingleplayerServer() != null) {
+            // carpeta del mundo + semilla: un mundo nuevo con el mismo nombre no hereda el mapa del anterior
+            var server = mc.getSingleplayerServer();
+            String folder = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).toAbsolutePath().normalize().getFileName().toString();
+            k = "sp_" + folder + "_" + Long.toHexString(server.getWorldData().worldGenOptions().seed());
+        }
         else if (mc.getCurrentServer() != null) k = "mp_" + mc.getCurrentServer().ip;
         else k = "unknown";
         return k.replaceAll("[^a-zA-Z0-9._-]", "_");
