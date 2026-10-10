@@ -176,7 +176,12 @@ public final class SmokeTest {
                     }
                     if (top == Integer.MIN_VALUE) { prevTop = null; continue; }
                     cols++;
-                    boolean gate = level.getBlockState(new BlockPos(x, expected - 3, z)).isAir() && level.getBlockState(new BlockPos(x, expected - 4, z)).isAir();
+                    // portón: bajo el arco hay un paso de al menos 3 de alto
+                    boolean gate = false;
+                    for (int y = top - 7; y <= top - 3 && !gate; y++) {
+                        gate = level.getBlockState(new BlockPos(x, y, z)).isAir() && level.getBlockState(new BlockPos(x, y + 1, z)).isAir()
+                                && level.getBlockState(new BlockPos(x, y + 2, z)).isAir();
+                    }
                     if (gate && !prevGate) gates++;
                     prevGate = gate;
                     if (gate) { prevTop = null; continue; }

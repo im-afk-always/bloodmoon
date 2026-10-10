@@ -534,6 +534,12 @@ public final class VillageBuilder {
                 if (inside) continue;
                 int g = ground(level, x, z, false);
                 BlockState gs = level.getBlockState(p.set(x, g, z));
+                // un farol de calle en el trazado: se saca (si no, la muralla quedaba con un hueco)
+                while (gs.is(Blocks.SPRUCE_FENCE) || gs.is(Blocks.SANDSTONE_WALL) || gs.is(Blocks.LANTERN)) {
+                    level.setBlock(p, Blocks.AIR.defaultBlockState(), FLAGS);
+                    g = ground(level, x, z, false);
+                    gs = level.getBlockState(p.set(x, g, z));
+                }
                 if (lava(gs)) {
                     douse(level, p, x, z, g - 6, g + 1, desert);
                     gs = level.getBlockState(p.set(x, g, z));
@@ -542,11 +548,11 @@ public final class VillageBuilder {
                 if (!water && !natural(gs) && !isPath(gs) && !isStone(gs) && !isWall(gs)) continue;   // obra del jugador
                 if (isWall(gs) && g > full) g = full;   // muro ya levantado (unión de tramos): no es suelo
                 if (gateHere) {
-                    // portón: paso libre de 5 de alto al nivel de la calle, arco y adarve encima
+                    // portón: paso libre (4 o 5 de alto) al nivel de la calle, arco y adarve encima, a la altura del muro
                     int want = street.y(x, z);
                     int floor = want == Integer.MIN_VALUE ? g : want - 1;
-                    int arch = Math.max(top, floor + 6);
-                    for (int y = floor + 1; y <= floor + 5; y++) {
+                    int arch = Math.max(top, floor + 5);
+                    for (int y = floor + 1; y < arch; y++) {
                         BlockState st = level.getBlockState(p.set(x, y, z));
                         if (!st.isAir() && (natural(st) || isWall(st) || st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS))) level.setBlock(p, air, FLAGS);
                     }
