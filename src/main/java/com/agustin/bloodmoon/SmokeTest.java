@@ -93,6 +93,32 @@ public final class SmokeTest {
         } catch (Exception e) {
             BloodMoonMod.LOGGER.warn("SMOKETEST grown map failed", e);
         }
+        // hasta ciudad: renovación del centro, empedrado y muralla
+        int day = 30;
+        long tc = System.nanoTime();
+        while (day < 200 && s.level < com.agustin.bloodmoon.human.Settlement.CITY) {
+            for (int i = 0; i < com.agustin.bloodmoon.human.HumanityManager.CYCLES_PER_DAY; i++) com.agustin.bloodmoon.human.HumanityManager.cycle(level, data, s);
+            day++;
+            if (day % 10 == 0) com.agustin.bloodmoon.human.HumanityManager.placeAll(level, data, s);
+        }
+        int cityDay = day;
+        s.treasury += 20000;   // la prueba no espera a juntar fondos para ver la renovación entera
+        for (int d = 0; d < 40; d++) {
+            for (int i = 0; i < com.agustin.bloodmoon.human.HumanityManager.CYCLES_PER_DAY; i++) com.agustin.bloodmoon.human.HumanityManager.cycle(level, data, s);
+            if (d % 5 == 0) com.agustin.bloodmoon.human.HumanityManager.placeAll(level, data, s);
+        }
+        int cityPlaced = com.agustin.bloodmoon.human.HumanityManager.placeAll(level, data, s);
+        int[] fin = com.agustin.bloodmoon.human.HumanityManager.finishCity(level, data, s);
+        int stoneBuildings = 0;
+        for (var b : com.agustin.bloodmoon.human.HumanityManager.built(level, s)) if (b.template().contains("/city_") || b.template().endsWith("/hall") || b.template().endsWith("/market")) stoneBuildings++;
+        BloodMoonMod.LOGGER.info("SMOKETEST humanity city {} level={} day={} pop={} stone={} streets={} wall={}/{} works={} placed={} in {} ms",
+                s.name, s.level, cityDay, s.pop, stoneBuildings, fin[0], fin[1], s.wall.size(), s.works.size(), cityPlaced,
+                (System.nanoTime() - tc) / 1_000_000);
+        try {
+            topDown(level, s.x, s.z, 170, "city_" + s.name.toLowerCase().replace(' ', '_'));
+        } catch (Exception e) {
+            BloodMoonMod.LOGGER.warn("SMOKETEST city map failed", e);
+        }
         var colony = s.level >= com.agustin.bloodmoon.human.Settlement.TOWN
                 ? com.agustin.bloodmoon.human.HumanityManager.foundColony(level, data, s) : null;
         BloodMoonMod.LOGGER.info("SMOKETEST humanity {} pop {}->{} housing {}->{} level={} food(min)={} treasury={} works={} placed={} blocks {}/{} cycle={}ms place={}ms colony={}",

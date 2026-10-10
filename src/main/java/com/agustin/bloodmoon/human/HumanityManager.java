@@ -44,7 +44,16 @@ public final class HumanityManager {
     public static final int CYCLE = 1200, CYCLES_PER_DAY = 20;
     /** Humanos materializados por asentamiento como máximo (el resto de la población es abstracta). */
     public static final int MATERIAL_CAP = 40;
-    public static final int TOWN_POP = 40, COLONY_POP = 60;
+    public static final int TOWN_POP = 40, COLONY_POP = 60, CITY_POP = 120, CAPITAL_POP = 250;
+
+    static int threshold(int level) {
+        return switch (level) {
+            case Settlement.CAPITAL -> CAPITAL_POP;
+            case Settlement.CITY -> CITY_POP;
+            case Settlement.TOWN -> TOWN_POP;
+            default -> 0;
+        };
+    }
 
     private static final ConcurrentLinkedQueue<Long> REGISTER = new ConcurrentLinkedQueue<>();
     private static int timer;
@@ -126,6 +135,8 @@ public final class HumanityManager {
         }
         int budget = 400;
         for (Settlement s : data.settlements.values()) {
+            if (s.streetTier >= 1) upgradeStreets(level, data, s);
+            if (!s.wall.isEmpty()) buildWall(level, data, s);
             for (Settlement.Work w : new ArrayList<>(s.works)) {
                 if (w.state < 2 && budget > 0) budget -= build(level, data, s, w, budget);
             }
@@ -161,20 +172,31 @@ public final class HumanityManager {
 
     // ------------------------------------------------------------------ economía
 
+    static boolean city(VillageLayout.Building b) {
+        String t = b.template();
+        return t.contains("/city_") || t.endsWith("/market") || t.endsWith("/hall") || t.endsWith("/castle") || t.endsWith("/fountain");
+    }
+
     static int capacity(VillageLayout.Building b) {
+        boolean c = city(b);
         return switch (b.kind()) {
-            case HOUSE -> b.template().contains("large") ? 5 : 3;
-            case WORK -> 1;
-            case TOWER -> 2;
+            case HOUSE -> c ? 8 : b.template().contains("large") ? 5 : 3;
+            case WORK -> c ? 3 : 1;
+            case TOWER -> c ? 4 : 2;
+            case CASTLE -> 8;
+            case HALL -> 2;
             default -> 0;
         };
     }
 
-    /** Edificios que cuentan (en pie o terminados como datos). */
+    /** Edificios que cuentan (en pie o terminados como datos), sin los demolidos por la renovación. */
     public static List<VillageLayout.Building> built(ServerLevel level, Settlement s) {
         List<VillageLayout.Building> out = new ArrayList<>();
-        if (!s.colony) out.addAll(VillageLayout.get(level, s.site()).buildings());
-        for (Settlement.Work w : s.works) if (w.state >= 1) out.add(w.b);
+        if (!s.colony) {
+            List<VillageLayout.Building> init = VillageLayout.get(level, s.site()).buildings();
+            for (int i = 0; i < init.size(); i++) if (i >= s.removed.length || !s.removed[i]) out.add(init.get(i));
+        }
+        for (Settlement.Work w : s.works) if (w.state >= 1 && w.state < 3 && !w.demolishOnly) out.add(w.b);
         return out;
     }
 
@@ -197,24 +219,34 @@ public final class HumanityManager {
     }
 
     static int cost(VillageLayout.Building b) {
+        boolean c = city(b);
+        if (b.template().endsWith("city_work_cleric")) return 2500;
         return switch (b.kind()) {
-            case HOUSE -> b.template().contains("large") ? 260 : 150;
-            case WORK -> 220;
-            case TOWER -> 400;
+            case HOUSE -> c ? 600 : b.template().contains("large") ? 260 : 150;
+            case WORK -> c ? 700 : 220;
+            case TOWER -> c ? 800 : 400;
             case STALL -> 80;
             case FARM -> 100;
-            case WELL -> 50;
+            case WELL -> c ? 300 : 50;
+            case MARKET -> 900;
+            case HALL -> 1500;
+            case CASTLE -> 4000;
         };
     }
 
     static double days(VillageLayout.Building b) {
+        boolean c = city(b);
+        if (b.template().endsWith("city_work_cleric")) return 8;
         return switch (b.kind()) {
-            case HOUSE -> b.template().contains("large") ? 1.6 : 1.0;
-            case WORK -> 1.2;
-            case TOWER -> 2.0;
+            case HOUSE -> c ? 2.5 : b.template().contains("large") ? 1.6 : 1.0;
+            case WORK -> c ? 2.5 : 1.2;
+            case TOWER -> c ? 3.0 : 2.0;
             case STALL -> 0.5;
             case FARM -> 0.6;
-            case WELL -> 0.4;
+            case WELL -> c ? 1.0 : 0.4;
+            case MARKET -> 3;
+            case HALL -> 5;
+            case CASTLE -> 10;
         };
     }
 
@@ -240,15 +272,31 @@ public final class HumanityManager {
             }
         }
         // tesoro
-        s.treasury += (s.pop * 2.5 + count(bs, VillageLayout.Kind.STALL) * 8 - count(bs, VillageLayout.Kind.TOWER) * 6) / CYCLES_PER_DAY;
+        s.treasury += (s.pop * 2.5 + count(bs, VillageLayout.Kind.STALL) * 8 + count(bs, VillageLayout.Kind.MARKET) * 40
+                - count(bs, VillageLayout.Kind.TOWER) * 6 - count(bs, VillageLayout.Kind.CASTLE) * 20 - (s.wall.isEmpty() ? 0 : 10)) / CYCLES_PER_DAY;
         if (s.treasury < 0) s.treasury = 0;
         // nivel
         int oldLevel = s.level;
-        if (s.level == Settlement.VILLAGE && s.pop >= TOWN_POP) s.level = Settlement.TOWN;
-        else if (s.level == Settlement.TOWN && s.pop < TOWN_POP - 10) s.level = Settlement.VILLAGE;
+        int target = s.pop >= CAPITAL_POP ? Settlement.CAPITAL : s.pop >= CITY_POP ? Settlement.CITY : s.pop >= TOWN_POP ? Settlement.TOWN : Settlement.VILLAGE;
+        // se sube enseguida; se baja recién con un 25 % menos de gente (no se deshace una ciudad por una mala semana)
+        if (target > s.level) s.level = target;
+        else if (target < s.level && s.pop < threshold(s.level) * 3 / 4) s.level = target;
         if (s.level != oldLevel) {
-            announce(level, s, 320, Component.translatable(s.level == Settlement.TOWN ? "message.bloodmoon.humanity.town" : "message.bloodmoon.humanity.village", s.name));
+            String key = switch (s.level) {
+                case Settlement.CAPITAL -> "message.bloodmoon.humanity.capital";
+                case Settlement.CITY -> "message.bloodmoon.humanity.city";
+                case Settlement.TOWN -> "message.bloodmoon.humanity.town";
+                default -> "message.bloodmoon.humanity.village";
+            };
+            announce(level, s, 400, Component.translatable(key, s.name));
+            if (s.level >= Settlement.CITY && s.streetTier == 0) s.streetTier = 1;   // empiezan a empedrar
         }
+        // muralla de ciudad: se planifica una vez y avanza como datos
+        if (s.level >= Settlement.CITY && s.wall.isEmpty() && s.treasury >= 3000) {
+            planWall(level, s, bs);
+            if (!s.wall.isEmpty()) s.treasury -= 3000;
+        }
+        if (!s.wall.isEmpty() && s.wallProgress < 1) s.wallProgress = Math.min(1, s.wallProgress + 1.0 / 6 / CYCLES_PER_DAY);
         // obra
         Settlement.Work cur = s.current();
         if (cur == null) {
@@ -262,7 +310,7 @@ public final class HumanityManager {
             if (s.progress >= 1) {
                 s.progress = 0;
                 cur.state = 1;
-                s.pop += cur.b.residents();   // llegan los trabajadores del edificio nuevo
+                if (!cur.demolishOnly) s.pop += cur.b.residents();   // llegan los trabajadores del edificio nuevo
             }
         }
         // colonias
@@ -299,9 +347,15 @@ public final class HumanityManager {
         if (prod < cons * 1.15) {
             template = c + "farm_" + rng.nextInt(2);
             kind = VillageLayout.Kind.FARM;
+        } else if (s.level >= Settlement.CITY && renewal(level, s, lay, bs, c, rng)) {
+            return;
         } else if (s.pop >= housing - 1) {
-            boolean large = s.pop > 30 && rng.nextBoolean();
-            template = c + (large ? "house_large_" : "house_small_") + rng.nextInt(pals);
+            if (s.level >= Settlement.CITY) {
+                template = c + "city_house_" + rng.nextInt(s.culture == Culture.DESERT ? 4 : 5);
+            } else {
+                boolean large = s.pop > 30 && rng.nextBoolean();
+                template = c + (large ? "house_large_" : "house_small_") + rng.nextInt(pals);
+            }
             kind = VillageLayout.Kind.HOUSE;
         } else if (s.level >= Settlement.TOWN && count(bs, VillageLayout.Kind.TOWER) < 2) {
             template = c + "tower";
@@ -323,27 +377,20 @@ public final class HumanityManager {
             }
             if (missing.isEmpty() || count(bs, VillageLayout.Kind.WORK) * 4 > s.pop) return;
             job = missing.get(rng.nextInt(missing.size()));
-            template = c + "work_" + job.vanilla;
+            template = c + (s.level >= Settlement.CITY ? "city_work_" : "work_") + job.vanilla;
             kind = VillageLayout.Kind.WORK;
             residents = 1;
         }
         // presupuesto
-        int price = switch (kind) {
-            case HOUSE -> template.contains("large") ? 260 : 150;
-            case WORK -> 220;
-            case TOWER -> 400;
-            case STALL -> 80;
-            default -> 100;
-        };
+        int price = cost(new VillageLayout.Building(template, kind, job, residents, 0, 0, net.minecraft.world.level.block.Rotation.NONE,
+                0, 0, 0, 0, 0, 0, 0));
         if (s.treasury < price) return;
         if (s.plotWait > 0) {
             s.plotWait--;
             return;
         }
         // lote
-        List<VillageLayout.Building> others = new ArrayList<>(lay.buildings());
-        for (Settlement.Work w : s.works) others.add(w.b);
-        others.addAll(s.blocked);
+        List<VillageLayout.Building> others = occupied(level, s, lay, null);
         List<VillageLayout.Road> roads = new ArrayList<>(lay.net());
         roads.add(lay.plaza());
         VillageLayout.Plot pl = VillageLayout.findPlot(level, s.site(), lay.net(), lay.dist(), VillageLayout.MAX_DIST, template, kind, job,
@@ -359,6 +406,165 @@ public final class HumanityManager {
         w.arm = pl.seg();
         w.d = pl.t();
         s.works.add(w);
+    }
+
+    /** Huellas ocupadas (edificios en pie, obras y lotes vetados), salvo {@code except}. */
+    static List<VillageLayout.Building> occupied(ServerLevel level, Settlement s, VillageLayout.Layout lay, VillageLayout.Building except) {
+        List<VillageLayout.Building> out = new ArrayList<>();
+        for (int i = 0; i < lay.buildings().size(); i++) {
+            VillageLayout.Building b = lay.buildings().get(i);
+            if (b == except) continue;
+            boolean gone = i < s.removed.length && s.removed[i];
+            if (!gone || s.colony) out.add(b);
+        }
+        for (Settlement.Work w : s.works) if (w.state < 3 && w.b != except && !w.demolishOnly) out.add(w.b);
+        out.addAll(s.blocked);
+        return out;
+    }
+
+    /** Un edificio viejo candidato a renovarse: del plano original ({@code index} >= 0) o una obra ({@code work}). */
+    private record Old(VillageLayout.Building b, int index, Settlement.Work work, double dist) {}
+
+    /**
+     * Ciudad: los edificios cívicos (fuente, ayuntamiento, mercado, castillo en la capital) y la renovación del centro —
+     * casas, talleres y torres de madera se demuelen y en su lugar se levantan edificios de piedra de varias plantas;
+     * las granjas del centro se mudan afuera. Devuelve true si ya decidió (aunque espere a juntar el dinero).
+     */
+    private static boolean renewal(ServerLevel level, Settlement s, VillageLayout.Layout lay, List<VillageLayout.Building> bs, String c, Random rng) {
+        List<VillageLayout.Road> roads = new ArrayList<>(lay.net());
+        roads.add(lay.plaza());
+        // candidatos viejos, del centro hacia afuera
+        List<Old> olds = new ArrayList<>();
+        if (!s.colony) {
+            for (int i = 0; i < lay.buildings().size(); i++) {
+                VillageLayout.Building b = lay.buildings().get(i);
+                if (i < s.removed.length && s.removed[i]) continue;
+                olds.add(new Old(b, i, null, Math.hypot(b.x() - s.x, b.z() - s.z)));
+            }
+        }
+        for (Settlement.Work w : s.works) {
+            if (w.state != 2 || w.demolishOnly || city(w.b)) continue;
+            olds.add(new Old(w.b, -1, w, Math.hypot(w.b.x() - s.x, w.b.z() - s.z)));
+        }
+        olds.sort((a, b) -> Double.compare(a.dist(), b.dist()));
+        boolean hasFountain = false, hasHall = false, hasMarket = false, hasCastle = false;
+        for (VillageLayout.Building b : bs) {
+            if (b.template().endsWith("/fountain")) hasFountain = true;
+            if (b.kind() == VillageLayout.Kind.HALL) hasHall = true;
+            if (b.kind() == VillageLayout.Kind.MARKET) hasMarket = true;
+            if (b.kind() == VillageLayout.Kind.CASTLE) hasCastle = true;
+        }
+        for (Settlement.Work w : s.works) {
+            if (w.state >= 3) continue;
+            if (w.b.template().endsWith("/fountain")) hasFountain = true;
+            if (w.b.kind() == VillageLayout.Kind.HALL) hasHall = true;
+            if (w.b.kind() == VillageLayout.Kind.MARKET) hasMarket = true;
+            if (w.b.kind() == VillageLayout.Kind.CASTLE) hasCastle = true;
+        }
+        // 1. la fuente reemplaza al pozo
+        if (!hasFountain) {
+            for (Old o : olds) {
+                if (o.b().kind() != VillageLayout.Kind.WELL) continue;
+                VillageLayout.Building nb = VillageLayout.placeAt(level, c + "fountain", VillageLayout.Kind.WELL, HumanJob.NONE, 0,
+                        o.b().coreX(), o.b().coreZ(), o.b().rot(), o.b().floorY(), occupied(level, s, lay, o.b()), List.of(), 0);
+                if (nb != null) return replace(s, lay, o, nb, false);
+            }
+        }
+        // 2-4. cívicos: primero ocupando el lugar de algo viejo cerca del centro, si no en un lote libre
+        String[][] civic = {
+                {hasHall ? null : c + "hall", "HALL", "GUARD", "2"},
+                {hasMarket ? null : c + "market", "MARKET", "MERCHANT", "3"},
+                {hasCastle || s.level < Settlement.CAPITAL ? null : c + "castle", "CASTLE", "GUARD", "4"}};
+        for (String[] cv : civic) {
+            if (cv[0] == null) continue;
+            VillageLayout.Kind kind = VillageLayout.Kind.valueOf(cv[1]);
+            HumanJob job = HumanJob.valueOf(cv[2]);
+            int res = Integer.parseInt(cv[3]);
+            if (kind != VillageLayout.Kind.CASTLE) {
+                for (Old o : olds) {
+                    if (o.dist() > 60 || city(o.b()) || o.b().kind() == VillageLayout.Kind.WELL) continue;
+                    VillageLayout.Building nb = VillageLayout.placeAt(level, cv[0], kind, job, res, o.b().coreX(), o.b().coreZ(), o.b().rot(),
+                            o.b().floorY(), occupied(level, s, lay, o.b()), roads, 1);
+                    if (nb != null) return replace(s, lay, o, nb, false);
+                }
+            }
+            VillageLayout.Plot pl = VillageLayout.findPlot(level, s.site(), lay.net(), lay.dist(), VillageLayout.MAX_DIST, cv[0], kind, job, res,
+                    occupied(level, s, lay, null), roads, b -> !loaded(level, b) || VillageBuilder.artificial(level, b, 3) <= 3, true);
+            if (pl != null) {
+                VillageLayout.Building nb = pl.building();
+                if (s.treasury < cost(nb)) return true;
+                s.treasury -= cost(nb);
+                Settlement.Work w = new Settlement.Work();
+                w.b = nb;
+                w.spur = pl.spur();
+                w.arm = pl.seg();
+                s.works.add(w);
+                return true;
+            }
+        }
+        // 5. renovación: lo viejo del centro se reemplaza por piedra; las granjas del centro se van
+        int pals = s.culture == Culture.DESERT ? 4 : 5;
+        for (Old o : olds) {
+            if (o.dist() > 80 || city(o.b())) continue;
+            VillageLayout.Building b = o.b();
+            if (s.skipRenew.contains(VillageBuilder.key(b.coreX(), b.coreZ()))) continue;
+            String nt = switch (b.kind()) {
+                case HOUSE -> c + "city_house_" + rng.nextInt(pals);
+                case WORK -> c + "city_work_" + b.job().vanilla;
+                case TOWER -> c + "city_tower";
+                default -> null;
+            };
+            if (b.kind() == VillageLayout.Kind.FARM && o.dist() < 55) {
+                return replace(s, lay, o, b, true);
+            }
+            if (nt == null) continue;
+            int res = b.kind() == VillageLayout.Kind.TOWER ? 3 : b.kind() == VillageLayout.Kind.WORK ? 1 : 0;
+            VillageLayout.Building nb = VillageLayout.placeAt(level, nt, b.kind(), b.job(), res, b.coreX(), b.coreZ(), b.rot(), b.floorY(),
+                    occupied(level, s, lay, b), roads, 1);
+            if (nb == null) {
+                s.skipRenew.add(VillageBuilder.key(b.coreX(), b.coreZ()));   // no entra: queda como está
+                continue;
+            }
+            return replace(s, lay, o, nb, false);
+        }
+        return false;
+    }
+
+    /** Crea la obra que reemplaza (o solo demuele) {@code o}; el viejo deja de contar ya. */
+    private static boolean replace(Settlement s, VillageLayout.Layout lay, Old o, VillageLayout.Building nb, boolean demolishOnly) {
+        int price = demolishOnly ? 30 : cost(nb);
+        if (s.treasury < price) return true;
+        s.treasury -= price;
+        Settlement.Work w = new Settlement.Work();
+        w.b = nb;
+        w.demolishOnly = demolishOnly;
+        if (o.index() >= 0) {
+            if (s.removed.length < lay.buildings().size()) s.removed = java.util.Arrays.copyOf(s.removed, lay.buildings().size());
+            s.removed[o.index()] = true;
+            w.replaces = o.index();
+            w.arm = o.index() < lay.buildingSeg().length ? lay.buildingSeg()[o.index()] : -1;
+            w.spur = o.index() < lay.spurs().size() ? lay.spurs().get(o.index()) : null;
+        } else {
+            w.replaces = -(s.works.indexOf(o.work()) + 2);
+            o.work().state = 3;
+            w.arm = o.work().arm;
+            w.spur = o.work().spur;
+        }
+        s.works.add(w);
+        return true;
+    }
+
+    /** El edificio que una obra reemplaza, o null. */
+    static VillageLayout.Building replaced(ServerLevel level, Settlement s, Settlement.Work w) {
+        if (w.replaces >= 0) {
+            List<VillageLayout.Building> init = VillageLayout.get(level, s.site()).buildings();
+            return w.replaces < init.size() ? init.get(w.replaces) : null;
+        }
+        if (w.replaces <= -2) {
+            int i = -w.replaces - 2;
+            return i < s.works.size() ? s.works.get(i).b : null;
+        }
+        return null;
     }
 
     // ------------------------------------------------------------------ obra a la vista
@@ -387,14 +593,25 @@ public final class HumanityManager {
         boolean desert = s.culture == Culture.DESERT;
         int[] box = {w.b.minX() - 1, w.b.minZ() - 1, w.b.maxX() + 1, w.b.maxZ() + 1};
         if (!w.prepared) {
-            if (VillageBuilder.artificial(level, w.b, 3) > 3) {
+            VillageLayout.Building old = replaced(level, s, w);
+            if (old == null && VillageBuilder.artificial(level, w.b, 3) > 3) {
                 // el jugador construyó en el lote: se descarta y se devuelve el dinero
-                s.works.remove(w);
+                w.state = 4;
                 s.blocked.add(w.b);
-                if (w.state == 0) s.progress = 0;
+                if (s.current() == null) s.progress = 0;
                 s.treasury += cost(w.b);
                 data.setDirty();
                 return 1;
+            }
+            if (old != null) {
+                if (!loaded(level, old)) return 0;
+                VillageBuilder.demolish(level, level, old, desert);
+            }
+            if (w.demolishOnly) {
+                w.prepared = true;
+                if (w.state >= 1) w.state = 2;
+                data.setDirty();
+                return 40;
             }
             VillageLayout.Layout lay = VillageLayout.get(level, s.site());
             int[] ybox = {w.b.minX() - 3, w.b.minZ() - 3, w.b.maxX() + 3, w.b.maxZ() + 3};
@@ -408,6 +625,10 @@ public final class HumanityManager {
             if (w.state == 0 && level.getNearestPlayer(w.b.coreX(), w.b.floorY(), w.b.coreZ(), 96, false) != null) spawnBuilder(level, s, w);
             data.setDirty();
             return 40;
+        }
+        if (w.demolishOnly) {
+            if (w.state >= 1) w.state = 2;
+            return 1;
         }
         int size = VillageBuilder.size(level, w.b);
         int target = w.state >= 1 ? size : (int) Math.floor(s.progress * size);
@@ -518,6 +739,109 @@ public final class HumanityManager {
             if (w.state == 2) done++;
         }
         return done;
+    }
+
+    // ------------------------------------------------------------------ ciudad: calles empedradas y muralla
+
+    /** Empiedra un tramo pavimentado por tick (si sus chunks están cargados) y le suma faroles a los dos lados. */
+    private static void upgradeStreets(ServerLevel level, Data data, Settlement s) {
+        VillageLayout.Layout lay = VillageLayout.get(level, s.site());
+        int n = lay.net().size();
+        if (s.stone.length != n + 1) s.stone = java.util.Arrays.copyOf(s.stone, n + 1);
+        if (s.paved.length != n) s.paved = java.util.Arrays.copyOf(s.paved, n);
+        for (int i = 0; i <= n; i++) {
+            if (s.stone[i]) continue;
+            if (i < n && !s.paved[i]) continue;
+            VillageLayout.Road r = i < n ? lay.net().get(i) : lay.plaza();
+            int[] box = {(int) Math.floor(Math.min(r.x0(), r.x1()) - r.half() - 3), (int) Math.floor(Math.min(r.z0(), r.z1()) - r.half() - 3),
+                    (int) Math.ceil(Math.max(r.x0(), r.x1()) + r.half() + 3), (int) Math.ceil(Math.max(r.z0(), r.z1()) + r.half() + 3)};
+            if (!loadedBox(level, box)) continue;
+            boolean desert = s.culture == Culture.DESERT;
+            List<VillageLayout.Building> all = built(level, s);
+            VillageBuilder.pave(level, box, List.of(r), all, desert, false, true);
+            if (i < n) {
+                boolean[] one = new boolean[n];
+                one[i] = true;
+                for (int[] l : VillageLayout.lamps(lay.net(), one, all, i, 9, true)) {
+                    if (level.hasChunk(l[0] >> 4, l[1] >> 4)) VillageBuilder.lamp(level, l[0], l[1], desert, false);
+                }
+            }
+            s.stone[i] = true;
+            data.setDirty();
+            return;
+        }
+    }
+
+    /**
+     * Traza la muralla: un anillo de 48 rayos alrededor de todo lo construido (+8 bloques), suavizado, con torres cada
+     * 4 tramos. Las puertas se abren solas donde la muralla cruza una calle.
+     */
+    static void planWall(ServerLevel level, Settlement s, List<VillageLayout.Building> bs) {
+        int n = 48;
+        double[] r = new double[n];
+        java.util.Arrays.fill(r, 36);
+        for (VillageLayout.Building b : bs) {
+            for (int k = 0; k < 4; k++) {
+                int x = (k & 1) == 0 ? b.minX() : b.maxX(), z = (k & 2) == 0 ? b.minZ() : b.maxZ();
+                double a = Math.atan2(z - s.z, x - s.x);
+                int i = Math.floorMod((int) Math.round(a / (Math.PI * 2) * n), n);
+                double d = Math.hypot(x - s.x, z - s.z) + 8;
+                for (int j = -1; j <= 1; j++) r[Math.floorMod(i + j, n)] = Math.max(r[Math.floorMod(i + j, n)], d);
+            }
+        }
+        double[] sm = new double[n];
+        for (int i = 0; i < n; i++) sm[i] = Math.max(r[i], (r[Math.floorMod(i - 1, n)] + r[i] * 2 + r[(i + 1) % n]) / 4);
+        double max = 0;
+        for (double v : sm) max = Math.max(max, v);
+        if (max > 160) return;   // demasiado desparramada para amurallar
+        s.wall.clear();
+        for (int i = 0; i < n; i++) {
+            double a0 = i * Math.PI * 2 / n, a1 = (i + 1) * Math.PI * 2 / n;
+            s.wall.add(new VillageLayout.Road(s.x + Math.cos(a0) * sm[i], s.z + Math.sin(a0) * sm[i],
+                    s.x + Math.cos(a1) * sm[(i + 1) % n], s.z + Math.sin(a1) * sm[(i + 1) % n], 1.5));
+        }
+        s.wallDone = new boolean[n];
+        s.wallProgress = 0;
+    }
+
+    private static void buildWall(ServerLevel level, Data data, Settlement s) {
+        int n = s.wall.size();
+        if (s.wallDone.length != n) s.wallDone = java.util.Arrays.copyOf(s.wallDone, n);
+        int upTo = (int) Math.floor(s.wallProgress * n);
+        for (int i = 0; i < Math.min(upTo, n); i++) {
+            if (s.wallDone[i]) continue;
+            VillageLayout.Road r = s.wall.get(i);
+            int[] box = {(int) Math.floor(Math.min(r.x0(), r.x1())) - 4, (int) Math.floor(Math.min(r.z0(), r.z1())) - 4,
+                    (int) Math.ceil(Math.max(r.x0(), r.x1())) + 4, (int) Math.ceil(Math.max(r.z0(), r.z1())) + 4};
+            if (!loadedBox(level, box)) continue;
+            VillageLayout.Layout lay = VillageLayout.get(level, s.site());
+            List<VillageLayout.Road> streets = new ArrayList<>();
+            for (int k = 0; k < lay.net().size(); k++) if (k < s.paved.length && s.paved[k]) streets.add(lay.net().get(k));
+            VillageBuilder.wall(level, r, s.x, s.z, i % 4 == 0, streets, built(level, s), s.culture == Culture.DESERT);
+            s.wallDone[i] = true;
+            data.setDirty();
+            return;
+        }
+    }
+
+    /** Para pruebas: carga lo necesario y termina de empedrar y amurallar ya. Devuelve {tramos empedrados, tramos de muralla}. */
+    public static int[] finishCity(ServerLevel level, Data data, Settlement s) {
+        VillageLayout.Layout lay = VillageLayout.get(level, s.site());
+        for (VillageLayout.Road r : lay.net()) level.getChunk((int) r.x0() >> 4, (int) r.z0() >> 4);
+        for (VillageLayout.Road r : s.wall) {
+            for (int cx = ((int) Math.min(r.x0(), r.x1()) - 5) >> 4; cx <= ((int) Math.max(r.x0(), r.x1()) + 5) >> 4; cx++) {
+                for (int cz = ((int) Math.min(r.z0(), r.z1()) - 5) >> 4; cz <= ((int) Math.max(r.z0(), r.z1()) + 5) >> 4; cz++) level.getChunk(cx, cz);
+            }
+        }
+        s.wallProgress = s.wall.isEmpty() ? 0 : 1;
+        for (int i = 0; i < 600; i++) {
+            if (s.streetTier >= 1) upgradeStreets(level, data, s);
+            if (!s.wall.isEmpty()) buildWall(level, data, s);
+        }
+        int st = 0, wd = 0;
+        for (boolean b : s.stone) if (b) st++;
+        for (boolean b : s.wallDone) if (b) wd++;
+        return new int[]{st, wd};
     }
 
     // ------------------------------------------------------------------ colonias
@@ -641,11 +965,20 @@ public final class HumanityManager {
         int housing = 0;
         for (VillageLayout.Building b : bs) housing += capacity(b);
         double prod = production(bs, s.pop);
-        return s.name + " (" + (s.level == Settlement.TOWN ? "pueblo" : "aldea") + (s.colony ? ", colonia" : "") + ", " + s.culture + ") en "
+        String lv = switch (s.level) {
+            case Settlement.CAPITAL -> "capital";
+            case Settlement.CITY -> "ciudad";
+            case Settlement.TOWN -> "pueblo";
+            default -> "aldea";
+        };
+        int renewed = 0;
+        for (VillageLayout.Building b : bs) if (city(b)) renewed++;
+        return s.name + " (" + lv + (s.colony ? ", colonia" : "") + ", " + s.culture + ") en "
                 + s.x + " " + s.z + "\n población " + s.pop + "/" + housing + " (" + s.materialized + " a la vista)"
                 + " · comida " + (int) s.food + " (" + String.format(java.util.Locale.ROOT, "%+.1f", prod - s.pop) + "/día)"
                 + " · tesoro " + coins(s.treasury)
                 + "\n edificios " + bs.size() + " · obra: " + (cur == null ? "ninguna" : cur.b.template() + " " + (int) (s.progress * 100) + "%")
-                + " · pendientes de colocar " + s.works.stream().filter(w -> w.state == 1).count();
+                + " · pendientes de colocar " + s.works.stream().filter(w -> w.state == 1).count()
+                + (s.level >= Settlement.CITY ? "\n piedra: " + renewed + " edificios · muralla " + (s.wall.isEmpty() ? "sin empezar" : (int) (s.wallProgress * 100) + "%") : "");
     }
 }

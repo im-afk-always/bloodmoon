@@ -289,6 +289,112 @@ public final class VillageBuilder {
         return n;
     }
 
+    /**
+     * Demuele un edificio: saca sus bloques (los que la plantilla puso, sin tocar lo que no es suyo) y deja el piso como
+     * suelo natural. Los cimientos quedan enterrados.
+     */
+    public static void demolish(WorldGenLevel level, ServerLevel server, VillageLayout.Building b, boolean desert) {
+        VillageLayout.VTemplate vt = VillageLayout.template(server, b.template());
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        BlockState air = Blocks.AIR.defaultBlockState();
+        BlockState top = (desert ? Blocks.SAND : Blocks.GRASS_BLOCK).defaultBlockState();
+        BlockState fill = (desert ? Blocks.SANDSTONE : Blocks.DIRT).defaultBlockState();
+        List<DominionTemplates.Entry> blocks = vt.t().blocks();
+        // de arriba hacia abajo, así no quedan cosas colgando
+        for (int i = blocks.size() - 1; i >= 0; i--) {
+            DominionTemplates.Entry e = blocks.get(i);
+            int[] w = DominionTemplates.rotate(e.x(), e.z(), b.rot());
+            p.set(b.x() + w[0], b.floorY() + e.y(), b.z() + w[1]);
+            if (e.y() > 0) {
+                if (!level.getBlockState(p).isAir()) level.setBlock(p, air, FLAGS);
+            } else if (e.y() == 0) {
+                level.setBlock(p, top, FLAGS);
+            } else {
+                level.setBlock(p, fill, FLAGS);   // pozo de un aljibe: se rellena
+            }
+        }
+        if (level instanceof ServerLevel sl) {
+            sl.levelEvent(2001, new BlockPos(b.coreX(), b.floorY() + 1, b.coreZ()), Block.getId(Blocks.STONE_BRICKS.defaultBlockState()));
+        }
+    }
+
+    /**
+     * Un tramo de muralla de 3 de ancho y 6 de alto que sigue el suelo, con almenas del lado de afuera y, si
+     * {@code tower}, una torre de 5×5 en su arranque. Deja un portón donde cruza una calle y no pisa edificios, agua ni
+     * construcciones del jugador.
+     */
+    public static void wall(ServerLevel level, VillageLayout.Road seg, int cx, int cz, boolean tower, List<VillageLayout.Road> streets,
+                            List<VillageLayout.Building> buildings, boolean desert) {
+        BlockState body = (desert ? Blocks.CUT_SANDSTONE : Blocks.STONE_BRICKS).defaultBlockState();
+        BlockState body2 = (desert ? Blocks.SANDSTONE : Blocks.CRACKED_STONE_BRICKS).defaultBlockState();
+        BlockState cap = (desert ? Blocks.SMOOTH_SANDSTONE : Blocks.POLISHED_ANDESITE).defaultBlockState();
+        BlockState air = Blocks.AIR.defaultBlockState();
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        double len = seg.length();
+        if (len < 0.5) return;
+        double dx = (seg.x1() - seg.x0()) / len, dz = (seg.z1() - seg.z0()) / len;
+        double mx = (seg.x0() + seg.x1()) / 2 - cx, mz = (seg.z0() + seg.z1()) / 2 - cz;
+        double ox = -dz, oz = dx;
+        if (ox * mx + oz * mz < 0) {
+            ox = -ox;
+            oz = -oz;
+        }
+        if (tower) tower(level, seg, streets, body, air);
+        java.util.Set<Long> done = new java.util.HashSet<>();
+        for (double t = 0; t <= len; t += 0.5) {
+            for (int off = -1; off <= 1; off++) {
+                int x = (int) Math.round(seg.x0() + dx * t + ox * off), z = (int) Math.round(seg.z0() + dz * t + oz * off);
+                if (!done.add(key(x, z))) continue;
+                if (!level.hasChunk(x >> 4, z >> 4)) continue;
+                boolean gate = false;
+                for (VillageLayout.Road r : streets) {
+                    if (r.dist(x, z) <= r.half() + 1.5) {
+                        gate = true;
+                        break;
+                    }
+                }
+                if (gate) continue;
+                boolean inside = false;
+                for (VillageLayout.Building b : buildings) if (b.contains(x, z, 0)) inside = true;
+                if (inside) continue;
+                int g = ground(level, x, z, false);
+                BlockState top = level.getBlockState(p.set(x, g, z));
+                if (!top.getFluidState().isEmpty() || !natural(top)) continue;
+                for (int y = g + 1; y <= g + 6; y++) level.setBlock(p.set(x, y, z), hash(x, z + y) % 6 == 0 ? body2 : body, FLAGS);
+                if (off == 0) level.setBlock(p.set(x, g + 6, z), cap, FLAGS);
+                if (off == 1 && (x + z) % 2 == 0) level.setBlock(p.set(x, g + 7, z), body, FLAGS);
+                for (int y = g + 7 + (off == 1 ? 1 : 0); y <= g + 12; y++) {
+                    BlockState st = level.getBlockState(p.set(x, y, z));
+                    if (st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS)) level.setBlock(p, air, FLAGS);
+                }
+            }
+        }
+    }
+
+    /** Torre de 5×5 y 10 de alto con almenas y farol, en el arranque de un tramo de muralla (no sobre una calle). */
+    private static void tower(ServerLevel level, VillageLayout.Road seg, List<VillageLayout.Road> streets, BlockState body, BlockState air) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        int tx = (int) Math.round(seg.x0()), tz = (int) Math.round(seg.z0());
+        if (!level.hasChunk(tx >> 4, tz >> 4)) return;
+        for (VillageLayout.Road r : streets) if (r.dist(tx, tz) <= r.half() + 3) return;
+        int g = ground(level, tx, tz, false);
+        for (int x = tx - 2; x <= tx + 2; x++) {
+            for (int z = tz - 2; z <= tz + 2; z++) {
+                boolean ring = Math.abs(x - tx) == 2 || Math.abs(z - tz) == 2;
+                int gg = ground(level, x, z, false);
+                BlockState top = level.getBlockState(p.set(x, gg, z));
+                if (!top.getFluidState().isEmpty() || !natural(top)) continue;
+                for (int y = gg + 1; y <= g + 10; y++) level.setBlock(p.set(x, y, z), ring || y == g + 10 ? body : air, FLAGS);
+                if (ring && (x + z) % 2 == 0) level.setBlock(p.set(x, g + 11, z), body, FLAGS);
+            }
+        }
+        level.setBlock(p.set(tx, g + 11, tz), Blocks.LANTERN.defaultBlockState(), FLAGS);
+    }
+
+    private static long key(int x, int z) {
+        return (long) x << 32 | (z & 0xFFFFFFFFL);
+    }
+
     public static int size(ServerLevel server, VillageLayout.Building b) {
         return VillageLayout.template(server, b.template()).t().blocks().size();
     }

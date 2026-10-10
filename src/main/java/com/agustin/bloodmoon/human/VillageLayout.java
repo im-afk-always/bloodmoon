@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class VillageLayout {
     public static final int RADIUS = 130;
 
-    public enum Kind { WELL, STALL, WORK, HOUSE, FARM, TOWER }
+    public enum Kind { WELL, STALL, WORK, HOUSE, FARM, TOWER, HALL, MARKET, CASTLE }
 
     /** Plantilla con su huella por columna (para despejar y cimentar). */
     public record VTemplate(DominionTemplates.Template t, int minX, int maxX, int minZ, int maxZ, Map<Long, int[]> columns) {}
@@ -237,6 +237,11 @@ public final class VillageLayout {
 
     /** Faroles cada ~12 bloques a lo largo de los tramos marcados, alternando de lado; nunca dentro de un edificio. */
     public static List<int[]> lamps(List<Road> net, boolean[] which, List<Building> buildings, int salt) {
+        return lamps(net, which, buildings, salt, 12, false);
+    }
+
+    /** {@code step}: cada cuántos bloques; {@code both}: a los dos lados (calles de ciudad). */
+    public static List<int[]> lamps(List<Road> net, boolean[] which, List<Building> buildings, int salt, int step, boolean both) {
         List<int[]> out = new ArrayList<>();
         for (int i = 0; i < net.size(); i++) {
             if (!which[i]) continue;
@@ -244,20 +249,22 @@ public final class VillageLayout {
             double len = r.length();
             if (len < 1) continue;
             double dx = (r.x1() - r.x0()) / len, dz = (r.z1() - r.z0()) / len;
-            for (double t = 3 + ((i + salt) % 3) * 4; t < len; t += 12) {
-                double side = ((int) (t / 12) + i) % 2 == 0 ? 1 : -1;
-                double off = r.half() + 1.2;
-                int lx = (int) Math.round(r.x0() + dx * t - dz * side * off);
-                int lz = (int) Math.round(r.z0() + dz * t + dx * side * off);
-                boolean clash = false;
-                for (Building b : buildings) {
-                    if (b.contains(lx, lz, 1)) {
-                        clash = true;
-                        break;
+            for (double t = 3 + ((i + salt) % 3) * (step / 3); t < len; t += step) {
+                for (int sd = 0; sd < (both ? 2 : 1); sd++) {
+                    double side = both ? (sd == 0 ? 1 : -1) : (((int) (t / step) + i) % 2 == 0 ? 1 : -1);
+                    double off = r.half() + 1.2;
+                    int lx = (int) Math.round(r.x0() + dx * t - dz * side * off);
+                    int lz = (int) Math.round(r.z0() + dz * t + dx * side * off);
+                    boolean clash = false;
+                    for (Building b : buildings) {
+                        if (b.contains(lx, lz, 1)) {
+                            clash = true;
+                            break;
+                        }
                     }
+                    for (int k = 0; k < net.size() && !clash; k++) if (net.get(k).dist(lx, lz) <= net.get(k).half() + 0.3) clash = true;
+                    if (!clash) out.add(new int[]{lx, lz});
                 }
-                for (int k = 0; k < net.size() && !clash; k++) if (net.get(k).dist(lx, lz) <= net.get(k).half() + 0.3) clash = true;
-                if (!clash) out.add(new int[]{lx, lz});
             }
         }
         return out;
@@ -312,6 +319,37 @@ public final class VillageLayout {
             return new Plot(b, new Road(b.coreX(), b.coreZ(), rx, rz, 0.6, b.floorY() + 1, ry == Integer.MIN_VALUE ? b.floorY() + 1 : ry), i, p[2]);
         }
         return null;
+    }
+
+    /**
+     * Ubica una plantilla con la puerta en {@code (coreX, coreZ)} y el piso a {@code floorY} (renovación urbana: el edificio
+     * nuevo ocupa el lugar del viejo). Null si pisa otro edificio (dejando {@code margin}) o una calle.
+     */
+    public static Building placeAt(ServerLevel level, String name, Kind kind, HumanJob job, int residents, int coreX, int coreZ,
+                                   Rotation rot, int floorY, List<Building> others, List<Road> blocking, int margin) {
+        VTemplate vt = template(level, name);
+        if (vt.t().blocks().isEmpty()) return null;
+        int[] c = DominionTemplates.rotate(vt.t().coreX(), vt.t().coreZ(), rot);
+        int bx = coreX - c[0], bz = coreZ - c[1];
+        int[] a = DominionTemplates.rotate(vt.minX(), vt.minZ(), rot);
+        int[] b = DominionTemplates.rotate(vt.maxX(), vt.maxZ(), rot);
+        int minX = bx + Math.min(a[0], b[0]), maxX = bx + Math.max(a[0], b[0]);
+        int minZ = bz + Math.min(a[1], b[1]), maxZ = bz + Math.max(a[1], b[1]);
+        for (Building o : others) {
+            if (minX <= o.maxX() + margin && maxX >= o.minX() - margin && minZ <= o.maxZ() + margin && maxZ >= o.minZ() - margin) return null;
+        }
+        for (Road r : blocking) {
+            if (r.half() < 1.0) continue;
+            double pad = r.half() + 1;
+            if (maxX < Math.min(r.x0(), r.x1()) - pad || minX > Math.max(r.x0(), r.x1()) + pad
+                    || maxZ < Math.min(r.z0(), r.z1()) - pad || minZ > Math.max(r.z0(), r.z1()) + pad) continue;
+            for (int x = minX; x <= maxX; x++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    if (r.dist(x, z) < r.half() + 0.4) return null;
+                }
+            }
+        }
+        return new Building(name, kind, job, residents, bx, bz, rot, floorY, minX, minZ, maxX, maxZ, coreX, coreZ);
     }
 
     /** Intenta ubicar un edificio: sin pisar otros ni las calles, en seco y sin pendiente excesiva. */

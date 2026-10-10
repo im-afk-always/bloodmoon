@@ -321,5 +321,7 @@
   "human.bloodmoon.job.bandit.f": "Bandida",
   "message.bloodmoon.humanity.town": "%s creció y ahora es un pueblo.",
   "message.bloodmoon.humanity.village": "%s volvió a ser una aldea.",
-  "message.bloodmoon.humanity.colony": "Colonos de %s parten a fundar %s (%s, %s)."
+  "message.bloodmoon.humanity.colony": "Colonos de %s parten a fundar %s (%s, %s).",
+  "message.bloodmoon.humanity.city": "%s ya es una ciudad: se levantarán casas de piedra, calles empedradas y murallas.",
+  "message.bloodmoon.humanity.capital": "%s se convirtió en capital. Un castillo la coronará."
 }

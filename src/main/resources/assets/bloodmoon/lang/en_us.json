@@ -321,5 +321,7 @@
   "human.bloodmoon.job.bandit.f": "Bandit",
   "message.bloodmoon.humanity.town": "%s has grown into a town.",
   "message.bloodmoon.humanity.village": "%s has shrunk back into a village.",
-  "message.bloodmoon.humanity.colony": "Settlers from %s set out to found %s (%s, %s)."
+  "message.bloodmoon.humanity.colony": "Settlers from %s set out to found %s (%s, %s).",
+  "message.bloodmoon.humanity.city": "%s is now a city: stone houses, paved streets and walls will rise.",
+  "message.bloodmoon.humanity.capital": "%s has become a capital. A castle will crown it."
 }
