@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class VillageSites {
     public static final int REGION = 40, SPREAD = 28;
     private static final int SALT = 470183921;
-    private static final int TRIES = 5;
+    private static final int TRIES = 8;
     public static final TagKey<Biome> PLAINS_BIOMES = TagKey.create(Registries.BIOME,
             ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "human_village_plains"));
     public static final TagKey<Biome> DESERT_BIOMES = TagKey.create(Registries.BIOME,
@@ -90,7 +90,7 @@ public final class VillageSites {
             if (wet > 2 || hs[8] <= sea) continue;
             int[] sorted = hs.clone();
             Arrays.sort(sorted);
-            if (sorted[8] - sorted[0] > 12) continue;
+            if (sorted[8] - sorted[0] > 16) continue;
             int bad = 0, farWet = 0;
             for (int i = 0; i < 8; i++) {
                 double a = (i + 0.5) * Math.PI * 2 / 8;
@@ -101,7 +101,7 @@ public final class VillageSites {
                 if (ff < far[i] || far[i] <= sea) farWet++;
             }
             // lugar para crecer: parejo y mayormente seco hasta ~64 bloques (un puerto con un poco de agua sí)
-            if (bad > 2 || farWet + wet > 3) continue;
+            if (bad > 3 || farWet + wet > 5) continue;
             // las calles se cortan en el agua: si hay mucha alrededor, la aldea no tendría dónde crecer
             int wetRing = 0;
             for (int ring = 1; ring <= 3; ring++) {
@@ -113,7 +113,7 @@ public final class VillageSites {
                     if (qf < qs || qs <= sea) wetRing++;
                 }
             }
-            if (wetRing > 5) continue;
+            if (wetRing > 12) continue;
             if (nearColiseum(level, x, z)) continue;
             long seed = level.getSeed() ^ ((long) rx * 0x5DEECE66DL) ^ ((long) rz << 24) ^ 0xA11CE;
             return Optional.of(new Site(x, hs[8], z, seed, culture));

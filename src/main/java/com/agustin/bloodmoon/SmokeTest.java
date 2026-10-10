@@ -218,6 +218,15 @@ public final class SmokeTest {
     /** Aldea humana: se ubica, se generan sus chunks y los edificios quedan en pie (bloques de la plantilla en su lugar). */
     private static boolean village(MinecraftServer server) {
         ServerLevel level = server.overworld();
+        // densidad: cuántas regiones (40×40 chunks) alrededor del origen tienen aldea
+        int regions = 0, withVillage = 0;
+        for (int rx = -4; rx <= 4; rx++) {
+            for (int rz = -4; rz <= 4; rz++) {
+                regions++;
+                if (com.agustin.bloodmoon.human.VillageSites.site(level, rx, rz).isPresent()) withVillage++;
+            }
+        }
+        BloodMoonMod.LOGGER.info("SMOKETEST village density {}/{} regions", withVillage, regions);
         var site = com.agustin.bloodmoon.human.VillageSites.nearest(level, BlockPos.ZERO, 12);
         if (site.isEmpty()) {
             BloodMoonMod.LOGGER.error("SMOKETEST FAIL no human village within 12 regions");
