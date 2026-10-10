@@ -232,7 +232,7 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
   - **Nido de Ceniza:** fosa de 8 en terrazas con rampas, seis costillas de roca que se cierran encima con jaulas
     colgantes y un altar con fuego de almas; muchas tropas en el borde.
   - **Atalaya:** torre de ~46 de alto con contrafuertes, escalera de caracol por dentro, ventanas de vidrio del Vacío y
-    una corona con parapeto, runas y cuernos; arqueros y un Capitán arriba.
+    una corona con parapeto, runas y cuernos; escalera cuadrada de 5×5 que llega a la corona; arqueros y un Capitán arriba.
   - **Fortaleza:** muralla de 37×37 con camino de ronda y matacanes, cuatro torres cónicas, barbacana con rastrillo
     de cadenas y el ojo del Dominio, patio con braseros y un torreón de 15×15 con salón de columnas y aguja; un General
     en el patio.
@@ -242,6 +242,20 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
   cincelada (brilla), cadena y panel de vidrio del Vacío.
 - **Faros:** un faro encendido protege su radio de efecto; el Dominio no reclama esa tierra y la que ya tenía retrocede.
 - **El Trono:** mientras el Rey vive, el portal del coliseo está sellado; primero hay que derribarlo.
+- **La Ofrenda (fase 4):** el Dominio levanta el **Santuario de la Primera Alma** (5×5 chunks: muralla circular con
+  ocho torres, fosa ritual en terrazas y ocho pilones) y le da la mitad de su ingreso a un **cristal gigante** que crece
+  sobre el estrado, alimentado por rayos desde los pilones. Romper su **Corazón** (el núcleo enterrado en el cristal)
+  pierde todo lo acumulado. Lleno, el cristal estalla y **emerge el Dragón de la Primera Alma**, con título y sonido para
+  todos los jugadores. Es opcional: si vencés antes al Dominio no pasa. Aviso al 50% y al 90%.
+- **Nivel de la horda (0-10):** sube con la esencia ganada. Los soldados nacen con 0-1 piezas y Filo I / Poder I; con el
+  nivel ganan piezas, Protección, Irrompibilidad y mejores armas (Capitanes, dos niveles más).
+- **Hechicero del Vacío:** mantiene la distancia y lanza Lanza Astral, Lluvia de Estrellas, Prisión del Vacío,
+  Espectros (vexes), Paso del Vacío (se teletransporta si lo alcanzás) y Égida. Aparece desde el nivel 2 en guarniciones
+  y desde el asalto 3.
+- **Mapa:** tecla **M** (configurable) desde cualquier modo; flecha del jugador con rumbo y nombre (en el borde si
+  quedás fuera de la vista), **C** centra.
+- **Pruebas:** `/bloodmoon invasion raid <1-10>` (asalto de prueba: no avanza tu nivel ni deja cabeza de playa),
+  `raid stop`, `soul site`, `soul feed <0-99>`, `soul awaken`.
 - **Caminos de roca negra** de 3 de ancho, con farolas de runa, unen cada estructura con la siguiente hacia el coliseo.
 - **Asaltos por niveles** (desde Conquista, cada uno o dos días si estás dentro del radio): se abre una **Puerta de
   Guerra** a ~26 bloques y salen oleadas que te buscan y rompen bloques para llegar (si mobGriefing está activo). El

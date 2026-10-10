@@ -54,7 +54,7 @@ public final class SmokeTest {
     private static boolean dominion(MinecraftServer server) {
         ServerLevel level = server.overworld();
         boolean ok = true;
-        for (String n : new String[]{"obelisk", "nest", "tower", "fortress", "gate"}) {
+        for (String n : new String[]{"obelisk", "nest", "tower", "fortress", "gate", "soul_site", "soul_core"}) {
             var t = com.agustin.bloodmoon.invasion.DominionTemplates.get(level, n);
             BloodMoonMod.LOGGER.info("SMOKETEST dominion template {} blocks={}", n, t.blocks().size());
             if (t.blocks().isEmpty()) ok = false;
