@@ -46,6 +46,7 @@ public class VillageFeature extends Feature<NoneFeatureConfiguration> {
         int[] box = {cp.getMinBlockX(), cp.getMinBlockZ(), cp.getMaxBlockX(), cp.getMaxBlockZ()};
         long key = VillageBuilder.key(layout.site().x(), layout.site().z());
         VillageBuilder.clearTrees(level, box, layout.buildings(), layout.roads(), true);
+        VillageBuilder.terraform(level, box, layout.site(), layout.plaza().y0(), layout.buildings(), desert);
         VillageBuilder.pave(level, box, layout.roads(), layout.buildings(), desert, true);
         for (VillageLayout.Building b : layout.buildings()) {
             if (b.maxX() + 3 < box[0] || b.minX() - 3 > box[2] || b.maxZ() + 3 < box[1] || b.minZ() - 3 > box[3]) continue;

@@ -29,6 +29,8 @@ public final class VillageLayout {
     public static final double PLAZA = 11.5, PLAZA_DESERT = 12.5;
     /** Separación mínima entre edificios (hay lugar de sobra: que no se amontonen). */
     public static final int GAP = 4;
+    /** Medio ancho del acceso de cada edificio a su calle (1.0 = 3 bloques). */
+    public static final double SPUR_HALF = 1.0;
 
     public enum Kind { WELL, STALL, WORK, HOUSE, FARM, TOWER, HALL, MARKET, CASTLE }
 
@@ -114,6 +116,22 @@ public final class VillageLayout {
     /** Hasta dónde (distancia por la red) puede crecer un asentamiento. */
     public static final int MAX_DIST = 170;
 
+    /** Radio del núcleo aplanado a la altura de la plaza, y ancho de la transición hasta el terreno natural. */
+    public static final double FLAT_R = 64, FLAT_BLEND = 28;
+
+    /** Altura (primer bloque libre) de la calle en un punto: la de la plaza en el núcleo, mezclada con el terreno afuera. */
+    static int flat(double x, double z, VillageSites.Site site, int cy, int natural) {
+        if (natural == Integer.MIN_VALUE) return natural;
+        double d = Math.hypot(x - site.x(), z - site.z());
+        double f = Math.max(0, Math.min(1, (d - FLAT_R) / FLAT_BLEND));
+        return (int) Math.round(cy + (natural - cy) * f);
+    }
+
+    /** ¿El punto está en el núcleo aplanado? (ahí los constructores cortan y rellenan más para dejar todo parejo) */
+    static boolean core(VillageSites.Site site, double x, double z) {
+        return Math.hypot(x - site.x(), z - site.z()) <= FLAT_R + FLAT_BLEND / 2;
+    }
+
     /** Contadores de rechazos (solo para diagnóstico). */
     private static final int[] REJ = new int[4];
 
@@ -186,16 +204,18 @@ public final class VillageLayout {
         // red de calles según el patrón de esta aldea
         StreetPlanner.Pattern pattern = StreetPlanner.choose(site.seed(), site.culture() == Culture.DESERT);
         List<StreetPlanner.Seg> segs = StreetPlanner.plan(site.seed(), site.x(), site.z(), pattern, terrain, MAX_DIST - 40);
+        int cy = terrain.height(site.x(), site.z());
         List<Road> net = new ArrayList<>();
         int[] parent = new int[segs.size()];
         double[] dist = new double[segs.size()];
         for (int i = 0; i < segs.size(); i++) {
             StreetPlanner.Seg g = segs.get(i);
-            net.add(new Road(g.x0(), g.z0(), g.x1(), g.z1(), g.half(), g.y0(), g.y1()));
+            // el núcleo de la aldea queda a un solo nivel (el de la plaza); afuera, las calles vuelven a seguir el terreno
+            int y0 = flat(g.x0(), g.z0(), site, cy, g.y0()), y1 = flat(g.x1(), g.z1(), site, cy, g.y1());
+            net.add(new Road(g.x0(), g.z0(), g.x1(), g.z1(), g.half(), y0, y1));
             parent[i] = g.parent();
             dist[i] = g.dist();
         }
-        int cy = terrain.height(site.x(), site.z());
         Road plaza = new Road(site.x(), site.z(), site.x(), site.z(), site.culture() == Culture.DESERT ? PLAZA_DESERT : PLAZA, cy, cy);
         roads.add(plaza);
 
@@ -312,7 +332,7 @@ public final class VillageLayout {
                     int lz = (int) Math.round(r.z0() + dz * t + dx * side * off);
                     boolean clash = false;
                     for (Building b : buildings) {
-                        if (b.contains(lx, lz, 1)) {
+                        if (b.contains(lx, lz, 1) || onAccess(b, net, lx, lz)) {
                             clash = true;
                             break;
                         }
@@ -323,6 +343,21 @@ public final class VillageLayout {
             }
         }
         return out;
+    }
+
+    /** ¿El punto cae sobre el acceso de un edificio (de su puerta a la calle más cercana)? Ahí no van faroles. */
+    static boolean onAccess(Building b, List<Road> net, int x, int z) {
+        if (Math.abs(x - b.coreX()) > 12 || Math.abs(z - b.coreZ()) > 12) return false;
+        Road best = null;
+        double bd = Double.MAX_VALUE;
+        for (Road r : net) {
+            double d = r.dist(b.coreX(), b.coreZ());
+            if (d < bd) { bd = d; best = r; }
+        }
+        if (best == null || bd > 12) return false;
+        double t = best.t(b.coreX(), b.coreZ());
+        Road access = new Road(b.coreX(), b.coreZ(), best.x0() + (best.x1() - best.x0()) * t, best.z0() + (best.z1() - best.z0()) * t, SPUR_HALF);
+        return access.dist(x, z) <= SPUR_HALF + 0.8;
     }
 
     public record Plot(Building building, Road spur, int seg, double t) {}
@@ -374,12 +409,13 @@ public final class VillageLayout {
             int ry = r.y(rx, rz);
             if (ry != Integer.MIN_VALUE) {
                 int floor = ry - 1;
-                if (Math.abs(floor - b.floorY()) > 5) continue;
+                if (Math.abs(floor - b.floorY()) > (core(site, rx, rz) ? 9 : 5)) continue;
                 b = new Building(b.template(), b.kind(), b.job(), b.residents(), b.x(), b.z(), b.rot(), floor, b.minX(), b.minZ(), b.maxX(),
                         b.maxZ(), b.coreX(), b.coreZ());
             }
             if (accept != null && !accept.test(b)) continue;
-            return new Plot(b, new Road(b.coreX(), b.coreZ(), rx, rz, 0.6, b.floorY() + 1, b.floorY() + 1), i, p[2]);
+            // acceso de 3 de ancho desde la puerta hasta el eje de la calle
+            return new Plot(b, new Road(b.coreX(), b.coreZ(), rx, rz, SPUR_HALF, b.floorY() + 1, b.floorY() + 1), i, p[2]);
         }
         return null;
     }

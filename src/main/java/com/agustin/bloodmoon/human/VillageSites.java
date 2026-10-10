@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class VillageSites {
     public static final int REGION = 40, SPREAD = 28;
     private static final int SALT = 470183921;
-    private static final int TRIES = 3;
+    private static final int TRIES = 5;
     public static final TagKey<Biome> PLAINS_BIOMES = TagKey.create(Registries.BIOME,
             ResourceLocation.fromNamespaceAndPath(BloodMoonMod.MODID, "human_village_plains"));
     public static final TagKey<Biome> DESERT_BIOMES = TagKey.create(Registries.BIOME,
@@ -74,7 +74,9 @@ public final class VillageSites {
             if (biome.is(DESERT_BIOMES)) culture = Culture.DESERT;
             else if (biome.is(PLAINS_BIOMES)) culture = Culture.PLAINS;
             else continue;
+            // el núcleo se aplana a la altura de la plaza: el terreno tiene que ser bastante parejo hasta ~64 bloques
             int[] hs = new int[9];
+            int[] far = new int[8];
             int wet = 0;
             for (int i = 0; i < 9; i++) {
                 double a = i * Math.PI * 2 / 8;
@@ -88,7 +90,14 @@ public final class VillageSites {
             if (wet > 2 || hs[8] <= sea) continue;
             int[] sorted = hs.clone();
             Arrays.sort(sorted);
-            if (sorted[8] - sorted[0] > 16) continue;
+            if (sorted[8] - sorted[0] > 10) continue;
+            int bad = 0;
+            for (int i = 0; i < 8; i++) {
+                double a = (i + 0.5) * Math.PI * 2 / 8;
+                far[i] = gen.getBaseHeight(x + (int) (Math.cos(a) * 64), z + (int) (Math.sin(a) * 64), Heightmap.Types.WORLD_SURFACE_WG, level, rs);
+                if (Math.abs(far[i] - hs[8]) > 14) bad++;
+            }
+            if (bad > 2) continue;
             if (nearColiseum(level, x, z)) continue;
             long seed = level.getSeed() ^ ((long) rx * 0x5DEECE66DL) ^ ((long) rz << 24) ^ 0xA11CE;
             return Optional.of(new Site(x, hs[8], z, seed, culture));

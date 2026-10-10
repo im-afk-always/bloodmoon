@@ -339,7 +339,8 @@ public final class Port {
         }
         if (best > 160) return;
         StreetPlanner.Terrain t = VillageLayout.terrain(level);
-        VillageLayout.Road road = new VillageLayout.Road(tx, tz, lx, lz, 1.2, t.height((int) Math.round(tx), (int) Math.round(tz)), g[3]);
+        int ty = VillageLayout.flat(tx, tz, s.site(), lay.plaza().y0(), t.height((int) Math.round(tx), (int) Math.round(tz)));
+        VillageLayout.Road road = new VillageLayout.Road(tx, tz, lx, lz, StreetPlanner.BRANCH, ty, g[3]);
         s.extraNet.add(road);
         s.extraParent = java.util.Arrays.copyOf(s.extraParent, s.extraNet.size());
         s.extraParent[s.extraNet.size() - 1] = bi;

@@ -490,7 +490,9 @@ public final class HumanityManager {
         double[] dd = java.util.Arrays.copyOf(s.extraDist, s.extraDist.length + added);
         for (int i = all.size() - added; i < all.size(); i++) {
             StreetPlanner.Seg g = all.get(i);
-            s.extraNet.add(new VillageLayout.Road(g.x0(), g.z0(), g.x1(), g.z1(), g.half(), g.y0(), g.y1()));
+            int cy = lay.plaza().y0();
+            s.extraNet.add(new VillageLayout.Road(g.x0(), g.z0(), g.x1(), g.z1(), g.half(),
+                    VillageLayout.flat(g.x0(), g.z0(), s.site(), cy, g.y0()), VillageLayout.flat(g.x1(), g.z1(), s.site(), cy, g.y1())));
             int k = s.extraNet.size() - 1;
             par[k] = g.parent();
             dd[k] = g.dist();

@@ -33,6 +33,8 @@ public final class StreetPlanner {
     }
 
     public static final int STEP = 7;
+    /** Medio ancho de las calles principales (5 bloques) y de las secundarias (3 bloques). */
+    public static final double MAIN = 2.5, BRANCH = 1.5;
 
     private StreetPlanner() {}
 
@@ -54,22 +56,22 @@ public final class StreetPlanner {
                 for (int i = 0; i < trunks; i++) {
                     double a = a0 + i * Math.PI * 2 / trunks + (rng.nextDouble() - 0.5) * 0.6;
                     int len = 70 + rng.nextInt(50);
-                    trunkSegs.add(walk(out, rng, t, cx, cz, cx + Math.cos(a) * 6, cz + Math.sin(a) * 6, a, len, 1.5, -1, 6, 0.45, maxR));
+                    trunkSegs.add(walk(out, rng, t, cx, cz, cx + Math.cos(a) * 6, cz + Math.sin(a) * 6, a, len, MAIN, -1, 6, 0.45, maxR));
                 }
-                for (int[] ts : trunkSegs) branches(out, rng, t, cx, cz, ts, 0.38, 18, 42, 1.2, maxR, true);
+                for (int[] ts : trunkSegs) branches(out, rng, t, cx, cz, ts, 0.38, 18, 42, BRANCH, maxR, true);
             }
             case LINEAR -> {
                 for (int k = 0; k < 2; k++) {
                     double a = a0 + k * Math.PI + (rng.nextDouble() - 0.5) * 0.3;
-                    int[] ts = walk(out, rng, t, cx, cz, cx + Math.cos(a) * 6, cz + Math.sin(a) * 6, a, 100 + rng.nextInt(30), 1.6, -1, 6, 0.3, maxR);
-                    branches(out, rng, t, cx, cz, ts, 0.3, 12, 26, 1.1, maxR, false);
+                    int[] ts = walk(out, rng, t, cx, cz, cx + Math.cos(a) * 6, cz + Math.sin(a) * 6, a, 100 + rng.nextInt(30), MAIN, -1, 6, 0.3, maxR);
+                    branches(out, rng, t, cx, cz, ts, 0.3, 12, 26, BRANCH, maxR, false);
                 }
             }
             case CROSSROADS -> {
                 for (int k = 0; k < 4; k++) {
                     double a = a0 + k * Math.PI / 2 + (rng.nextDouble() - 0.5) * 0.35;
-                    int[] ts = walk(out, rng, t, cx, cz, cx + Math.cos(a) * 6, cz + Math.sin(a) * 6, a, 75 + rng.nextInt(35), 1.5, -1, 6, 0.3, maxR);
-                    branches(out, rng, t, cx, cz, ts, 0.22, 14, 30, 1.2, maxR, false);
+                    int[] ts = walk(out, rng, t, cx, cz, cx + Math.cos(a) * 6, cz + Math.sin(a) * 6, a, 75 + rng.nextInt(35), MAIN, -1, 6, 0.3, maxR);
+                    branches(out, rng, t, cx, cz, ts, 0.22, 14, 30, BRANCH, maxR, false);
                 }
             }
             case GRID -> grid(out, rng, t, cx, cz, maxR);
@@ -150,7 +152,7 @@ public final class StreetPlanner {
             Seg s = all.get(best);
             double a = Math.atan2(s.z1() - s.z0(), s.x1() - s.x0());
             double ba = rng.nextDouble() < 0.4 ? a : a + (rng.nextBoolean() ? 1 : -1) * (Math.PI / 2 + (rng.nextDouble() - 0.5) * 0.6);
-            walk(all, rng, t, cx, cz, s.x1(), s.z1(), ba, 28 + rng.nextInt(28), 1.2, best, s.dist() + s.length(), 0.4, maxR);
+            walk(all, rng, t, cx, cz, s.x1(), s.z1(), ba, 28 + rng.nextInt(28), BRANCH, best, s.dist() + s.length(), 0.4, maxR);
         }
         return all.size() - before;
     }
@@ -171,7 +173,7 @@ public final class StreetPlanner {
             int len = minLen + rng.nextInt(Math.max(1, maxLen - minLen));
             int[] br = walk(out, rng, t, cx, cz, s.x1(), s.z1(), ba, len, half, i, s.dist() + s.length(), 0.4, maxR);
             if (nested && br[0] >= 0 && rng.nextDouble() < 0.35) {
-                branches(out, rng, t, cx, cz, br, 0.3, 12, 22, 1.0, maxR, false);
+                branches(out, rng, t, cx, cz, br, 0.3, 12, 22, BRANCH, maxR, false);
             }
         }
     }
@@ -208,7 +210,7 @@ public final class StreetPlanner {
                 made.add(ek);
                 boolean avenue = gx == 0 || gz == 0;
                 double dd = dist.get(ck);
-                out.add(new Seg(x0, z0, x1, z1, avenue ? 1.6 : 1.1, reach.get(ck), dd, y0, y1));
+                out.add(new Seg(x0, z0, x1, z1, avenue ? MAIN : BRANCH, reach.get(ck), dd, y0, y1));
                 if (!reach.containsKey(nk)) {
                     reach.put(nk, out.size() - 1);
                     dist.put(nk, dd + b);

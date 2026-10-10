@@ -33,6 +33,38 @@ public final class VillageBuilder {
         return x >= box[0] && x <= box[2] && z >= box[1] && z <= box[3];
     }
 
+    static boolean lava(BlockState st) {
+        return st.getFluidState().is(net.minecraft.tags.FluidTags.LAVA);
+    }
+
+    private static BlockState rock(boolean desert) {
+        return (desert ? Blocks.SANDSTONE : Blocks.COBBLESTONE).defaultBlockState();
+    }
+
+    /** Apaga la columna: la lava pasa a piedra y el fuego se va (una casa de madera junto a la lava se quema entera). */
+    static void douse(WorldGenLevel level, BlockPos.MutableBlockPos p, int x, int z, int y0, int y1, boolean desert) {
+        for (int y = y0; y <= y1; y++) {
+            BlockState st = level.getBlockState(p.set(x, y, z));
+            if (lava(st)) level.setBlock(p, rock(desert), FLAGS);
+            else if (st.is(BlockTags.FIRE)) level.setBlock(p, Blocks.AIR.defaultBlockState(), FLAGS);
+        }
+    }
+
+    /**
+     * Sella el subsuelo bajo un suelo nuevo (calle, plaza o patio): los huecos de cuevas y minas y la lava de los 8 bloques
+     * de abajo se rellenan, así no quedan bocas de cueva en medio del pueblo.
+     */
+    static void seal(WorldGenLevel level, BlockPos.MutableBlockPos p, int x, int z, int top, boolean desert, boolean wg) {
+        BlockState dirt = (desert ? Blocks.SANDSTONE : Blocks.DIRT).defaultBlockState();
+        BlockState stone = (desert ? Blocks.SANDSTONE : Blocks.STONE).defaultBlockState();
+        for (int y = top - 1; y >= top - 8 && y > level.getMinBuildHeight(); y--) {
+            BlockState st = level.getBlockState(p.set(x, y, z));
+            // en partida solo se sellan las cuevas naturales (cave_air), nunca lo que cavó un jugador
+            boolean hole = wg ? st.isAir() : st.is(Blocks.CAVE_AIR);
+            if (hole || lava(st)) level.setBlock(p, y >= top - 2 ? dirt : stone, FLAGS);
+        }
+    }
+
     /** Altura del suelo real (sin árboles ni plantas): la y del bloque sólido o del agua en la superficie. */
     public static int ground(WorldGenLevel level, int x, int z, boolean wg) {
         Heightmap.Types type = wg ? Heightmap.Types.WORLD_SURFACE_WG : Heightmap.Types.WORLD_SURFACE;
@@ -45,6 +77,53 @@ public final class VillageBuilder {
             p.move(0, -1, 0);
         }
         return p.getY();
+    }
+
+    /**
+     * Aplana el núcleo de la aldea a la altura de la plaza (con una transición suave hasta el terreno natural): corta las
+     * lomas, rellena los pozos, sella las bocas de cueva, apaga la lava y despeja los árboles del centro. Los edificios
+     * nivelan su propio patio después.
+     */
+    public static void terraform(WorldGenLevel level, int[] box, VillageSites.Site site, int cy, List<VillageLayout.Building> buildings,
+                                 boolean desert) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        BlockState air = Blocks.AIR.defaultBlockState();
+        BlockState fill = (desert ? Blocks.SANDSTONE : Blocks.DIRT).defaultBlockState();
+        BlockState topBlock = (desert ? Blocks.SAND : Blocks.GRASS_BLOCK).defaultBlockState();
+        double reach = VillageLayout.FLAT_R + VillageLayout.FLAT_BLEND;
+        for (int x = box[0]; x <= box[2]; x++) {
+            for (int z = box[1]; z <= box[3]; z++) {
+                double d = Math.hypot(x - site.x(), z - site.z());
+                if (d > reach) continue;
+                boolean inside = false;
+                for (VillageLayout.Building b : buildings) if (b.contains(x, z, 0)) { inside = true; break; }
+                if (inside) continue;
+                int g = ground(level, x, z, true);
+                douse(level, p, x, z, g - 8, g + 2, desert);
+                BlockState top = level.getBlockState(p.set(x, g, z));
+                if (!top.getFluidState().isEmpty()) continue;            // charcos y arroyos quedan
+                int target = VillageLayout.flat(x, z, site, cy, g + 1) - 1;
+                if (Math.abs(target - g) > 10) continue;                 // un barranco no se rellena entero
+                if (d <= VillageLayout.FLAT_R) {
+                    // centro despejado: sin árboles
+                    for (int y = g + 1; y <= g + 30; y++) {
+                        BlockState st = level.getBlockState(p.set(x, y, z));
+                        if (st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS) || st.is(Blocks.VINE) || st.is(Blocks.BEE_NEST)) level.setBlock(p, air, FLAGS);
+                    }
+                }
+                if (g > target) {
+                    for (int y = target + 1; y <= g + 2; y++) {
+                        BlockState st = level.getBlockState(p.set(x, y, z));
+                        if (!st.isAir() && st.getFluidState().isEmpty()) level.setBlock(p, air, FLAGS);
+                    }
+                    level.setBlock(p.set(x, target, z), topBlock, FLAGS);
+                } else if (g < target) {
+                    for (int y = g + 1; y < target; y++) level.setBlock(p.set(x, y, z), fill, FLAGS);
+                    level.setBlock(p.set(x, target, z), topBlock, FLAGS);
+                }
+                seal(level, p, x, z, target, desert, true);
+            }
+        }
     }
 
     /** Tala árboles en las columnas cercanas a edificios o calles. */
@@ -141,6 +220,11 @@ public final class VillageBuilder {
                 int want = road.y(x, z);
                 int y = want == Integer.MIN_VALUE ? g : want - 1;
                 long h = hash(x, z);
+                if (lava(top)) {
+                    // lava: se tapa con piedra y la calle pasa por encima como por suelo firme (nunca un puente de madera)
+                    douse(level, p, x, z, g - 10, g + 1, desert);
+                    top = level.getBlockState(p.set(x, g, z));
+                }
                 if (!top.getFluidState().isEmpty()) {
                     // puente: a la altura de la calle, nunca por debajo del agua
                     int by = Math.max(y, g);
@@ -151,8 +235,8 @@ public final class VillageBuilder {
                     }
                     continue;
                 }
-                if (y - g > 5) y = g + 5;
-                if (g - y > 6) y = g - 6;
+                if (y - g > 8) y = g + 8;
+                if (g - y > 9) y = g - 9;
                 // cortar la loma por encima de la calle
                 for (int yy = y + 1; yy <= Math.max(g, y) + 3; yy++) {
                     p.set(x, yy, z);
@@ -171,6 +255,7 @@ public final class VillageBuilder {
                     path = (h % 9 == 0 ? Blocks.GRAVEL : h % 13 == 0 ? Blocks.COARSE_DIRT : Blocks.DIRT_PATH).defaultBlockState();
                 }
                 level.setBlock(p.set(x, y, z), path, FLAGS);
+                seal(level, p, x, z, y, desert, wg);
             }
         }
     }
@@ -196,6 +281,13 @@ public final class VillageBuilder {
         BlockState fill = (desert ? Blocks.SANDSTONE : Blocks.DIRT).defaultBlockState();
         BlockState topBlock = (desert ? Blocks.SAND : Blocks.GRASS_BLOCK).defaultBlockState();
         int m = 3;
+        // primero se apaga la lava y el fuego alrededor del lote (con margen: la lava enciende la madera a distancia)
+        for (int x = Math.max(box[0], b.minX() - 5); x <= Math.min(box[2], b.maxX() + 5); x++) {
+            for (int z = Math.max(box[1], b.minZ() - 5); z <= Math.min(box[3], b.maxZ() + 5); z++) {
+                if (!wg && level instanceof ServerLevel sl && !sl.hasChunk(x >> 4, z >> 4)) continue;
+                douse(level, p, x, z, b.floorY() - 8, b.floorY() + 4, desert);
+            }
+        }
         for (int x = Math.max(box[0], b.minX() - m); x <= Math.min(box[2], b.maxX() + m); x++) {
             for (int z = Math.max(box[1], b.minZ() - m); z <= Math.min(box[3], b.maxZ() + m); z++) {
                 if (!wg && level instanceof ServerLevel sl && !sl.hasChunk(x >> 4, z >> 4)) continue;
@@ -246,9 +338,10 @@ public final class VillageBuilder {
                         level.setBlock(p, topBlock, FLAGS);
                     }
                 } else if (g < target) {
-                    for (int y = Math.max(g + 1, target - 6); y < target; y++) level.setBlock(p.set(x, y, z), fill, FLAGS);
+                    for (int y = Math.max(g + 1, target - 10); y < target; y++) level.setBlock(p.set(x, y, z), fill, FLAGS);
                     level.setBlock(p.set(x, target, z), topBlock, FLAGS);
                 }
+                if (k < m) seal(level, p, x, z, target, desert, wg);
             }
         }
     }
