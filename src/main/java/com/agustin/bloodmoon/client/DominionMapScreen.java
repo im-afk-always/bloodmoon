@@ -282,6 +282,12 @@ public class DominionMapScreen extends Screen {
                         g.fill(x - 2, y - 5, x + 2, y + 3, 0xFF000000);
                         g.fill(x - 1, y - 4, x + 1, y + 2, 0xFFD8D0E0);
                     }
+                    case com.agustin.bloodmoon.invasion.DominionStructures.SPIRE -> {   // aguja: torre alta con punta violeta
+                        g.fill(x - 3, y - 9, x + 3, y + 5, 0xFF000000);
+                        g.fill(x - 2, y - 8, x + 2, y + 4, 0xFF8A7A9A);
+                        g.fill(x - 1, y - 12, x + 1, y - 8, 0xFF000000);
+                        g.fill(x - 1, y - 11, x + 1, y - 8, 0xFFD070FF);
+                    }
                     case com.agustin.bloodmoon.invasion.DominionStructures.SOUL -> {   // santuario: anillo y cristal que late
                         int rr = Math.max(6, (int) (37.0 / bpp)) ;
                         int pulse = (int) ((minecraft.level != null ? minecraft.level.getGameTime() : 0) % 40);
