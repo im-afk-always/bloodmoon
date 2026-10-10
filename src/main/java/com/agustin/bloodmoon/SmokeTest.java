@@ -110,9 +110,9 @@ public final class SmokeTest {
             BloodMoonMod.LOGGER.warn("SMOKETEST village map failed", e);
         }
         double rate = total == 0 ? 0 : (double) match / total;
-        BloodMoonMod.LOGGER.info("SMOKETEST village {} at {} {} {} buildings={} blocks {}/{} ({}%) paths={} in {} ms", s.culture(), s.x(), s.y(), s.z(),
-                lay.buildings().size(), match, total, (int) (rate * 100), paths, (System.nanoTime() - t0) / 1_000_000);
-        return lay.buildings().size() >= 6 && rate > 0.9 && paths > 30;
+        BloodMoonMod.LOGGER.info("SMOKETEST village {} at {} {} {} buildings={} [{}] blocks {}/{} ({}%) paths={} in {} ms", s.culture(), s.x(), s.y(), s.z(),
+                lay.buildings().size(), lay.stats(), match, total, (int) (rate * 100), paths, (System.nanoTime() - t0) / 1_000_000);
+        return lay.buildings().size() >= 10 && rate > 0.9 && paths > 30;
     }
 
     /** Vista cenital (colores de mapa con sombreado por altura) para revisar a ojo lo generado: run/smoke/<name>.png. */

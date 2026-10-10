@@ -46,7 +46,10 @@ public final class VillageLayout {
         }
     }
 
-    public record Layout(VillageSites.Site site, List<Building> buildings, List<Road> roads, List<int[]> lamps) {}
+    public record Layout(VillageSites.Site site, List<Building> buildings, List<Road> roads, List<int[]> lamps, String stats) {}
+
+    /** Contadores de rechazos (solo para diagnóstico). */
+    private static final int[] REJ = new int[4];
 
     private static final Map<Long, Layout> CACHE = new ConcurrentHashMap<>();
     private static final Map<String, VTemplate> TEMPLATES = new ConcurrentHashMap<>();
@@ -81,6 +84,7 @@ public final class VillageLayout {
 
     private static Layout build(ServerLevel level, VillageSites.Site site) {
         Random rng = new Random(site.seed());
+        java.util.Arrays.fill(REJ, 0);
         String c = site.culture() == Culture.DESERT ? "desert/" : "plains/";
         List<Building> out = new ArrayList<>();
         List<Road> roads = new ArrayList<>();
@@ -146,6 +150,7 @@ public final class VillageLayout {
         }
         plots.sort((p, q) -> Double.compare(p[0] + p[1] * 0.01 + p[2] * 0.001, q[0] + q[1] * 0.01 + q[2] * 0.001));
 
+        int[] rejects = new int[1];
         int qi = 0;
         boolean[] used = new boolean[plots.size()];
         int towers = 0;
@@ -161,13 +166,22 @@ public final class VillageLayout {
                 double px = -dirs[arm][1] * side, pz = dirs[arm][0] * side;   // perpendicular
                 VTemplate vt = template(level, want[0]);
                 if (vt.t().blocks().isEmpty()) break;
-                int coreZ = vt.t().coreZ();
-                double off = 2.0 + coreZ;
+                // orientación: la puerta (+z de la plantilla) mira hacia la calle
+                Rotation rot = DominionTemplates.facing(0, 0, (int) Math.round(-px * 100), (int) Math.round(-pz * 100));
+                // distancia mínima para que ninguna esquina pise la calle
+                double minProj = Double.MAX_VALUE;
+                for (int cxz = 0; cxz < 4; cxz++) {
+                    int[] cr = DominionTemplates.rotate((cxz & 1) == 0 ? vt.minX() : vt.maxX(), (cxz & 2) == 0 ? vt.minZ() : vt.maxZ(), rot);
+                    minProj = Math.min(minProj, cr[0] * px + cr[1] * pz);
+                }
+                double off = Math.max(2.5 + vt.t().coreZ(), 2.6 - minProj);
                 int bx = (int) Math.round(rx + px * off), bz = (int) Math.round(rz + pz * off);
-                Rotation rot = DominionTemplates.facing(bx, bz, (int) Math.round(rx), (int) Math.round(rz));
                 Building b = place(level, gen, rs, want[0], Kind.valueOf(want[1]), HumanJob.valueOf(want[2]),
                         Integer.parseInt(want[3]), bx, bz, rot, out, roads, false);
-                if (b == null) continue;
+                if (b == null) {
+                    rejects[0]++;
+                    continue;
+                }
                 out.add(b);
                 used[pi] = true;
                 placed = true;
@@ -187,7 +201,9 @@ public final class VillageLayout {
                 if (!clash) lamps.add(new int[]{lx, lz});
             }
         }
-        return new Layout(site, out, roads, lamps);
+        String stats = "queued=" + queue.size() + " placed=" + (out.size() - 1) + " tries=" + rejects[0]
+                + " wet=" + REJ[0] + " slope=" + REJ[1] + " overlap=" + REJ[2] + " road=" + REJ[3];
+        return new Layout(site, out, roads, lamps, stats);
     }
 
     /** Intenta ubicar un edificio: sin pisar otros ni las calles, en seco y sin pendiente excesiva. */
@@ -201,14 +217,20 @@ public final class VillageLayout {
         int minX = bx + Math.min(a[0], b[0]), maxX = bx + Math.max(a[0], b[0]);
         int minZ = bz + Math.min(a[1], b[1]), maxZ = bz + Math.max(a[1], b[1]);
         for (Building o : others) {
-            if (minX <= o.maxX() + 2 && maxX >= o.minX() - 2 && minZ <= o.maxZ() + 2 && maxZ >= o.minZ() - 2) return null;
+            if (minX <= o.maxX() + 2 && maxX >= o.minX() - 2 && minZ <= o.maxZ() + 2 && maxZ >= o.minZ() - 2) {
+                REJ[2]++;
+                return null;
+            }
         }
         if (!ignoreRoads) {
             for (Road r : roads) {
                 if (r.half() < 1.0) continue;
                 for (int x = minX; x <= maxX; x++) {
                     for (int z = minZ; z <= maxZ; z++) {
-                        if ((x == minX || x == maxX || z == minZ || z == maxZ || (x + z) % 3 == 0) && r.dist(x, z) <= r.half() + 0.5) return null;
+                        if ((x == minX || x == maxX || z == minZ || z == maxZ || (x + z) % 3 == 0) && r.dist(x, z) < r.half() + 0.4) {
+                            REJ[3]++;
+                            return null;
+                        }
                     }
                 }
             }
@@ -224,10 +246,16 @@ public final class VillageLayout {
                 hs[i++] = surf;
             }
         }
-        if (wet && kind != Kind.WELL) return null;
+        if (wet && kind != Kind.WELL) {
+            REJ[0]++;
+            return null;
+        }
         int[] sorted = hs.clone();
         Arrays.sort(sorted);
-        if (kind != Kind.WELL && sorted[8] - sorted[0] > 8) return null;
+        if (kind != Kind.WELL && sorted[8] - sorted[0] > 8) {
+            REJ[1]++;
+            return null;
+        }
         int floorY = sorted[4] - 1;
         int[] core = DominionTemplates.rotate(vt.t().coreX(), vt.t().coreZ(), rot);
         return new Building(name, kind, job, residents, bx, bz, rot, floorY, minX, minZ, maxX, maxZ, bx + core[0], bz + core[1]);
