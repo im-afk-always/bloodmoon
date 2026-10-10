@@ -108,6 +108,13 @@ public final class BloodMoonCommand {
                             return had ? 1 : 0;
                         })))
                 .then(Commands.literal("status").executes(BloodMoonCommand::status))
+                .then(Commands.literal("human")
+                        .then(Commands.argument("job", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                        java.util.Arrays.stream(com.agustin.bloodmoon.human.HumanJob.values()).map(j -> j.name().toLowerCase()), b))
+                                .executes(ctx -> summonHuman(ctx, null))
+                                .then(Commands.literal("plains").executes(ctx -> summonHuman(ctx, com.agustin.bloodmoon.human.Culture.PLAINS)))
+                                .then(Commands.literal("desert").executes(ctx -> summonHuman(ctx, com.agustin.bloodmoon.human.Culture.DESERT)))))
                 .then(Commands.literal("summon")
                         .then(Commands.literal("rider").executes(BloodMoonCommand::summonRider))
                         .then(Commands.literal("emissary").executes(ctx -> summonKnight(ctx, false)))
@@ -319,6 +326,29 @@ public final class BloodMoonCommand {
             throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         String r = com.agustin.bloodmoon.invasion.FirstSoul.force(ctx.getSource().getServer().overworld(), ctx.getSource().getPlayerOrException(), stage, pct);
         ctx.getSource().sendSuccess(() -> Component.literal(r), false);
+        return 1;
+    }
+
+    private static int summonHuman(com.mojang.brigadier.context.CommandContext<CommandSourceStack> ctx,
+                                   com.agustin.bloodmoon.human.Culture culture) {
+        var src = ctx.getSource();
+        String name = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "job").toUpperCase(java.util.Locale.ROOT);
+        com.agustin.bloodmoon.human.HumanJob job;
+        try {
+            job = com.agustin.bloodmoon.human.HumanJob.valueOf(name);
+        } catch (IllegalArgumentException e) {
+            src.sendFailure(Component.literal("Oficio desconocido: " + name));
+            return 0;
+        }
+        var level = src.getLevel();
+        var h = com.agustin.bloodmoon.entity.ModEntities.HUMAN.get().create(level);
+        if (h == null) return 0;
+        var pos = src.getPosition();
+        h.moveTo(pos.x, pos.y, pos.z, 0, 0);
+        h.setup(level.random.nextInt(), job, culture != null ? culture
+                : com.agustin.bloodmoon.human.HumanWorld.cultureAt(level, net.minecraft.core.BlockPos.containing(pos)));
+        level.addFreshEntity(h);
+        src.sendSuccess(() -> Component.literal("Humano: " + h.describe()), false);
         return 1;
     }
 }

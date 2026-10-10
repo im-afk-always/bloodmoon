@@ -104,6 +104,14 @@ public final class ModEntities {
                     .clientTrackingRange(16)
                     .build("void_king"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<com.agustin.bloodmoon.human.Human>> HUMAN =
+            ENTITIES.register("human", () -> EntityType.Builder
+                    .<com.agustin.bloodmoon.human.Human>of(com.agustin.bloodmoon.human.Human::new, MobCategory.MISC)
+                    .sized(0.6F, 1.8F)
+                    .eyeHeight(1.62F)
+                    .clientTrackingRange(10)
+                    .build("human"));
+
     public static final DeferredHolder<EntityType<?>, EntityType<VoidMage>> VOID_MAGE =
             ENTITIES.register("void_mage", () -> EntityType.Builder
                     .<VoidMage>of(VoidMage::new, MobCategory.MONSTER)
@@ -219,6 +227,7 @@ public final class ModEntities {
         event.put(VOID_GENERAL.get(), VoidGeneral.createAttributes().build());
         event.put(VOID_KING.get(), VoidKing.createAttributes().build());
         event.put(VOID_MAGE.get(), VoidMage.createAttributes().build());
+        event.put(HUMAN.get(), com.agustin.bloodmoon.human.Human.createAttributes().build());
         event.put(VOID_EYE.get(), VoidEye.createAttributes().build());
         event.put(EYE_TENTACLE.get(), EyeTentacle.createAttributes().build());
         event.put(UNBOUND_OBSERVER.get(), VoidEye.createAttributes().build());

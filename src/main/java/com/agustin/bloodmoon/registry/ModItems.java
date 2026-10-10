@@ -78,6 +78,8 @@ public final class ModItems {
             () -> new DeferredSpawnEggItem(ModEntities.VOID_FORGER, 0x6A6460, 0x8A2BE2, new Item.Properties()));
     public static final DeferredItem<DeferredSpawnEggItem> VOID_GENERAL_SPAWN_EGG = ITEMS.register("void_general_spawn_egg",
             () -> new DeferredSpawnEggItem(ModEntities.VOID_GENERAL, 0x221E28, 0xD040FF, new Item.Properties()));
+    public static final DeferredItem<DeferredSpawnEggItem> HUMAN_SPAWN_EGG = ITEMS.register("human_spawn_egg",
+            () -> new DeferredSpawnEggItem(ModEntities.HUMAN, 0xC89B72, 0x5A3B22, new Item.Properties()));
     public static final DeferredItem<DeferredSpawnEggItem> VOID_KING_SPAWN_EGG = ITEMS.register("void_king_spawn_egg",
             () -> new DeferredSpawnEggItem(ModEntities.VOID_KING, 0x2A0E3E, 0xF0C040, new Item.Properties()));
     public static final DeferredItem<DeferredSpawnEggItem> VOID_MAGE_SPAWN_EGG = ITEMS.register("void_mage_spawn_egg",
@@ -149,6 +151,7 @@ public final class ModItems {
             event.accept(VOID_MAGE_SPAWN_EGG);
             event.accept(VOID_EYE_SPAWN_EGG);
             event.accept(CURSED_CREEPER_SPAWN_EGG);
+            event.accept(HUMAN_SPAWN_EGG);
         }
     }
 }

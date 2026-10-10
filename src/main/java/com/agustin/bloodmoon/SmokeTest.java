@@ -42,12 +42,48 @@ public final class SmokeTest {
             ok &= sanctum(server);
             ok &= beyond(server);
             ok &= dominion(server);
+            ok &= humans(server);
         } catch (Throwable t) {
             BloodMoonMod.LOGGER.error("SMOKETEST FAIL exception", t);
             ok = false;
         }
         BloodMoonMod.LOGGER.info(ok ? "SMOKETEST PASS" : "SMOKETEST FAIL");
         server.halt(false);
+    }
+
+    /** Humanos: cada oficio que comercia tiene ofertas en monedas (ninguna esmeralda) y un aldeano se convierte. */
+    private static boolean humans(MinecraftServer server) {
+        ServerLevel level = server.overworld();
+        boolean ok = true;
+        for (com.agustin.bloodmoon.human.HumanJob job : com.agustin.bloodmoon.human.HumanJob.values()) {
+            var h = com.agustin.bloodmoon.entity.ModEntities.HUMAN.get().create(level);
+            if (h == null) return false;
+            h.moveTo(0.5, 100, 0.5, 0, 0);
+            h.setup(job.ordinal() * 7919, job, com.agustin.bloodmoon.human.Culture.byId(job.ordinal() % 2));
+            if (!job.trades()) continue;
+            int n = 0, emeralds = 0;
+            for (var o : h.getOffers()) {
+                n++;
+                if (o.getResult().is(net.minecraft.world.item.Items.EMERALD)
+                        || o.getItemCostA().item().value() == net.minecraft.world.item.Items.EMERALD
+                        || o.getItemCostB().map(c -> c.item().value() == net.minecraft.world.item.Items.EMERALD).orElse(false)) {
+                    emeralds++;
+                }
+            }
+            BloodMoonMod.LOGGER.info("SMOKETEST human {} offers={} emeralds={} name={}", job, n, emeralds, h.describe());
+            if (n == 0 || emeralds > 0 && job != com.agustin.bloodmoon.human.HumanJob.MERCHANT) ok = false;
+        }
+        var v = EntityType.VILLAGER.create(level);
+        if (v != null) {
+            v.moveTo(0.5, 100, 0.5, 0, 0);
+            v.setVillagerData(v.getVillagerData().setProfession(net.minecraft.world.entity.npc.VillagerProfession.LIBRARIAN).setLevel(3));
+            var h = com.agustin.bloodmoon.human.HumanWorld.convert(level, v);
+            boolean conv = h != null && h.job() == com.agustin.bloodmoon.human.HumanJob.LIBRARIAN && h.getOffers().size() >= 4;
+            BloodMoonMod.LOGGER.info("SMOKETEST human conversion {}", conv ? h.describe() : "FAILED");
+            if (h != null) h.discard();
+            ok &= conv;
+        }
+        return ok;
     }
 
     /** Plantillas del Dominio: se leen sin estados inválidos y una Fortaleza se levanta entera con su núcleo. */
