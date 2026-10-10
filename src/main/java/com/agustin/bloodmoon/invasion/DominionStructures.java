@@ -122,25 +122,29 @@ public final class DominionStructures {
 
     // ------------------------------------------------------------------ caminos
 
-    /** Traza los tramos de camino de este chunk: de su centro hacia cada vecino unido (3 de ancho, con faroles). */
+    /**
+     * Traza los tramos de camino de este chunk: de su centro hacia cada vecino unido (3 de ancho; en diagonal, 5 en cruz
+     * para que los tramos se toquen), con farolas. Dentro de la huella de una estructura llega hasta sus muros.
+     */
     static void drawRoads(ServerLevel level, LevelChunk chunk, InvasionData.Cell c) {
         int minX = chunk.getPos().getMinBlockX(), minZ = chunk.getPos().getMinBlockZ();
-        if (inFootprint(InvasionData.get(level), chunk.getPos())) return;   // el camino llega hasta el borde de la estructura
+        boolean inside = inFootprint(InvasionData.get(level), chunk.getPos());
         int skip = c.obelisk || c.obeliskBuilt ? 7 : 0;   // no cortar el basamento del obelisco
         for (int i = 0; i < 8; i++) {
             if ((c.roadMask & 1 << i) == 0) continue;
             int dx = DIRS[i][0], dz = DIRS[i][1];
-            int steps = 9;
-            for (int s = 0; s < steps; s++) {
-                if (s < skip) continue;
+            boolean diag = dx != 0 && dz != 0;
+            for (int s = skip; s <= 8; s++) {
                 int lx = 8 + dx * s, lz = 8 + dz * s;
                 for (int w = -1; w <= 1; w++) {
-                    int px = lx + (dz != 0 ? w : 0), pz = lz + (dz == 0 ? w : 0);
-                    if (dx != 0 && dz != 0) { px = lx + w; pz = lz; }
-                    if (px < 0 || pz < 0 || px > 15 || pz > 15) continue;
-                    paveAt(level, chunk, minX + px, minZ + pz);
+                    if (diag) {
+                        pave(level, chunk, minX, minZ, lx + w, lz);
+                        pave(level, chunk, minX, minZ, lx, lz + w);
+                    } else {
+                        pave(level, chunk, minX, minZ, lx + (dz != 0 ? w : 0), lz + (dz == 0 ? w : 0));
+                    }
                 }
-                if (s == 6 && dx * dz == 0) {   // farol al costado
+                if (!inside && s == 5 && !diag) {   // farola al costado
                     int fx = lx + (dz != 0 ? 2 : 0), fz = lz + (dz == 0 ? 2 : 0);
                     if (fx >= 0 && fz >= 0 && fx <= 15 && fz <= 15) lamp(level, chunk, minX + fx, minZ + fz);
                 }
@@ -148,26 +152,52 @@ public final class DominionStructures {
         }
     }
 
-    private static void paveAt(ServerLevel level, LevelChunk chunk, int x, int z) {
+    private static void pave(ServerLevel level, LevelChunk chunk, int minX, int minZ, int px, int pz) {
+        if (px < 0 || pz < 0 || px > 15 || pz > 15) return;
+        paveAt(level, chunk, minX + px, minZ + pz);
+    }
+
+    /** Suelo real de la columna: se saltan troncos (también los calcinados), hojas, plantas y bloques reemplazables. */
+    private static int groundY(LevelChunk chunk, int x, int z) {
         int y = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x & 15, z & 15);
+        int min = chunk.getMinBuildHeight();
+        for (int k = 0; k < 40 && y > min; k++) {
+            BlockState st = chunk.getBlockState(new BlockPos(x, y, z));
+            if (st.isAir() || st.is(BlockTags.LOGS) || st.is(ModBlocks.CHARRED_LOG.get()) || st.is(BlockTags.LEAVES)
+                    || (st.canBeReplaced() && st.getFluidState().isEmpty())) y--;
+            else break;
+        }
+        return y;
+    }
+
+    /** Tierra natural (o corrompida) sobre la que se puede pavimentar o plantar una farola. */
+    private static boolean natural(BlockState st) {
+        if (!BuiltinRegistriesHolder.isModStructure(st)) return !st.is(BlockTags.STAIRS) && !st.is(BlockTags.SLABS) && !st.is(BlockTags.WALLS);
+        return st.is(ModBlocks.DEAD_GRASS_BLOCK.get()) || st.is(ModBlocks.BARREN_DIRT.get()) || st.is(ModBlocks.BLACK_ROCK.get());
+    }
+
+    private static void paveAt(ServerLevel level, LevelChunk chunk, int x, int z) {
+        int y = groundY(chunk, x, z);
         BlockPos top = new BlockPos(x, y, z);
         BlockState st = chunk.getBlockState(top);
-        if (st.is(ModBlocks.OBELISK_CORE.get()) || st.is(ModBlocks.VOID_LANTERN.get())) return;
-        if (BuiltinRegistriesHolder.isModStructure(st) && !st.is(ModBlocks.DEAD_GRASS_BLOCK.get()) && !st.is(ModBlocks.BARREN_DIRT.get())
-                && !st.is(ModBlocks.BLACK_ROCK.get())) return;
+        if (!natural(st)) return;   // muros, pisos y escalones de las estructuras (o camino ya hecho)
         level.setBlock(top, bricks(x, y, z), FLAGS);
-        for (int k = 1; k <= 2; k++) {
+        // paso libre: fuera troncos, hojas y plantas en 3 de alto (y el resto del tronco, para que no flote)
+        for (int k = 1; k <= 12; k++) {
             BlockPos above = top.above(k);
             BlockState a = chunk.getBlockState(above);
-            if (!a.isAir() && a.canBeReplaced()) level.setBlock(above, Blocks.AIR.defaultBlockState(), FLAGS);
+            boolean trunk = a.is(BlockTags.LOGS) || a.is(ModBlocks.CHARRED_LOG.get()) || a.is(BlockTags.LEAVES);
+            if (k <= 3 && !a.isAir() && (a.canBeReplaced() || trunk)) level.setBlock(above, Blocks.AIR.defaultBlockState(), FLAGS);
+            else if (k > 3 && trunk) level.setBlock(above, Blocks.AIR.defaultBlockState(), FLAGS);
+            else if (k > 3) break;
         }
     }
 
     private static void lamp(ServerLevel level, LevelChunk chunk, int x, int z) {
-        int y = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x & 15, z & 15) + 1;
-        BlockState under = chunk.getBlockState(new BlockPos(x, y - 1, z));
-        if (BuiltinRegistriesHolder.isModStructure(under) && !under.is(ModBlocks.DEAD_GRASS_BLOCK.get()) && !under.is(ModBlocks.BARREN_DIRT.get())
-                && !under.is(ModBlocks.BLACK_ROCK.get()) && !under.is(ModBlocks.BLACK_ROCK_BRICKS.get()) && !under.is(ModBlocks.CRACKED_BLACK_ROCK_BRICKS.get())) return;
+        int g = groundY(chunk, x, z);
+        BlockState under = chunk.getBlockState(new BlockPos(x, g, z));
+        if (!natural(under)) return;
+        int y = g + 1;
         BlockState wall = ModBlocks.BLACK_ROCK_BRICK_WALL.get().defaultBlockState();
         level.setBlock(new BlockPos(x, y, z), ModBlocks.CHISELED_BLACK_ROCK_BRICKS.get().defaultBlockState(), FLAGS);
         level.setBlock(new BlockPos(x, y + 1, z), wall, FLAGS);

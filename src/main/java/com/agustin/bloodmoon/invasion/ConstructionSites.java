@@ -204,6 +204,17 @@ public final class ConstructionSites {
                 c.coreY = s.coreY;
                 data.setDirty();
                 DominionTerraform.enqueue(s.key);   // ahora sí, los caminos de este chunk
+                if (s.structure) {                   // y los de la huella: que lleguen hasta los muros
+                    int fr = DominionStructures.footprint(c.structure);
+                    for (int ox = -fr; ox <= fr; ox++) for (int oz = -fr; oz <= fr; oz++) {
+                        long k = ChunkPos.asLong(cp.x + ox, cp.z + oz);
+                        InvasionData.Cell n = data.cells.get(k);
+                        if (n != null && n.roadMask != 0) {
+                            n.roadBuilt = false;
+                            DominionTerraform.enqueue(k);
+                        }
+                    }
+                }
                 for (UUID u : s.forgers) {
                     Entity e = level.getEntity(u);
                     if (e instanceof VoidForger fo) fo.setWorkSite(null);
