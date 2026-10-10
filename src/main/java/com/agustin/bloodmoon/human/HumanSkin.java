@@ -428,6 +428,11 @@ public final class HumanSkin {
                 vest(0x8A7A5A, false);   // gambesón (la armadura va encima como ítems)
                 sleeves((f, i, j, w, h) -> j < 8 ? noise(0x8A7A5A, 6) : -1);
             }
+            case LUMBERJACK -> {
+                // camisa a cuadros y gorro de lana
+                jacket((f, i, j, w, h) -> ((i / 2 + j / 2) % 2 == 0) ? noise(0xA8302A, 4) : noise(0x2A2420, 4));
+                cap(0x8A2A24, false);
+            }
             case BANDIT -> {
                 hood(0x2A2622, true);
                 hat((f, i, j, w, h) -> f == 3 && j >= 5 ? noise(0x8A2020, 6) : (f >= 2 && j >= 5 ? noise(0x8A2020, 6) : -1));   // pañuelo

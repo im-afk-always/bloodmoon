@@ -21,12 +21,19 @@ public enum HumanJob {
     MASON("mason"),
     MERCHANT(null),
     GUARD(null),
-    BANDIT(null);
+    BANDIT(null),
+    /** Leñador: no comercia; su aserradero suma madera al mercado (como número) y la aldea tala alrededor por etapas. */
+    LUMBERJACK(null);
 
     public final String vanilla;
 
     HumanJob(String vanilla) {
         this.vanilla = vanilla;
+    }
+
+    /** Nombre del taller en las plantillas ({@code work_<nombre>}): la profesión vanilla, o el oficio propio. */
+    public String workshop() {
+        return vanilla != null ? vanilla : name().toLowerCase(java.util.Locale.ROOT);
     }
 
     public static HumanJob byId(int id) {

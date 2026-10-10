@@ -31,7 +31,7 @@ public class VillageFeature extends Feature<NoneFeatureConfiguration> {
                 Optional<VillageSites.Site> site = VillageSites.site(server, rx + dx, rz + dz);
                 if (site.isEmpty()) continue;
                 VillageSites.Site s = site.get();
-                int r = VillageLayout.RADIUS;
+                int r = Math.max(VillageLayout.RADIUS, TerraceField.clearRadius(0));
                 if (cp.getMaxBlockX() < s.x() - r || cp.getMinBlockX() > s.x() + r
                         || cp.getMaxBlockZ() < s.z() - r || cp.getMinBlockZ() > s.z() + r) continue;
                 build(level, server, cp, VillageLayout.get(server, s));
@@ -46,8 +46,10 @@ public class VillageFeature extends Feature<NoneFeatureConfiguration> {
         int[] box = {cp.getMinBlockX(), cp.getMinBlockZ(), cp.getMaxBlockX(), cp.getMaxBlockZ()};
         long key = VillageBuilder.key(layout.site().x(), layout.site().z());
         VillageBuilder.clearTrees(level, box, layout.buildings(), layout.roads(), true);
-        VillageBuilder.terraform(level, box, layout.site(), layout.plaza().y0(), layout.buildings(), desert);
-        VillageBuilder.pave(level, box, layout.roads(), layout.buildings(), desert, true);
+        TerraceField field = TerraceField.of(server, layout.site());
+        // etapa 0 del territorio: terrazas hasta el radio de la aldea y tala con holgura alrededor
+        VillageBuilder.applyStage(level, box, layout.site(), field, 0, layout.buildings(), desert, true);
+        VillageBuilder.pave(level, box, layout.roads(), layout.buildings(), desert, true, false, field);
         for (VillageLayout.Building b : layout.buildings()) {
             if (b.maxX() + 3 < box[0] || b.minX() - 3 > box[2] || b.maxZ() + 3 < box[1] || b.minZ() - 3 > box[3]) continue;
             VillageBuilder.yard(level, b, box, layout.roads(), layout.buildings(), desert, true);

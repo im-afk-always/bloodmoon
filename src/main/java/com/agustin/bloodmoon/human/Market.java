@@ -60,7 +60,8 @@ public final class Market {
         int pop = s.pop;
         boolean desert = s.culture == Culture.DESERT;
         int smiths = jobs(bs, HumanJob.TOOLSMITH) + jobs(bs, HumanJob.ARMORER) + jobs(bs, HumanJob.WEAPONSMITH);
-        p[Good.WOOD.ordinal()] = 2 + pop * (desert ? 0.15 : 0.3);
+        // los leñadores del aserradero talan alrededor del territorio: la madera se cuenta acá, no se ve en el mundo
+        p[Good.WOOD.ordinal()] = 2 + pop * (desert ? 0.15 : 0.3) + jobs(bs, HumanJob.LUMBERJACK) * (desert ? 5 : 8);
         p[Good.STONE.ordinal()] = 2 + pop * 0.15 + jobs(bs, HumanJob.MASON) * 5;
         p[Good.IRON.ordinal()] = 0.5 + pop * 0.03 + smiths * 0.5;
         p[Good.TOOLS.ordinal()] = jobs(bs, HumanJob.TOOLSMITH) * 1.5;

@@ -81,50 +81,87 @@ public final class VillageBuilder {
     }
 
     /**
-     * Aplana el núcleo de la aldea a la altura de la plaza (con una transición suave hasta el terreno natural): corta las
-     * lomas, rellena los pozos, sella las bocas de cueva, apaga la lava y despeja los árboles del centro. Los edificios
-     * nivelan su propio patio después.
+     * Etapa del territorio sobre una caja (un chunk): dentro del radio de la etapa el suelo queda en las terrazas del
+     * {@link TerraceField} (corta lomas, rellena pozos, taludes de pasto, sella cuevas y apaga la lava) y, hasta el radio
+     * de tala, los leñadores se llevan los árboles. Los edificios y su entorno inmediato no se tocan. En partida
+     * ({@code wg = false}) solo se tocan bloques naturales, nunca lo que construyó un jugador.
      */
-    public static void terraform(WorldGenLevel level, int[] box, VillageSites.Site site, int cy, List<VillageLayout.Building> buildings,
-                                 boolean desert) {
+    public static void applyStage(WorldGenLevel level, int[] box, VillageSites.Site site, TerraceField field, int stage,
+                                  List<VillageLayout.Building> buildings, boolean desert, boolean wg) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-        BlockState air = Blocks.AIR.defaultBlockState();
-        BlockState fill = (desert ? Blocks.SANDSTONE : Blocks.DIRT).defaultBlockState();
-        BlockState topBlock = (desert ? Blocks.SAND : Blocks.GRASS_BLOCK).defaultBlockState();
-        double reach = VillageLayout.FLAT_R + VillageLayout.FLAT_BLEND;
+        int r = TerraceField.radius(stage), cr = TerraceField.clearRadius(stage);
         for (int x = box[0]; x <= box[2]; x++) {
             for (int z = box[1]; z <= box[3]; z++) {
                 double d = Math.hypot(x - site.x(), z - site.z());
-                if (d > reach) continue;
-                boolean inside = false;
-                for (VillageLayout.Building b : buildings) if (b.contains(x, z, 0)) { inside = true; break; }
-                if (inside) continue;
-                int g = ground(level, x, z, true);
-                douse(level, p, x, z, g - 8, g + 2, desert);
-                BlockState top = level.getBlockState(p.set(x, g, z));
-                if (!top.getFluidState().isEmpty()) continue;            // charcos y arroyos quedan
-                int target = VillageLayout.flat(x, z, site, cy, g + 1) - 1;
-                if (Math.abs(target - g) > 10) continue;                 // un barranco no se rellena entero
-                if (d <= VillageLayout.FLAT_R) {
-                    // centro despejado: sin árboles
-                    for (int y = g + 1; y <= g + 30; y++) {
-                        BlockState st = level.getBlockState(p.set(x, y, z));
-                        if (st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS) || st.is(Blocks.VINE) || st.is(Blocks.BEE_NEST)) level.setBlock(p, air, FLAGS);
-                    }
-                }
-                if (g > target) {
-                    for (int y = target + 1; y <= g + 2; y++) {
-                        BlockState st = level.getBlockState(p.set(x, y, z));
-                        if (!st.isAir() && st.getFluidState().isEmpty()) level.setBlock(p, air, FLAGS);
-                    }
-                    level.setBlock(p.set(x, target, z), topBlock, FLAGS);
-                } else if (g < target) {
-                    for (int y = g + 1; y < target; y++) level.setBlock(p.set(x, y, z), fill, FLAGS);
-                    level.setBlock(p.set(x, target, z), topBlock, FLAGS);
-                }
-                seal(level, p, x, z, target, desert, true);
+                if (d > cr) continue;
+                VillageLayout.Building inside = null;
+                for (VillageLayout.Building b : buildings) if (b.contains(x, z, 1)) { inside = b; break; }
+                if (inside != null) continue;
+                fellColumn(level, p, x, z, wg);
+                if (d > r) continue;
+                int t = field.level(x, z);
+                if (t != TerraceField.NONE) terraceColumn(level, p, x, z, t, desert, wg);
             }
         }
+    }
+
+    /** Leñadores: saca el árbol de la columna (troncos, hojas naturales, lianas, nidos); las hojas puestas a mano quedan. */
+    static void fellColumn(WorldGenLevel level, BlockPos.MutableBlockPos p, int x, int z, boolean wg) {
+        int g = ground(level, x, z, wg);
+        BlockState air = Blocks.AIR.defaultBlockState();
+        // ¿es un árbol? hay hojas naturales en la columna o justo al lado (un tronco suelto de un jugador no lo es)
+        boolean tree = false;
+        for (int y = g + 1; y <= g + 40 && !tree; y++) {
+            BlockState st = level.getBlockState(p.set(x, y, z));
+            if (st.is(BlockTags.LEAVES) && st.hasProperty(net.minecraft.world.level.block.LeavesBlock.PERSISTENT)
+                    && !st.getValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT)) tree = true;
+        }
+        if (!tree) return;
+        for (int y = g + 40; y > g; y--) {
+            BlockState st = level.getBlockState(p.set(x, y, z));
+            boolean leaf = st.is(BlockTags.LEAVES) && (!st.hasProperty(net.minecraft.world.level.block.LeavesBlock.PERSISTENT)
+                    || !st.getValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT));
+            if (leaf || st.is(BlockTags.LOGS) || st.is(Blocks.VINE) || st.is(Blocks.COCOA) || st.is(Blocks.BEE_NEST)
+                    || st.is(Blocks.MANGROVE_ROOTS)) {
+                level.setBlock(p, air, FLAGS);
+            }
+        }
+        // el tocón: si el árbol nacía en el suelo, el tronco de abajo también se va
+        BlockState base = level.getBlockState(p.set(x, g, z));
+        if (base.is(BlockTags.LOGS)) level.setBlock(p, (wg ? Blocks.GRASS_BLOCK : Blocks.DIRT).defaultBlockState(), FLAGS);
+    }
+
+    /** Deja la columna a la altura {@code t} de la terraza: corta o rellena, pasto o arena arriba, sella cuevas. */
+    static void terraceColumn(WorldGenLevel level, BlockPos.MutableBlockPos p, int x, int z, int t, boolean desert, boolean wg) {
+        if (!wg && level instanceof ServerLevel sl && !sl.hasChunk(x >> 4, z >> 4)) return;
+        int g = ground(level, x, z, wg);
+        BlockState top = level.getBlockState(p.set(x, g, z));
+        if (lava(top)) {
+            douse(level, p, x, z, g - 8, g + 1, desert);
+            top = level.getBlockState(p.set(x, g, z));
+        }
+        if (!top.getFluidState().isEmpty()) return;              // arroyos y charcos quedan
+        if (Math.abs(t - g) > TerraceField.MAX_CUT + 2) return;  // un barranco no se rellena entero
+        if (!wg && !natural(top) && !isPath(top) && !isStone(top)) return;   // obra del jugador
+        douse(level, p, x, z, t - 8, t + 2, desert);
+        BlockState air = Blocks.AIR.defaultBlockState();
+        BlockState fill = (desert ? Blocks.SANDSTONE : Blocks.DIRT).defaultBlockState();
+        BlockState surface = (desert ? Blocks.SAND : Blocks.GRASS_BLOCK).defaultBlockState();
+        if (g > t) {
+            for (int y = t + 1; y <= g + 2; y++) {
+                BlockState st = level.getBlockState(p.set(x, y, z));
+                if (st.isAir() || !st.getFluidState().isEmpty()) continue;
+                if (wg || natural(st)) level.setBlock(p, air, FLAGS);
+            }
+            level.setBlock(p.set(x, t, z), surface, FLAGS);
+        } else if (g < t) {
+            // lo que había arriba del suelo viejo (pasto, flores) se pierde bajo el relleno
+            for (int y = g + 1; y < t; y++) level.setBlock(p.set(x, y, z), fill, FLAGS);
+            level.setBlock(p.set(x, t, z), surface, FLAGS);
+            BlockState above = level.getBlockState(p.set(x, t + 1, z));
+            if (!above.isAir() && above.canBeReplaced()) level.setBlock(p, air, FLAGS);
+        }
+        seal(level, p, x, z, t, desert, wg);
     }
 
     /** Tala árboles en las columnas cercanas a edificios o calles. */
@@ -189,6 +226,12 @@ public final class VillageBuilder {
 
     public static void pave(WorldGenLevel level, int[] box, List<VillageLayout.Road> roads, List<VillageLayout.Building> buildings,
                             boolean desert, boolean wg, boolean stone) {
+        pave(level, box, roads, buildings, desert, wg, stone, null);
+    }
+
+    /** {@code field}: terrazas del asentamiento; la calle va sobre la terraza (y sube los taludes de a un bloque). */
+    public static void pave(WorldGenLevel level, int[] box, List<VillageLayout.Road> roads, List<VillageLayout.Building> buildings,
+                            boolean desert, boolean wg, boolean stone, TerraceField field) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         BlockState air = Blocks.AIR.defaultBlockState();
         BlockState fill = (desert ? Blocks.SANDSTONE : Blocks.DIRT).defaultBlockState();
@@ -220,6 +263,10 @@ public final class VillageBuilder {
                 if (!wg && !natural(top) && !isPath(top) && !isStone(top)) continue;   // en partida no se pisa lo del jugador
                 int want = road.y(x, z);
                 int y = want == Integer.MIN_VALUE ? g : want - 1;
+                if (field != null) {
+                    int l = field.level(x, z);
+                    if (l != TerraceField.NONE) y = l;
+                }
                 long h = hash(x, z);
                 if (lava(top)) {
                     // lava: se tapa con piedra y la calle pasa por encima como por suelo firme (nunca un puente de madera)
@@ -314,19 +361,9 @@ public final class VillageBuilder {
                 BlockState top = level.getBlockState(p.set(x, g, z));
                 if (!top.getFluidState().isEmpty()) continue;
                 if (!wg && !natural(top)) continue;
-                // terraza plana hasta 2 bloques del edificio; en el borde, muro de contención de piedra (nada de barrancos de tierra)
-                int target = k < m ? b.floorY() : g;
-                if (k == m && Math.abs(g - b.floorY()) >= 2) {
-                    int lo = Math.min(g, b.floorY()), hi = Math.max(g, b.floorY());
-                    for (int y = Math.max(lo - 1, hi - 7); y <= hi; y++) {
-                        BlockState st = level.getBlockState(p.set(x, y, z));
-                        if (!wg && !natural(st)) continue;
-                        if (y > lo && g > b.floorY() && st.isAir()) continue;   // un hueco en la loma no se rellena
-                        level.setBlock(p, retaining(desert, x, y, z), FLAGS);
-                    }
-                    continue;
-                }
-                if (k == m) target = b.floorY() + (g > b.floorY() ? 1 : g < b.floorY() ? -1 : 0);
+                // patio plano hasta 2 bloques del edificio; en el borde, una pendiente suave de tierra hacia el suelo de la
+                // terraza (sin muros de contención: el acceso de la puerta y el patio quedan abiertos a la calle)
+                int target = k < m ? b.floorY() : b.floorY() + Math.max(-2, Math.min(2, g - b.floorY()));
                 if (g > target) {
                     for (int y = target + 1; y <= g + 2; y++) {
                         p.set(x, y, z);
@@ -345,12 +382,6 @@ public final class VillageBuilder {
                 if (k < m) seal(level, p, x, z, target, desert, wg);
             }
         }
-    }
-
-    private static BlockState retaining(boolean desert, int x, int y, int z) {
-        long h = hash(x, z + y * 31);
-        if (desert) return (h % 5 == 0 ? Blocks.SANDSTONE : Blocks.CUT_SANDSTONE).defaultBlockState();
-        return (h % 4 == 0 ? Blocks.MOSSY_COBBLESTONE : h % 3 == 0 ? Blocks.STONE_BRICKS : Blocks.COBBLESTONE).defaultBlockState();
     }
 
     private static boolean isPath(BlockState st) {

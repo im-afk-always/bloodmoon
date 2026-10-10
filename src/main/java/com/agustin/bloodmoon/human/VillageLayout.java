@@ -116,22 +116,6 @@ public final class VillageLayout {
     /** Hasta dónde (distancia por la red) puede crecer un asentamiento. */
     public static final int MAX_DIST = 170;
 
-    /** Radio del núcleo aplanado a la altura de la plaza, y ancho de la transición hasta el terreno natural. */
-    public static final double FLAT_R = 64, FLAT_BLEND = 28;
-
-    /** Altura (primer bloque libre) de la calle en un punto: la de la plaza en el núcleo, mezclada con el terreno afuera. */
-    static int flat(double x, double z, VillageSites.Site site, int cy, int natural) {
-        if (natural == Integer.MIN_VALUE) return natural;
-        double d = Math.hypot(x - site.x(), z - site.z());
-        double f = Math.max(0, Math.min(1, (d - FLAT_R) / FLAT_BLEND));
-        return (int) Math.round(cy + (natural - cy) * f);
-    }
-
-    /** ¿El punto está en el núcleo aplanado? (ahí los constructores cortan y rellenan más para dejar todo parejo) */
-    static boolean core(VillageSites.Site site, double x, double z) {
-        return Math.hypot(x - site.x(), z - site.z()) <= FLAT_R + FLAT_BLEND / 2;
-    }
-
     /** Contadores de rechazos (solo para diagnóstico). */
     public static final int[] REJ = new int[6];
 
@@ -199,20 +183,20 @@ public final class VillageLayout {
         List<int[]> lamps = new ArrayList<>();
         ChunkGenerator gen = level.getChunkSource().getGenerator();
         RandomState rs = level.getChunkSource().randomState();
-        StreetPlanner.Terrain terrain = terrain(level);
+        TerraceField field = TerraceField.of(level, site);
+        // el trazador ve el terreno como lo dejan los constructores: terrazas (evita taludes y lo que no se construye)
+        StreetPlanner.Terrain terrain = field.asTerrain();
 
         // red de calles según el patrón de esta aldea
         StreetPlanner.Pattern pattern = StreetPlanner.choose(site.seed(), site.culture() == Culture.DESERT);
         List<StreetPlanner.Seg> segs = StreetPlanner.plan(site.seed(), site.x(), site.z(), pattern, terrain, MAX_DIST - 40);
-        int cy = terrain.height(site.x(), site.z());
+        int cy = field.base() + 1;
         List<Road> net = new ArrayList<>();
         int[] parent = new int[segs.size()];
         double[] dist = new double[segs.size()];
         for (int i = 0; i < segs.size(); i++) {
             StreetPlanner.Seg g = segs.get(i);
-            // el núcleo de la aldea queda a un solo nivel (el de la plaza); afuera, las calles vuelven a seguir el terreno
-            int y0 = flat(g.x0(), g.z0(), site, cy, g.y0()), y1 = flat(g.x1(), g.z1(), site, cy, g.y1());
-            net.add(new Road(g.x0(), g.z0(), g.x1(), g.z1(), g.half(), y0, y1));
+            net.add(new Road(g.x0(), g.z0(), g.x1(), g.z1(), g.half(), field.streetY(g.x0(), g.z0()), field.streetY(g.x1(), g.z1())));
             parent[i] = g.parent();
             dist[i] = g.dist();
         }
@@ -406,13 +390,11 @@ public final class VillageLayout {
             if (b == null) continue;
             // la puerta queda a la altura de la calle: el piso se toma de la calle, no del terreno (los constructores
             // nivelan el resto); si la diferencia con el terreno es mucha, el lote no sirve
-            int ry = r.y(rx, rz);
-            if (ry != Integer.MIN_VALUE) {
-                int floor = ry - 1;
-                if (Math.abs(floor - b.floorY()) > (core(site, rx, rz) ? 9 : 5)) { REJ[4]++; continue; }
-                b = new Building(b.template(), b.kind(), b.job(), b.residents(), b.x(), b.z(), b.rot(), floor, b.minX(), b.minZ(), b.maxX(),
-                        b.maxZ(), b.coreX(), b.coreZ());
-            }
+            // el edificio va entero sobre una sola terraza (nunca a caballo de un talud): su piso es el de la terraza
+            int floor = TerraceField.of(level, site).floor(b.minX() - 1, b.minZ() - 1, b.maxX() + 1, b.maxZ() + 1);
+            if (floor == TerraceField.NONE) { REJ[4]++; continue; }
+            b = new Building(b.template(), b.kind(), b.job(), b.residents(), b.x(), b.z(), b.rot(), floor, b.minX(), b.minZ(), b.maxX(),
+                    b.maxZ(), b.coreX(), b.coreZ());
             if (accept != null && !accept.test(b)) { REJ[5]++; continue; }
             // acceso de 3 de ancho desde la puerta hasta el eje de la calle
             return new Plot(b, new Road(b.coreX(), b.coreZ(), rx, rz, SPUR_HALF, b.floorY() + 1, b.floorY() + 1), i, p[2]);
@@ -555,10 +537,7 @@ public final class VillageLayout {
         }
         int[] sorted = hs.clone();
         Arrays.sort(sorted);
-        if (kind != Kind.WELL && sorted[8] - sorted[0] > 10) {
-            REJ[1]++;
-            return Integer.MIN_VALUE;
-        }
+        // la pendiente natural no importa: el piso lo da la terraza (findPlot)
         return sorted[4] - 1;
     }
 

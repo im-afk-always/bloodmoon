@@ -186,7 +186,7 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
             case CLERIC -> new ItemStack(Items.GLASS_BOTTLE);
             case ARMORER, WEAPONSMITH -> new ItemStack(Items.IRON_INGOT);
             case TOOLSMITH -> new ItemStack(Items.IRON_PICKAXE);
-            case BUTCHER -> new ItemStack(Items.IRON_AXE);
+            case BUTCHER, LUMBERJACK -> new ItemStack(Items.IRON_AXE);
             case LEATHERWORKER -> new ItemStack(Items.LEATHER);
             case MASON -> new ItemStack(Items.BRICK);
             case MERCHANT -> new ItemStack(ModItems.GOLD_COIN.get());
@@ -641,7 +641,7 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
             HumanJob j = HumanJob.NONE;
             if (reason == MobSpawnType.SPAWN_EGG || reason == MobSpawnType.COMMAND) {
                 HumanJob[] all = HumanJob.values();
-                j = all[1 + random.nextInt(all.length - 2)]; // ni NONE ni BANDIT
+                do j = all[1 + random.nextInt(all.length - 1)]; while (j == HumanJob.BANDIT); // ni NONE ni BANDIT
             }
             setup(seed(), j, c);
         }

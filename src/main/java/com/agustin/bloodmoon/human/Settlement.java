@@ -84,6 +84,12 @@ public final class Settlement {
     public final List<VillageLayout.Road> wall = new ArrayList<>();
     public double wallProgress;
     public boolean[] wallDone = new boolean[0];
+    /** Etapa del territorio ya aplicada en el mundo (terrazas y tala hasta el radio de esa etapa). */
+    public int stage;
+    /** Etapa aplicada en cada chunk del anillo en transformación (clave ChunkPos). */
+    public final java.util.Map<Long, Integer> chunkStage = new java.util.HashMap<>();
+    /** Por dónde va el recorrido de chunks de la etapa en curso (no se guarda). */
+    public transient int stageCursor, stagePending;
     /** Ejército: soldados alistados (parte de la población), nivel de equipo (0 cuero y piedra … 3 hierro y encantado). */
     public int soldiers;
     public int armyTier;
@@ -168,6 +174,9 @@ public final class Settlement {
         t.putDouble("wallProgress", wallProgress);
         t.putByteArray("wallDone", bytes(wallDone));
         t.putInt("portSearched", portSearched);
+        t.putInt("stage", stage);
+        t.putLongArray("chunkStageK", chunkStage.keySet().stream().mapToLong(Long::longValue).toArray());
+        t.putIntArray("chunkStageV", chunkStage.values().stream().mapToInt(Integer::intValue).toArray());
         t.putInt("soldiers", soldiers);
         t.putInt("armyTier", armyTier);
         t.putDouble("military", militarySpend);
@@ -238,6 +247,10 @@ public final class Settlement {
         s.wallProgress = t.getDouble("wallProgress");
         s.wallDone = bools(t.getByteArray("wallDone"));
         s.portSearched = t.getInt("portSearched");
+        s.stage = t.getInt("stage");
+        long[] ck = t.getLongArray("chunkStageK");
+        int[] cv = t.getIntArray("chunkStageV");
+        for (int i = 0; i < ck.length && i < cv.length; i++) s.chunkStage.put(ck[i], cv[i]);
         s.soldiers = t.getInt("soldiers");
         s.armyTier = t.getInt("armyTier");
         s.militarySpend = t.getDouble("military");

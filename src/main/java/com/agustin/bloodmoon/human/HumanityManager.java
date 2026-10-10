@@ -143,6 +143,7 @@ public final class HumanityManager {
         }
         int budget = 400;
         for (Settlement s : data.settlements.values()) {
+            stageTick(level, data, s);
             if (s.streetTier >= 1) upgradeStreets(level, data, s);
             if (!s.wall.isEmpty()) buildWall(level, data, s);
             if (s.portPiers > 0) Port.build(level, data, s);
@@ -150,6 +151,92 @@ public final class HumanityManager {
                 if (w.state < 2 && budget > 0) budget -= build(level, data, s, w, budget);
             }
         }
+    }
+
+    // ------------------------------------------------------------------ etapas del territorio
+
+    /**
+     * Cuando el asentamiento sube de nivel, su territorio crece: los chunks del anillo nuevo pasan a las terrazas y los
+     * leñadores talan la franja de alrededor. Se transforma un chunk cargado por tick (los que no están cargados esperan
+     * a que alguien se acerque); cuando no queda ninguno, la etapa queda aplicada.
+     */
+    static void stageTick(ServerLevel level, Data data, Settlement s) {
+        int target = Math.max(0, s.level);
+        if (s.stage >= target) return;
+        int cr = TerraceField.clearRadius(target);
+        int c0x = (s.x - cr) >> 4, c0z = (s.z - cr) >> 4, side = ((s.x + cr) >> 4) - c0x + 1;
+        int total = side * side;
+        int worldgenR = s.colony ? -1 : TerraceField.clearRadius(0);   // lo que ya hizo la generación del mundo
+        for (int scanned = 0; scanned < 64; scanned++) {
+            if (s.stageCursor >= total) {
+                if (s.stagePending == 0) {
+                    s.stage = target;
+                    data.setDirty();
+                }
+                s.stageCursor = 0;
+                s.stagePending = 0;
+                return;
+            }
+            int idx = s.stageCursor++;
+            int cx = c0x + idx % side, cz = c0z + idx / side;
+            // el punto del chunk más cercano al centro
+            int nx = Math.max(cx << 4, Math.min(s.x, (cx << 4) + 15)), nz = Math.max(cz << 4, Math.min(s.z, (cz << 4) + 15));
+            double near = Math.hypot(nx - s.x, nz - s.z);
+            if (near > cr) continue;
+            long key = net.minecraft.world.level.ChunkPos.asLong(cx, cz);
+            // el chunk entero ya estaba dentro de lo que hizo la generación del mundo
+            int fx = Math.abs(s.x - (cx << 4)) > Math.abs(s.x - ((cx << 4) + 15)) ? cx << 4 : (cx << 4) + 15;
+            int fz = Math.abs(s.z - (cz << 4)) > Math.abs(s.z - ((cz << 4) + 15)) ? cz << 4 : (cz << 4) + 15;
+            int done = s.chunkStage.getOrDefault(key, Math.hypot(fx - s.x, fz - s.z) <= worldgenR ? 0 : -1);
+            if (done >= target) continue;
+            if (!level.hasChunk(cx, cz)) {
+                s.stagePending++;
+                continue;
+            }
+            long t0 = System.nanoTime();
+            int[] box = {cx << 4, cz << 4, (cx << 4) + 15, (cz << 4) + 15};
+            boolean desert = s.culture == Culture.DESERT;
+            TerraceField field = TerraceField.of(level, s.site());
+            List<VillageLayout.Building> bs = built(level, s);
+            VillageBuilder.applyStage(level, box, s.site(), field, target, bs, desert, false);
+            // las calles del chunk vuelven a pavimentarse sobre las terrazas
+            VillageLayout.Layout lay = VillageLayout.get(level, s.site());
+            Net nn = net(s, lay);
+            List<VillageLayout.Road> here = new ArrayList<>();
+            for (int k = 0; k < nn.size() && k < s.paved.length; k++) {
+                if (!s.paved[k]) continue;
+                VillageLayout.Road r = nn.roads().get(k);
+                double pad = r.half() + 1;
+                if (Math.max(r.x0(), r.x1()) + pad < box[0] || Math.min(r.x0(), r.x1()) - pad > box[2]
+                        || Math.max(r.z0(), r.z1()) + pad < box[1] || Math.min(r.z0(), r.z1()) - pad > box[3]) continue;
+                here.add(r);
+            }
+            if (Math.hypot(s.x - (box[0] + 8), s.z - (box[1] + 8)) < 40) here.add(lay.plaza());
+            if (!here.isEmpty()) VillageBuilder.pave(level, box, here, bs, desert, false, s.streetTier >= 1, field);
+            s.chunkStage.put(key, target);
+            STAGE_NANOS[0] += System.nanoTime() - t0;
+            STAGE_NANOS[1]++;
+            data.setDirty();
+            return;   // uno por tick
+        }
+    }
+
+    /** Diagnóstico: {nanosegundos acumulados, chunks transformados}. */
+    public static final long[] STAGE_NANOS = new long[2];
+
+    /** Para pruebas: aplica ya la etapa del nivel actual en todos los chunks (los carga). */
+    public static int finishStage(ServerLevel level, Data data, Settlement s) {
+        int cr = TerraceField.clearRadius(Math.max(0, s.level));
+        for (int cx = (s.x - cr) >> 4; cx <= (s.x + cr) >> 4; cx++) {
+            for (int cz = (s.z - cr) >> 4; cz <= (s.z + cr) >> 4; cz++) level.getChunk(cx, cz);
+        }
+        int n = 0;
+        for (int i = 0; i < 20000 && s.stage < Math.max(0, s.level); i++) {
+            long before = STAGE_NANOS[1];
+            stageTick(level, data, s);
+            if (STAGE_NANOS[1] > before) n++;
+        }
+        return n;
     }
 
     // ------------------------------------------------------------------ registro
@@ -213,6 +300,15 @@ public final class HumanityManager {
         int h = 0;
         for (VillageLayout.Building b : built(level, s)) h += capacity(b);
         return h;
+    }
+
+    /** El aserradero se activa cuando existan sus plantillas (próxima tanda). */
+    static final boolean LUMBER_READY = false;
+
+    static int jobCount(List<VillageLayout.Building> bs, HumanJob j) {
+        int n = 0;
+        for (VillageLayout.Building b : bs) if (b.kind() == VillageLayout.Kind.WORK && b.job() == j) n++;
+        return n;
     }
 
     private static int count(List<VillageLayout.Building> bs, VillageLayout.Kind k) {
@@ -402,6 +498,12 @@ public final class HumanityManager {
             kind = VillageLayout.Kind.TOWER;
             job = HumanJob.GUARD;
             residents = 2;
+        } else if (LUMBER_READY && s.level >= Settlement.TOWN && jobCount(bs, HumanJob.LUMBERJACK) < Math.max(1, s.pop / 60)) {
+            // aserradero: leñadores (uno por pueblo, uno cada 60 habitantes en la ciudad)
+            template = c + (s.level >= Settlement.CITY ? "city_work_" : "work_") + HumanJob.LUMBERJACK.workshop();
+            kind = VillageLayout.Kind.WORK;
+            job = HumanJob.LUMBERJACK;
+            residents = 2;
         } else if (count(bs, VillageLayout.Kind.STALL) < 2 + s.pop / 25) {
             template = c + "stall_" + rng.nextInt(2);
             kind = VillageLayout.Kind.STALL;
@@ -417,7 +519,7 @@ public final class HumanityManager {
             }
             if (missing.isEmpty() || count(bs, VillageLayout.Kind.WORK) * 4 > s.pop) return;
             job = missing.get(rng.nextInt(missing.size()));
-            template = c + (s.level >= Settlement.CITY ? "city_work_" : "work_") + job.vanilla;
+            template = c + (s.level >= Settlement.CITY ? "city_work_" : "work_") + job.workshop();
             kind = VillageLayout.Kind.WORK;
             residents = 1;
         }
@@ -497,17 +599,17 @@ public final class HumanityManager {
             VillageLayout.Road r = n.roads().get(i);
             all.add(new StreetPlanner.Seg(r.x0(), r.z0(), r.x1(), r.z1(), r.half(), n.parent()[i], n.dist()[i], r.y0(), r.y1()));
         }
-        int maxR = Math.min(220 + 60 * s.level, 170 + s.extraNet.size() / 2);
-        int added = StreetPlanner.extend(all, s.seed, s.x, s.z, VillageLayout.terrain(level), maxR, 2);
+        // las calles nuevas se abren dentro del territorio de la etapa (ya en terrazas)
+        int maxR = Math.min(TerraceField.radius(s.level) - 8, 170 + s.extraNet.size() / 2);
+        int added = StreetPlanner.extend(all, s.seed, s.x, s.z, TerraceField.of(level, s.site()).asTerrain(), maxR, 2);
         if (added == 0) { EXT[1]++; return 0; }
         EXT[2]++;
         int[] par = java.util.Arrays.copyOf(s.extraParent, s.extraParent.length + added);
         double[] dd = java.util.Arrays.copyOf(s.extraDist, s.extraDist.length + added);
         for (int i = all.size() - added; i < all.size(); i++) {
             StreetPlanner.Seg g = all.get(i);
-            int cy = lay.plaza().y0();
-            s.extraNet.add(new VillageLayout.Road(g.x0(), g.z0(), g.x1(), g.z1(), g.half(),
-                    VillageLayout.flat(g.x0(), g.z0(), s.site(), cy, g.y0()), VillageLayout.flat(g.x1(), g.z1(), s.site(), cy, g.y1())));
+            TerraceField tf = TerraceField.of(level, s.site());
+            s.extraNet.add(new VillageLayout.Road(g.x0(), g.z0(), g.x1(), g.z1(), g.half(), tf.streetY(g.x0(), g.z0()), tf.streetY(g.x1(), g.z1())));
             int k = s.extraNet.size() - 1;
             par[k] = g.parent();
             dd[k] = g.dist();
@@ -626,7 +728,7 @@ public final class HumanityManager {
             if (s.skipRenew.contains(VillageBuilder.key(b.coreX(), b.coreZ()))) continue;
             String nt = switch (b.kind()) {
                 case HOUSE -> c + "city_house_" + rng.nextInt(pals);
-                case WORK -> c + "city_work_" + b.job().vanilla;
+                case WORK -> c + "city_work_" + b.job().workshop();
                 case TOWER -> c + "city_tower";
                 default -> null;
             };
@@ -715,6 +817,9 @@ public final class HumanityManager {
 
     /** Coloca lo que corresponde al avance de la obra. Devuelve los bloques usados del presupuesto. */
     private static int build(ServerLevel level, Data data, Settlement s, Settlement.Work w, int budget) {
+        // la obra avanza solo como datos: el edificio aparece completo cuando está terminado (nada de obreros ni de
+        // bloques subiendo uno a uno, que cargan al servidor)
+        if (w.state == 0) return 0;
         if (!loaded(level, w.b)) return 0;
         boolean desert = s.culture == Culture.DESERT;
         int[] box = {w.b.minX() - 1, w.b.minZ() - 1, w.b.maxX() + 1, w.b.maxZ() + 1};
@@ -748,7 +853,6 @@ public final class HumanityManager {
             VillageBuilder.yard(level, w.b, ybox, near, occupied(level, s, lay, w.b), desert, false);
             VillageBuilder.prepare(level, level, w.b, box, desert);
             w.prepared = true;
-            if (w.state == 0 && level.getNearestPlayer(w.b.coreX(), w.b.floorY(), w.b.coreZ(), 96, false) != null) spawnBuilder(level, s, w);
             data.setDirty();
             return 40;
         }
@@ -757,11 +861,11 @@ public final class HumanityManager {
             return 1;
         }
         int size = VillageBuilder.size(level, w.b);
-        int target = w.state >= 1 ? size : (int) Math.floor(w.progress * size);
+        int target = size;
         if (w.placed < target) {
-            int to = Math.min(target, w.placed + Math.min(budget, w.state >= 1 ? 400 : 6));
+            // de una vez (dentro del presupuesto del tick, que es generoso)
+            int to = Math.min(target, w.placed + Math.max(budget, 2000));
             VillageBuilder.place(level, level, w.b, box, w.placed, to);
-            if (w.state == 0) dust(level, s, w, to - 1);
             int used = to - w.placed;
             w.placed = to;
             data.setDirty();
@@ -818,7 +922,7 @@ public final class HumanityManager {
                     (int) Math.ceil(Math.max(r.x0(), r.x1()) + r.half() + 3), (int) Math.ceil(Math.max(r.z0(), r.z1()) + r.half() + 3)};
             VillageBuilder.clearTrees(level, box, List.of(), List.of(r), all, false);
             if (!s.wall.isEmpty()) gates(level, s, r);
-            VillageBuilder.pave(level, box, List.of(r), all, desert, false, stoneNow);
+            VillageBuilder.pave(level, box, List.of(r), all, desert, false, stoneNow, TerraceField.of(level, s.site()));
         }
         if (stoneNow) {
             if (s.stone.length < nn.size()) s.stone = java.util.Arrays.copyOf(s.stone, nn.size());
@@ -890,7 +994,7 @@ public final class HumanityManager {
             boolean desert = s.culture == Culture.DESERT;
             List<VillageLayout.Building> all = built(level, s);
             if (!s.wall.isEmpty()) gates(level, s, r);
-            VillageBuilder.pave(level, box, List.of(r), all, desert, false, true);
+            VillageBuilder.pave(level, box, List.of(r), all, desert, false, true, TerraceField.of(level, s.site()));
             if (i >= 0) {
                 boolean[] one = new boolean[n];
                 one[i] = true;
@@ -971,8 +1075,8 @@ public final class HumanityManager {
             double a = i * Math.PI * 2 / n;
             px[i] = s.x + Math.cos(a) * sm[i];
             pz[i] = s.z + Math.sin(a) * sm[i];
-            int nat = terr.height((int) Math.round(px[i]), (int) Math.round(pz[i]));
-            hb[i] = VillageLayout.flat(px[i], pz[i], s.site(), cy, nat) - 1;
+            // sobre la terraza (o el terreno natural, fuera del territorio)
+            hb[i] = TerraceField.of(level, s.site()).streetY(px[i], pz[i]) - 1;
         }
         double[] avg = new double[n];
         for (int i = 0; i < n; i++) {
@@ -1071,13 +1175,10 @@ public final class HumanityManager {
         if (bi < 0 || best > 200) return;
         double ux = (gx - tx) / Math.max(1, best), uz = (gz - tz) / Math.max(1, best);
         double ox = gx + ux * 14, oz = gz + uz * 14;   // trecho hacia afuera
-        StreetPlanner.Terrain terr = VillageLayout.terrain(level);
-        int cy = lay.plaza().y0();
-        int ya = nn.roads().get(bi).y(tx, tz);
-        if (ya == Integer.MIN_VALUE) ya = VillageLayout.flat(tx, tz, s.site(), cy, terr.height((int) Math.round(tx), (int) Math.round(tz)));
-        int yg = (int) Math.round(Math.floorDiv(w.y0() + w.y1(), 2) / 2.0) + 1;
-        if (w.y0() == Integer.MIN_VALUE) yg = VillageLayout.flat(gx, gz, s.site(), cy, terr.height((int) Math.round(gx), (int) Math.round(gz)));
-        int yo = terr.height((int) Math.round(ox), (int) Math.round(oz));
+        TerraceField tf = TerraceField.of(level, s.site());
+        int ya = tf.streetY(tx, tz);
+        int yg = w.y0() == Integer.MIN_VALUE ? tf.streetY(gx, gz) : (int) Math.round(Math.floorDiv(w.y0() + w.y1(), 2) / 2.0) + 1;
+        int yo = tf.streetY(ox, oz);
         VillageLayout.Road in = new VillageLayout.Road(tx, tz, gx, gz, StreetPlanner.BRANCH, ya, yg);
         VillageLayout.Road out = new VillageLayout.Road(gx, gz, ox, oz, StreetPlanner.BRANCH, yg, yo);
         int base = s.extraNet.size();
@@ -1100,7 +1201,7 @@ public final class HumanityManager {
             if (!loadedBox(level, box)) continue;
             VillageBuilder.clearTrees(level, box, List.of(), List.of(r), all, false);
             gates(level, s, r);
-            VillageBuilder.pave(level, box, List.of(r), all, desert, false, s.streetTier >= 1);
+            VillageBuilder.pave(level, box, List.of(r), all, desert, false, s.streetTier >= 1, TerraceField.of(level, s.site()));
         }
     }
 
@@ -1242,6 +1343,7 @@ public final class HumanityManager {
             VillageLayout.Layout lay = VillageLayout.get(level, site);
             if (lay.buildings().isEmpty()) continue;
             Settlement s = new Settlement();
+            s.stage = -1;   // la colonia nace sin terrazas: su territorio se arma en partida, por etapas
             s.key = VillageBuilder.key(x, z);
             s.x = x;
             s.y = hs[8];

@@ -342,7 +342,7 @@ public final class Port {
         }
         if (best > 160) return;
         StreetPlanner.Terrain t = VillageLayout.terrain(level);
-        int ty = VillageLayout.flat(tx, tz, s.site(), lay.plaza().y0(), t.height((int) Math.round(tx), (int) Math.round(tz)));
+        int ty = TerraceField.of(level, s.site()).streetY(tx, tz);
         VillageLayout.Road road = new VillageLayout.Road(tx, tz, lx, lz, StreetPlanner.BRANCH, ty, g[3]);
         s.extraNet.add(road);
         s.extraParent = java.util.Arrays.copyOf(s.extraParent, s.extraNet.size());
@@ -353,7 +353,7 @@ public final class Port {
         s.paved[after.size() - 1] = true;
         int[] box = {(int) Math.min(tx, lx) - 4, (int) Math.min(tz, lz) - 4, (int) Math.max(tx, lx) + 4, (int) Math.max(tz, lz) + 4};
         VillageBuilder.clearTrees(level, box, List.of(), List.of(road), HumanityManager.built(level, s), false);
-        VillageBuilder.pave(level, box, List.of(road), HumanityManager.built(level, s), desert, false, s.streetTier >= 1);
+        VillageBuilder.pave(level, box, List.of(road), HumanityManager.built(level, s), desert, false, s.streetTier >= 1, TerraceField.of(level, s.site()));
     }
 
     private static void lighthouse(ServerLevel level, Settlement s, int[] g) {

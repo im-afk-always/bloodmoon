@@ -219,8 +219,8 @@ public final class SmokeTest {
                 s.name, pop0, s.pop, h0, com.agustin.bloodmoon.human.HumanityManager.housing(level, s), s.level, (int) minFood,
                 (int) s.treasury, works, placed, match, total, String.format(java.util.Locale.ROOT, "%.2f", msPerCycle), placeMs,
                 colony == null ? "none" : colony.name + "@" + colony.x + "," + colony.z);
-        boolean wallOk = s.wall.isEmpty() || cols == 0 || maxStep <= 2;
-        if (!wallOk) BloodMoonMod.LOGGER.error("SMOKETEST FAIL wall top jumps {} blocks", maxStep);
+        boolean wallOk = s.wall.isEmpty() || cols == 0 || off * 20 <= cols;   // a lo sumo 5 % fuera del perfil (junto a portones)
+        if (!wallOk) BloodMoonMod.LOGGER.error("SMOKETEST FAIL wall off profile {}/{} (max step {})", off, cols, maxStep);
         return wallOk && s.pop > pop0 && s.pop < 400 && works > 3 && placed > 0 && total > 0 && match >= total * 9 / 10 && msPerCycle < 5;
     }
 
