@@ -176,7 +176,14 @@ public final class SmokeTest {
                     if (gate && !prevGate) gates++;
                     prevGate = gate;
                     if (gate) { prevTop = null; continue; }
-                    if (Math.abs(top - expected) > 2) off++;
+                    if (Math.abs(top - expected) > 2) {
+                        off++;
+                        BloodMoonMod.LOGGER.info("SMOKETEST humanity wall off at {} {} top={} expected={} block={} seg={}", x, z, top, expected,
+                                level.getBlockState(new BlockPos(x, top, z)).getBlock(), i);
+                    }
+                    if (prevTop != null && Math.abs(top - prevTop) > 2) {
+                        BloodMoonMod.LOGGER.info("SMOKETEST humanity wall step at {} {} top={} prev={} expected={} seg={}", x, z, top, prevTop, expected, i);
+                    }
                     if (prevTop != null) maxStep = Math.max(maxStep, Math.abs(top - prevTop));
                     prevTop = top;
                 }
