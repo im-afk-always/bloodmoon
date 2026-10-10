@@ -985,12 +985,12 @@ public final class HumanityManager {
         Net nn0 = net(s, lay);
         for (int i = 0; i < n; i++) {
             int j = (i + 1) % n;
-            for (VillageLayout.Road r : nn0.roads()) {
-                if (r.half() < StreetPlanner.BRANCH - 0.01) continue;
+            for (VillageLayout.Road st : nn0.roads()) {
+                if (st.half() < StreetPlanner.BRANCH - 0.01) continue;
                 for (double t = 0; t <= 1; t += 0.1) {
                     double qx = px[i] + (px[j] - px[i]) * t, qz = pz[i] + (pz[j] - pz[i]) * t;
-                    if (r.dist(qx, qz) > r.half() + 0.5) continue;
-                    int ry = r.y(qx, qz);
+                    if (st.dist(qx, qz) > st.half() + 0.5) continue;
+                    int ry = st.y(qx, qz);
                     if (ry == Integer.MIN_VALUE) ry = terr.height((int) Math.round(qx), (int) Math.round(qz));
                     avg[i] = avg[j] = ry - 1;
                     fixed[i] = fixed[j] = true;
