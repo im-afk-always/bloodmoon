@@ -277,6 +277,14 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
   jerarquía: Rey del Vacío, Generales, Capitanes, Forjadores y tropas.
 - Config: `invasionRadius` (1000), `invasionCycleSeconds` (20), `invasionSpeed` (1.0), `invasionReplacePlayerBlocks` (true).
 
+## La Humanidad (fase 1: fundación)
+Las aldeas y aldeanos de Minecraft se reemplazan por **humanos**.
+- **Aldeas humanas** de dos culturas: **llanura** (entramado de madera, techos a dos aguas) en llanuras, praderas, sabanas, taigas y nevados; **desierto** (arenisca, terrazas con toldos) en desiertos. Plaza con pozo, 3-4 calles con faroles, puestos del mercado, talleres de oficio (templo con campanario, herrerías con fragua), casas, granjas y torre de guardia. Las aldeas vanilla ya no se generan.
+- **Humanos** con aspecto generado (piel, cara, ojos, pelo, barba, complexión, ropa por cultura y atuendo por oficio — miles de combinaciones), nombre propio y oficio visible en la ropa y en la mano.
+- **Comercio en monedas**: cobre (1), plata (10) y oro (100). Los 13 oficios de aldeano venden y compran lo mismo que en vanilla, con niveles 1-5. El **mercader** cambia monedas hacia arriba y compra esmeraldas, lingotes y diamantes. Las monedas se parten en la mesa de crafteo (1 oro → 10 plata → 10 cobre).
+- **Guardias** defienden a cualquier humano atacado (también de vos). **Bandidos** (los antiguos saqueadores y vindicadores) atacan a jugadores y humanos y sueltan cobre.
+- Los aldeanos que aparezcan (curados, huevos, mundos viejos) se convierten en humanos con su oficio y nivel. El vendedor ambulante desaparece.
+
 ## Comandos (OP)
 - `/bloodmoon force [super|golden|moonless]`
 - `/bloodmoon cancel`
@@ -292,6 +300,8 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
 - `/bloodmoon summon unbound` (la forma final, donde estés)
 - `/bloodmoon locate coliseum`
 - `/bloodmoon intro`
+- `/bloodmoon village` (aldea humana más cercana)
+- `/bloodmoon human <oficio> [plains|desert]` (un humano de ese oficio donde estás; `bandit` y `guard` también)
 - `/summon bloodmoon:cursed_creeper`
 
 ## Configuración
