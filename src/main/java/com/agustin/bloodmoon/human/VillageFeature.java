@@ -49,7 +49,7 @@ public class VillageFeature extends Feature<NoneFeatureConfiguration> {
         VillageBuilder.pave(level, box, layout.roads(), layout.buildings(), desert, true);
         for (VillageLayout.Building b : layout.buildings()) {
             if (b.maxX() + 3 < box[0] || b.minX() - 3 > box[2] || b.maxZ() + 3 < box[1] || b.minZ() - 3 > box[3]) continue;
-            VillageBuilder.yard(level, b, box, layout.roads(), desert, true);
+            VillageBuilder.yard(level, b, box, layout.roads(), layout.buildings(), desert, true);
             VillageBuilder.prepare(level, server, b, box, desert);
             VillageBuilder.place(level, server, b, box, 0, Integer.MAX_VALUE);
             if (VillageBuilder.in(box, b.coreX(), b.coreZ())) {

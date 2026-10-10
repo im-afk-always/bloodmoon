@@ -693,7 +693,7 @@ public final class HumanityManager {
             near.add(lay.plaza());
             Net nn = net(s, lay);
             for (int k = 0; k < nn.size(); k++) if (s.paved[k]) near.add(nn.roads().get(k));
-            VillageBuilder.yard(level, w.b, ybox, near, desert, false);
+            VillageBuilder.yard(level, w.b, ybox, near, occupied(level, s, lay, w.b), desert, false);
             VillageBuilder.prepare(level, level, w.b, box, desert);
             w.prepared = true;
             if (w.state == 0 && level.getNearestPlayer(w.b.coreX(), w.b.floorY(), w.b.coreZ(), 96, false) != null) spawnBuilder(level, s, w);

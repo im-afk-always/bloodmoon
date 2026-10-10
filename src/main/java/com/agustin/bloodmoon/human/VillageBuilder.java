@@ -169,6 +169,12 @@ public final class VillageBuilder {
      * una pendiente suave hasta el terreno natural (los constructores cortan lomas y rellenan pozos). No toca calles.
      */
     public static void yard(WorldGenLevel level, VillageLayout.Building b, int[] box, List<VillageLayout.Road> roads, boolean desert, boolean wg) {
+        yard(level, b, box, roads, List.of(), desert, wg);
+    }
+
+    /** {@code others}: edificios vecinos, cuyas columnas no se tocan (el patio de uno no le corta el techo al otro). */
+    public static void yard(WorldGenLevel level, VillageLayout.Building b, int[] box, List<VillageLayout.Road> roads,
+                            List<VillageLayout.Building> others, boolean desert, boolean wg) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         BlockState air = Blocks.AIR.defaultBlockState();
         BlockState fill = (desert ? Blocks.SANDSTONE : Blocks.DIRT).defaultBlockState();
@@ -185,6 +191,14 @@ public final class VillageBuilder {
                     }
                 }
                 if (onRoad) continue;
+                boolean neighbour = false;
+                for (VillageLayout.Building o : others) {
+                    if (o != b && o.contains(x, z, 1)) {
+                        neighbour = true;
+                        break;
+                    }
+                }
+                if (neighbour) continue;
                 int k = Math.max(Math.max(b.minX() - x, x - b.maxX()), Math.max(b.minZ() - z, z - b.maxZ()));
                 k = Math.max(0, k);
                 int g = ground(level, x, z, wg);

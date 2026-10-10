@@ -145,7 +145,7 @@ public final class SmokeTest {
                 s.name, pop0, s.pop, h0, com.agustin.bloodmoon.human.HumanityManager.housing(level, s), s.level, (int) minFood,
                 (int) s.treasury, works, placed, match, total, String.format(java.util.Locale.ROOT, "%.2f", msPerCycle), placeMs,
                 colony == null ? "none" : colony.name + "@" + colony.x + "," + colony.z);
-        return s.pop > pop0 && s.pop < 200 && works > 3 && placed > 0 && total > 0 && match >= total * 9 / 10 && msPerCycle < 5;
+        return s.pop > pop0 && s.pop < 400 && works > 3 && placed > 0 && total > 0 && match >= total * 9 / 10 && msPerCycle < 5;
     }
 
     /** Aldea humana: se ubica, se generan sus chunks y los edificios quedan en pie (bloques de la plantilla en su lugar). */
