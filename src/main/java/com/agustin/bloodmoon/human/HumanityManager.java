@@ -91,6 +91,7 @@ public final class HumanityManager {
     }
 
     public static void clear() {
+        Port.clear();
         REGISTER.clear();
         timer = 0;
     }

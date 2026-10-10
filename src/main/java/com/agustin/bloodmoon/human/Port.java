@@ -22,20 +22,65 @@ import java.util.Set;
  * río). Cada muelle trae dos pescadores que pescan desde la punta y suman comida al pueblo.
  */
 public final class Port {
-    public static final int CELL = 4, MAX_PIERS = 5;
+    public static final int CELL = 6, MAX_PIERS = 5;
     private static final int[] OFFSETS = {0, 9, -9, 18, -18};
 
     private Port() {}
 
-    /** Busca agua: la celda mojada más cercana a la plaza (a 16-140 bloques) y el tamaño de su cuerpo de agua. */
+    private static final java.util.Map<Long, java.util.concurrent.CompletableFuture<int[]>> PENDING = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Busca agua en segundo plano (muestrear el terreno cuesta): se lanza una vez y el resultado se aplica en un ciclo
+     * siguiente. Así el servidor no se traba.
+     */
     static void plan(ServerLevel level, Settlement s) {
+        var f = PENDING.get(s.key);
+        if (f == null) {
+            int x = s.x, z = s.z;
+            PENDING.put(s.key, java.util.concurrent.CompletableFuture.supplyAsync(() -> compute(level, x, z), net.minecraft.Util.backgroundExecutor()));
+            return;
+        }
+        if (!f.isDone()) return;
+        PENDING.remove(s.key);
         s.portChecked = true;
+        int[] r = f.getNow(null);
+        if (r == null) return;
+        s.portX = r[0];
+        s.portZ = r[1];
+        s.portDX = r[2];
+        s.portDZ = r[3];
+        s.portY = r[4];
+        s.portSize = r[5];
+    }
+
+    /** Igual que {@link #plan} pero ya (para pruebas). */
+    public static void planNow(ServerLevel level, Settlement s) {
+        s.portChecked = true;
+        int[] r = compute(level, s.x, s.z);
+        if (r == null) return;
+        s.portX = r[0];
+        s.portZ = r[1];
+        s.portDX = r[2];
+        s.portDZ = r[3];
+        s.portY = r[4];
+        s.portSize = r[5];
+    }
+
+    public static void clear() {
+        PENDING.clear();
+    }
+
+    /** {orillaX, orillaZ, dirX, dirZ, alturaAgua, tamaño} o null si no hay agua que valga la pena. */
+    private static int[] compute(ServerLevel level, int sxc, int szc) {
         StreetPlanner.Terrain t = VillageLayout.terrain(level);
+        Settlement s = new Settlement();
+        s.x = sxc;
+        s.z = szc;
         // de la plaza hacia afuera: el primer cuerpo de agua que valga la pena (los charcos se saltan)
         Set<Long> visited = new HashSet<>();
         int bx = 0, bz = 0, size = 0;
         boolean found = false;
-        for (int r = 4; r <= 35 && !found; r++) {
+        for (int r = 3; r <= 23 && !found; r++) {
             for (int i = -r; i <= r && !found; i++) {
                 for (int k = 0; k < 4 && !found; k++) {
                     int cx = k == 0 ? i : k == 1 ? i : k == 2 ? -r : r;
@@ -52,7 +97,7 @@ public final class Port {
                 }
             }
         }
-        if (!found) return;
+        if (!found) return null;
         // orilla: caminando desde la plaza hacia el agua, el último punto seco
         double dx = bx - s.x, dz = bz - s.z, len = Math.hypot(dx, dz);
         int sx = s.x, sz = s.z, wx = bx, wz = bz;
@@ -67,18 +112,16 @@ public final class Port {
             sz = z;
         }
         int ax = wx - sx, az = wz - sz;
+        int ddx, ddz;
         if (Math.abs(ax) >= Math.abs(az)) {
-            s.portDX = Integer.signum(ax == 0 ? (int) Math.signum(dx) : ax);
-            s.portDZ = 0;
+            ddx = Integer.signum(ax == 0 ? (int) Math.signum(dx) : ax);
+            ddz = 0;
         } else {
-            s.portDX = 0;
-            s.portDZ = Integer.signum(az);
+            ddx = 0;
+            ddz = Integer.signum(az);
         }
-        if (s.portDX == 0 && s.portDZ == 0) s.portDX = 1;
-        s.portX = sx;
-        s.portZ = sz;
-        s.portY = t.height(wx, wz) - 1;
-        s.portSize = size;
+        if (ddx == 0 && ddz == 0) ddx = 1;
+        return new int[]{sx, sz, ddx, ddz, t.height(wx, wz) - 1, size};
     }
 
     public static boolean has(Settlement s) {
@@ -86,7 +129,7 @@ public final class Port {
     }
 
     public static int maxPiers(Settlement s) {
-        return Math.max(1, Math.min(MAX_PIERS, s.portSize / 12));
+        return Math.max(1, Math.min(MAX_PIERS, s.portSize / 6));
     }
 
     /** Muelles que quiere tener según su nivel (aldea 1 … capital 4), limitados por el agua. */
@@ -356,7 +399,7 @@ public final class Port {
         q.add(new long[]{x0, z0});
         visited.add(key(x0, z0));
         int size = 0;
-        while (!q.isEmpty() && size < 1500) {
+        while (!q.isEmpty() && size < 500) {
             long[] c = q.poll();
             size++;
             for (int[] d : new int[][]{{CELL, 0}, {-CELL, 0}, {0, CELL}, {0, -CELL}}) {

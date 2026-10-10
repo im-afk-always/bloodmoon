@@ -60,6 +60,7 @@ public final class SmokeTest {
         if (site.isEmpty()) return false;
         var data = com.agustin.bloodmoon.human.HumanityManager.Data.get(level);
         var s = com.agustin.bloodmoon.human.HumanityManager.register(level, data, site.get());
+        com.agustin.bloodmoon.human.Port.planNow(level, s);
         int pop0 = s.pop, h0 = com.agustin.bloodmoon.human.HumanityManager.housing(level, s);
         long t0 = System.nanoTime();
         int cycles = 30 * com.agustin.bloodmoon.human.HumanityManager.CYCLES_PER_DAY;
