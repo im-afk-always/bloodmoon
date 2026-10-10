@@ -980,15 +980,35 @@ public final class HumanityManager {
             for (int j = -2; j <= 2; j++) sum += hb[Math.floorMod(i + j, n)];
             avg[i] = sum / 5;
         }
-        for (int pass = 0; pass < 12; pass++) {
+        // donde una calle cruza el anillo, la base queda a la altura de la calle (el portón y el adarve quedan parejos)
+        boolean[] fixed = new boolean[n];
+        Net nn0 = net(s, lay);
+        for (int i = 0; i < n; i++) {
+            int j = (i + 1) % n;
+            for (VillageLayout.Road r : nn0.roads()) {
+                if (r.half() < StreetPlanner.BRANCH - 0.01) continue;
+                for (double t = 0; t <= 1; t += 0.1) {
+                    double qx = px[i] + (px[j] - px[i]) * t, qz = pz[i] + (pz[j] - pz[i]) * t;
+                    if (r.dist(qx, qz) > r.half() + 0.5) continue;
+                    int ry = r.y(qx, qz);
+                    if (ry == Integer.MIN_VALUE) ry = terr.height((int) Math.round(qx), (int) Math.round(qz));
+                    avg[i] = avg[j] = ry - 1;
+                    fixed[i] = fixed[j] = true;
+                    break;
+                }
+            }
+        }
+        for (int pass = 0; pass < 16; pass++) {
             for (int i = 0; i < n; i++) {
                 int j = (i + 1) % n;
                 double maxd = Math.hypot(px[j] - px[i], pz[j] - pz[i]) * 0.5;
                 double diff = avg[j] - avg[i];
                 if (Math.abs(diff) > maxd) {
-                    double fix = (Math.abs(diff) - maxd) / 2 * Math.signum(diff);
-                    avg[i] += fix;
-                    avg[j] -= fix;
+                    double excess = (Math.abs(diff) - maxd) * Math.signum(diff);
+                    if (fixed[i] && fixed[j]) continue;
+                    if (fixed[i]) avg[j] -= excess;
+                    else if (fixed[j]) avg[i] += excess;
+                    else { avg[i] += excess / 2; avg[j] -= excess / 2; }
                 }
             }
         }
