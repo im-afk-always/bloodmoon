@@ -239,6 +239,43 @@ public final class InvasionManager {
         });
     }
 
+    /**
+     * ¿Hay agua en más de un cuarto del chunk? Con el chunk cargado se mira la superficie real (lagos, pantanos, ríos);
+     * si no, el terreno base del generador contra el nivel del mar.
+     */
+    static boolean wetChunk(ServerLevel level, Faction f, long key) {
+        return f.wet.computeIfAbsent(key, k -> {
+            if (water(level, f, k)) return true;
+            ChunkPos cp = new ChunkPos(k);
+            LevelChunk ch = level.getChunkSource().getChunkNow(cp.x, cp.z);
+            int wet = 0, n = 0;
+            int step = ch != null ? 4 : 8;
+            for (int ix = step / 2; ix < 16; ix += step) for (int iz = step / 2; iz < 16; iz += step) {
+                n++;
+                int x = cp.getMinBlockX() + ix, z = cp.getMinBlockZ() + iz;
+                if (ch != null) {
+                    int y = ch.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, ix, iz);
+                    if (!ch.getFluidState(x, y, z).isEmpty()) wet++;
+                } else {
+                    int h = level.getChunkSource().getGenerator().getBaseHeight(x, z, net.minecraft.world.level.levelgen.Heightmap.Types.OCEAN_FLOOR_WG,
+                            level, level.getChunkSource().randomState());
+                    if (h < level.getSeaLevel() - 1) wet++;
+                }
+            }
+            return wet * 4 > n;
+        });
+    }
+
+    /** La huella de una estructura: el chunk central seco y como mucho un 10% de chunks con agua. */
+    static boolean footprintWet(ServerLevel level, Faction f, ChunkPos cp, int r) {
+        if (wetChunk(level, f, cp.toLong())) return true;
+        int wet = 0, allowed = (2 * r + 1) * (2 * r + 1) / 10;
+        for (int ox = -r; ox <= r; ox++) for (int oz = -r; oz <= r; oz++) {
+            if (wetChunk(level, f, ChunkPos.asLong(cp.x + ox, cp.z + oz)) && ++wet > allowed) return true;
+        }
+        return false;
+    }
+
     /** Penalización por distancia al eje (y por agua). */
     static double cost(ServerLevel level, Faction f, long key) {
         double d = distance(f, key) / 333.0;
@@ -306,7 +343,7 @@ public final class InvasionManager {
                 for (long ob : obelisks) if (d2(new ChunkPos(ob), cp) < 49) { near = true; break; }
                 for (long st : anchors(f, List.of(), nests, towers, fortresses)) if (d2(new ChunkPos(st), cp) < 9) { near = true; break; }
                 if (f.soulSite != Faction.RankRecord.NO_SEAT && d2(new ChunkPos(f.soulSite), cp) < 50) near = true;
-                if (near) continue;
+                if (near || wetChunk(level, f, k)) continue;
                 double d = distance(f, k) + r.nextDouble() * 48;
                 if (d > bestD) { bestD = d; best = k; }
             }
@@ -436,11 +473,11 @@ public final class InvasionManager {
                 ChunkPos cp = new ChunkPos(k);
                 if (d2(cp, cc) <= (long) col * col) continue;
                 double d = distance(f, k);
-                if (d < minD || d > maxD || water(level, f, k)) continue;
+                if (d < minD || d > maxD) continue;
                 if (!footprintFree(data, f, cp, fr)) continue;
                 boolean crowded = false;
                 for (long o : structures) if (d2(new ChunkPos(o), cp) < (long) spacing * spacing) { crowded = true; break; }
-                if (crowded) continue;
+                if (crowded || footprintWet(level, f, cp, fr)) continue;   // nada de estructuras sumergidas
                 double score = far ? d + r.nextDouble() * 64 : r.nextDouble();
                 if (score > bestScore) { bestScore = score; best = k; }
             }

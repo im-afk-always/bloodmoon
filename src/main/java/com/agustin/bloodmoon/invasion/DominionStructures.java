@@ -84,6 +84,34 @@ public final class DominionStructures {
         return type == SOUL ? 5 : type == SPIRE ? 2 : 1;
     }
 
+    /**
+     * Control fino antes de construir (con los chunks ya cargados): fracción de columnas con agua en superficie dentro de
+     * {@code radius} bloques del centro. Si pasa del umbral, la obra se cancela en vez de quedar sumergida.
+     */
+    public static boolean tooWet(ServerLevel level, int cx, int cz, int radius, double max) {
+        int wet = 0, n = 0;
+        for (int dx = -radius; dx <= radius; dx += 3) for (int dz = -radius; dz <= radius; dz += 3) {
+            if (dx * dx + dz * dz > radius * radius) continue;
+            n++;
+            int x = cx + dx, z = cz + dz;
+            int y = level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z) - 1;
+            if (!level.getFluidState(new BlockPos(x, y, z)).isEmpty()) wet++;
+        }
+        return n > 0 && wet > n * max;
+    }
+
+    /** Radio de cada estructura (en bloques) para el control de agua. */
+    public static int reach(int type) {
+        return switch (type) {
+            case NEST -> 16;
+            case TOWER -> 10;
+            case FORTRESS -> 22;
+            case SPIRE -> 26;
+            case SOUL -> 72;
+            default -> 7;
+        };
+    }
+
     /** ¿Están cargados todos los chunks que pisa una estructura mayor? */
     public static boolean footprintLoaded(ServerLevel level, ChunkPos cp) {
         return footprintLoaded(level, cp, 1);

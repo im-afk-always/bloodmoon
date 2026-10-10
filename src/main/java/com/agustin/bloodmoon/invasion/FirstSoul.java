@@ -108,6 +108,7 @@ public final class FirstSoul {
             double d = InvasionManager.distance(f, k);
             if (d < r * 0.2 || d > r * 0.6) continue;
             if (!InvasionManager.footprintFree(data, f, cp, 5)) continue;
+            if (InvasionManager.footprintWet(level, f, cp, 5)) continue;   // nada de santuarios sumergidos
             boolean crowded = false;
             for (long a : anchors) if (InvasionManager.d2(new ChunkPos(a), cp) < 64) { crowded = true; break; }
             if (crowded) continue;

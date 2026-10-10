@@ -117,6 +117,11 @@ public final class DominionTerraform {
         long key = chunk.getPos().toLong();
         c.applied = target;
         boolean live = f != null && f.active && !ConstructionSites.building(key);
+        int mx = chunk.getPos().getMinBlockX() + 8, mz = chunk.getPos().getMinBlockZ() + 8;
+        if (c.obelisk && target == 3 && !c.obeliskBuilt && live && DominionStructures.tooWet(level, mx, mz, 7, 0.15)) {
+            c.obelisk = false;   // sumergido: no se levanta
+            data.setDirty();
+        }
         if (c.obelisk && target == 3 && !c.obeliskBuilt && live) {
             if (playerNear(level, chunk.getPos(), ConstructionSites.WATCH)) {
                 ConstructionSites.start(level, key, f, obeliskPlan(level, chunk.getPos()), false, false);   // los Forjadores lo levantan a la vista
@@ -126,7 +131,15 @@ public final class DominionTerraform {
             }
         }
         if (c.structure != DominionStructures.NONE && target == 3 && !c.structureBuilt && live
-                && DominionStructures.footprintLoaded(level, chunk.getPos(), DominionStructures.footprint(c.structure))) {   // si no, se reintenta al cargar un vecino
+                && DominionStructures.footprintLoaded(level, chunk.getPos(), DominionStructures.footprint(c.structure))   // si no, se reintenta al cargar un vecino
+                && DominionStructures.tooWet(level, mx, mz, DominionStructures.reach(c.structure), 0.08)) {
+            // quedaría sumergida: se cancela (el Dominio buscará otro lugar seco)
+            if (f != null) f.wet.put(key, true);
+            c.structure = DominionStructures.NONE;
+            data.setDirty();
+        }
+        if (c.structure != DominionStructures.NONE && target == 3 && !c.structureBuilt && live
+                && DominionStructures.footprintLoaded(level, chunk.getPos(), DominionStructures.footprint(c.structure))) {
             Plan plan = DominionStructures.plan(level, chunk.getPos(), c.structure, f);
             // a la vista: los Forjadores la levantan; si no, se termina sola con un presupuesto por tick (sin tirones)
             ConstructionSites.start(level, key, f, plan, true, !playerNear(level, chunk.getPos(), ConstructionSites.WATCH));

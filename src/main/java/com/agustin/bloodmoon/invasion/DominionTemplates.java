@@ -200,9 +200,9 @@ public final class DominionTemplates {
         for (long k : cols) {
             if (i++ % 7 != 0) continue;
             int x = cx + (int) (k >> 32), z = cz + (int) k;
-            hs.add(level.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z));
+            hs.add(level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z));   // con el agua: nunca bajo la superficie
         }
-        if (hs.isEmpty()) return level.getHeight(Heightmap.Types.OCEAN_FLOOR, cx, cz);
+        if (hs.isEmpty()) return level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cx, cz);
         Integer[] a = hs.toArray(new Integer[0]);
         Arrays.sort(a);
         return a[a.length / 2];

@@ -40,6 +40,8 @@ public final class Faction {
     public final List<ItemStack> relic = new ArrayList<>();
     /** Cache de chunks con agua (no se guarda). */
     final Map<Long, Boolean> water = new HashMap<>();
+    /** Caché: ¿el chunk tiene agua en más de un cuarto de su superficie? */
+    final Map<Long, Boolean> wet = new HashMap<>();
 
     public static final class RankRecord {
         public static final long NO_SEAT = Long.MIN_VALUE;
