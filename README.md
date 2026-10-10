@@ -238,6 +238,7 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
     en el patio.
   - **Aguja del Dominio:** torre de ~180 de alto (cuatro veces la Atalaya) sobre 5×5 chunks: contrafuertes colosales,
     cuatro tramos que se afinan con balcones, pisos interiores, escalera hasta la corona y un pabellón con aguja.
+  Nunca se construyen sumergidas: buscan tierra seca y, si al llegar el lugar resulta inundado, la obra se cancela.
   Nidos y atalayas desde Arraigo; fortalezas y agujas desde Conquista. Las tropas y los rangos aparecen siempre a ras
   del suelo, alrededor de cada estructura. Los **obeliscos** ahora son de 13×13 y ~29 de alto,
   con el núcleo enjaulado en vidrio, columnas con faroles y farolas colgantes.
