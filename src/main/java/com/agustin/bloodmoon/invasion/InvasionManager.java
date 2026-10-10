@@ -64,7 +64,7 @@ public final class InvasionManager {
         return Math.min(10, lv + (f.soulStage >= 3 ? 1 : 0));
     }
     private static final int[] MAX_GRANTS = {12, 14, 18, 24, 24};
-    private static final int OBELISK_COST = 25, OBELISK_AURA = 3;
+    private static final int OBELISK_COST = 25, OBELISK_AURA = 4;   // la mitad de obeliscos, con más alcance
     private static int cycleTimer;
 
     private InvasionManager() {}
@@ -331,7 +331,7 @@ public final class InvasionManager {
         }
 
         // 3) obeliscos nuevos (antes que la frontera, para que la esencia no se vaya toda en avanzar): 1 cada 100 chunks muertos
-        if (dead.size() / 100 > obelisks.size() && f.essence >= OBELISK_COST) {
+        if (dead.size() / 200 > obelisks.size() && f.essence >= OBELISK_COST) {   // 1 cada 200 chunks muertos
             Long best = null;
             double bestD = -1;
             int col = coliseumChunks() + 2;
@@ -437,49 +437,58 @@ public final class InvasionManager {
             if (e.getValue().faction == f.id && e.getValue().structure == DominionStructures.SPIRE) spires.add(e.getKey());
         }
         int fortTarget = f.phase >= 2 ? Math.min(InvasionRank.GENERAL.max, 1 + dead.size() / 1500) : 0;
-        int spireTarget = f.phase >= 2 ? Math.min(3, dead.size() / 1200) : 0;
+        int spireTarget = f.phase >= 2 ? Math.min(3, 1 + dead.size() / 2000) : 0;
         List<int[]> wanted = new ArrayList<>();   // {tipo, costo}
         if (fortresses.size() < fortTarget && f.essence >= 150) wanted.add(new int[]{DominionStructures.FORTRESS, 150});
         if (spires.size() < spireTarget && f.essence >= 200) wanted.add(new int[]{DominionStructures.SPIRE, 200});
-        if (dead.size() / 300 > towers.size() && f.essence >= 50) wanted.add(new int[]{DominionStructures.TOWER, 50});
-        if (dead.size() / 250 > nests.size() && f.essence >= 40) wanted.add(new int[]{DominionStructures.NEST, 40});
-        List<Long> structures = new ArrayList<>(nests);
-        structures.addAll(towers);
-        structures.addAll(fortresses);
-        structures.addAll(spires);
-        if (f.soulSite != Faction.RankRecord.NO_SEAT) structures.add(f.soulSite);
+        // mientras falten Fortalezas o Agujas, no se gastan lugares en las menores (la mitad que antes: menos núcleos)
+        boolean majorPending = fortresses.size() < fortTarget || spires.size() < spireTarget;
+        if (!majorPending || wanted.isEmpty() || r.nextFloat() < 0.25F) {   // si la grande no encuentra lugar, igual avanzan de a poco
+            if (dead.size() / 600 > towers.size() && f.essence >= 50) wanted.add(new int[]{DominionStructures.TOWER, 50});
+            if (dead.size() / 500 > nests.size() && f.essence >= 40) wanted.add(new int[]{DominionStructures.NEST, 40});
+        }
+        if (wanted.isEmpty()) return;
+        List<Long> majors = new ArrayList<>(fortresses);
+        majors.addAll(spires);
+        if (f.soulSite != Faction.RankRecord.NO_SEAT) majors.add(f.soulSite);
+        List<Long> minors = new ArrayList<>(nests);
+        minors.addAll(towers);
+        // la banda de distancia se ajusta a lo que el Dominio ya ocupa (al principio no llega al 25% del radio)
+        double reach = 0;
+        for (long k : dead) reach = Math.max(reach, distance(f, k));
         ChunkPos cc = new ChunkPos(f.center);
+        List<Long> order = new ArrayList<>(dead);
+        java.util.Collections.shuffle(order, new java.util.Random(r.nextLong()));
         for (int[] w : wanted) {
             int type = w[0];
+            boolean major = type == DominionStructures.FORTRESS || type == DominionStructures.SPIRE;
             int fr = DominionStructures.footprint(type);
-            double minD = switch (type) {
-                case DominionStructures.FORTRESS -> radius() * 0.25;
-                case DominionStructures.SPIRE -> radius() * 0.3;
-                case DominionStructures.NEST -> radius() * 0.12;
-                default -> 0;
-            };
-            double maxD = type == DominionStructures.FORTRESS ? radius() * 0.85 : radius();
-            int spacing = switch (type) {
-                case DominionStructures.FORTRESS -> 14;
-                case DominionStructures.SPIRE -> 16;
-                default -> 7;
-            };
+            double minD = major ? Math.min(radius() * 0.2, reach * 0.3) : type == DominionStructures.NEST ? Math.min(radius() * 0.12, reach * 0.2) : 0;
             boolean far = type == DominionStructures.TOWER;
             int col = coliseumChunks() + 2 + fr;   // la huella no toca el coliseo
             Long best = null;
             double bestScore = -1;
-            for (int i = 0; i < 400; i++) {
-                long k = dead.get(r.nextInt(dead.size()));
+            int checked = 0;
+            for (long k : order) {
+                if (++checked > 4000) break;
                 ChunkPos cp = new ChunkPos(k);
                 if (d2(cp, cc) <= (long) col * col) continue;
-                double d = distance(f, k);
-                if (d < minD || d > maxD) continue;
+                if (distance(f, k) < minD) continue;
                 if (!footprintFree(data, f, cp, fr)) continue;
+                // separación: grandes entre sí 10 chunks; con las menores, solo que las huellas no se toquen
                 boolean crowded = false;
-                for (long o : structures) if (d2(new ChunkPos(o), cp) < (long) spacing * spacing) { crowded = true; break; }
+                for (long o : majors) {
+                    int need = major ? 10 : DominionStructures.footprint(data.cells.get(o).structure) + fr + 2;
+                    if (d2(new ChunkPos(o), cp) < (long) need * need) { crowded = true; break; }
+                }
+                if (!crowded) for (long o : minors) {
+                    int need = major ? fr + 3 : 7;
+                    if (d2(new ChunkPos(o), cp) < (long) need * need) { crowded = true; break; }
+                }
                 if (crowded || footprintWet(level, f, cp, fr)) continue;   // nada de estructuras sumergidas
-                double score = far ? d + r.nextDouble() * 64 : r.nextDouble();
+                double score = far ? distance(f, k) + r.nextDouble() * 64 : r.nextDouble();
                 if (score > bestScore) { bestScore = score; best = k; }
+                if (!far && best != null) break;   // la primera que sirve (el orden ya es al azar)
             }
             if (best == null) continue;   // no hay lugar para esta: probar la siguiente
             InvasionData.Cell c = data.cells.get(best);
@@ -890,14 +899,22 @@ public final class InvasionManager {
         StringBuilder sb = new StringBuilder();
         for (Faction f : data.factions) {
             int dead = 0, all = 0, ob = 0;
+            int[] st = new int[8], built = new int[8];
             for (InvasionData.Cell c : data.cells.values()) {
                 if (c.faction != f.id || c.influence <= 0) continue;
                 all++;
                 if (c.influence >= 100) dead++;
                 if (c.obelisk) ob++;
+                st[c.structure & 7]++;
+                if (c.structureBuilt) built[c.structure & 7]++;
             }
-            sb.append(String.format("%s [%s] fase %d · esencia %.0f · chunks %d (muertos %d) · obeliscos %d · eje %s%n",
-                    f.name, f.active ? "activo" : f.healing ? "sanando" : "vencido", f.phase, f.essence, all, dead, ob, f.center.toShortString()));
+            sb.append(String.format("%s [%s] fase %d · nivel %d · esencia %.0f · chunks %d (muertos %d) · obeliscos %d · eje %s%n",
+                    f.name, f.active ? "activo" : f.healing ? "sanando" : "vencido", f.phase, hordeLevel(f), f.essence, all, dead, ob,
+                    f.center.toShortString()));
+            sb.append(String.format("  nidos %d/%d · atalayas %d/%d · fortalezas %d/%d · agujas %d/%d · santuario %s (construidas/totales)%n",
+                    built[DominionStructures.NEST], st[DominionStructures.NEST], built[DominionStructures.TOWER], st[DominionStructures.TOWER],
+                    built[DominionStructures.FORTRESS], st[DominionStructures.FORTRESS], built[DominionStructures.SPIRE], st[DominionStructures.SPIRE],
+                    f.soulStage == 0 ? "-" : f.soulStage + " (" + (int) (100 * f.soulProgress / FirstSoul.COST) + "%)"));
         }
         sb.append("Conversiones pendientes: ").append(DominionTerraform.pending());
         return sb.toString();
