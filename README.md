@@ -211,7 +211,7 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
 - **Muerto:** **Tierra Muerta**, Tierra Yerma, Hierba Muerta, Troncos Calcinados, manchas de Roca Negra y **todo bloque de
   jugador o de aldea en la superficie se reemplaza** por ladrillos de roca negra (lo subterráneo no se toca). El
   contenido de cofres y barriles va al **Relicario**. El coliseo no se toca.
-- **Obeliscos del Dominio:** anclas de roca negra con un **Núcleo** (pico de diamante); romperlo hace retroceder la influencia.
+- **Obeliscos del Dominio:** anclas de roca negra con un **Núcleo** (pico de diamante); romperlo hace retroceder la influencia. Uno cada 200 chunks muertos.
 - **Fases:** Despertar, Arraigo, Conquista y Dominio (con los valores por defecto: ~día 7, ~18 y ~33).
 - **Rangos con cuerpo:** cuando te acercás a su puesto aparecen el **Capitán del Vacío** (esqueleto de élite con el
   estandarte del Dominio, barra de jefe; potencia a las tropas cercanas; custodia un obelisco) y los **Generales**
