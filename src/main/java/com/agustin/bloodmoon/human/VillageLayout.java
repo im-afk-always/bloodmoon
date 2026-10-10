@@ -133,7 +133,7 @@ public final class VillageLayout {
     }
 
     /** Contadores de rechazos (solo para diagnóstico). */
-    private static final int[] REJ = new int[4];
+    public static final int[] REJ = new int[6];
 
     private static final Map<Long, Layout> CACHE = new ConcurrentHashMap<>();
     private static final Map<String, VTemplate> TEMPLATES = new ConcurrentHashMap<>();
@@ -409,11 +409,11 @@ public final class VillageLayout {
             int ry = r.y(rx, rz);
             if (ry != Integer.MIN_VALUE) {
                 int floor = ry - 1;
-                if (Math.abs(floor - b.floorY()) > (core(site, rx, rz) ? 9 : 5)) continue;
+                if (Math.abs(floor - b.floorY()) > (core(site, rx, rz) ? 9 : 5)) { REJ[4]++; continue; }
                 b = new Building(b.template(), b.kind(), b.job(), b.residents(), b.x(), b.z(), b.rot(), floor, b.minX(), b.minZ(), b.maxX(),
                         b.maxZ(), b.coreX(), b.coreZ());
             }
-            if (accept != null && !accept.test(b)) continue;
+            if (accept != null && !accept.test(b)) { REJ[5]++; continue; }
             // acceso de 3 de ancho desde la puerta hasta el eje de la calle
             return new Plot(b, new Road(b.coreX(), b.coreZ(), rx, rz, SPUR_HALF, b.floorY() + 1, b.floorY() + 1), i, p[2]);
         }

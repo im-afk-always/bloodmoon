@@ -484,10 +484,13 @@ public final class HumanityManager {
         return new Net(roads, parent, dist);
     }
 
+    /** Diagnóstico de calles nuevas: {tope alcanzado, no se pudo abrir, abiertas}. */
+    public static final int[] EXT = new int[3];
+
     /** Sin lotes libres: el asentamiento abre dos calles nuevas desde las más alejadas. */
     static int extendNetwork(ServerLevel level, Settlement s, VillageLayout.Layout lay) {
         // una ciudad o una capital siguen creciendo: más calles y más lejos según el nivel
-        if (s.extraNet.size() > 260 + 140 * s.level) return 0;
+        if (s.extraNet.size() > 260 + 140 * s.level) { EXT[0]++; return 0; }
         Net n = net(s, lay);
         List<StreetPlanner.Seg> all = new ArrayList<>();
         for (int i = 0; i < n.size(); i++) {
@@ -496,7 +499,8 @@ public final class HumanityManager {
         }
         int maxR = Math.min(220 + 60 * s.level, 170 + s.extraNet.size() / 2);
         int added = StreetPlanner.extend(all, s.seed, s.x, s.z, VillageLayout.terrain(level), maxR, 2);
-        if (added == 0) return 0;
+        if (added == 0) { EXT[1]++; return 0; }
+        EXT[2]++;
         int[] par = java.util.Arrays.copyOf(s.extraParent, s.extraParent.length + added);
         double[] dd = java.util.Arrays.copyOf(s.extraDist, s.extraDist.length + added);
         for (int i = all.size() - added; i < all.size(); i++) {
@@ -1304,6 +1308,8 @@ public final class HumanityManager {
                 + "\n edificios " + bs.size() + " · obras: " + (cur.isEmpty() ? "ninguna" : cur.stream().map(w -> w.b.template().substring(w.b.template().indexOf('/') + 1)
                         + " " + (int) (w.progress * 100) + "%").collect(java.util.stream.Collectors.joining(", ")))
                 + " · pendientes de colocar " + s.works.stream().filter(w -> w.state == 1).count()
+                + " · calles abiertas " + s.extraNet.size() + " " + java.util.Arrays.toString(EXT)
+                + " · lotes rechazados " + java.util.Arrays.toString(VillageLayout.REJ)
                 + (Port.has(s) ? "\n puerto: " + s.portPiers + "/" + Port.maxPiers(s) + " muelles (agua " + s.portSize + " celdas)"
                         + (s.portLighthouse ? " · faro" : "") : "")
                 + "\n ejército: " + s.soldiers + "/" + Army.target(s) + " soldados · equipo "
