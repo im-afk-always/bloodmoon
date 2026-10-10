@@ -29,6 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class ColiseumSites {
     public static final int REGION = 96, SPREAD = 56;   // en chunks: separación mínima de 40 chunks
     private static final int SALT = 918273645;
+    /** Fracción de regiones con coliseo. */
+    private static final float KEEP = 0.4F;
     private static final Map<Long, Optional<Site>> CACHE = new ConcurrentHashMap<>();
 
     private ColiseumSites() {}
@@ -60,6 +62,8 @@ public final class ColiseumSites {
         rnd.setLargeFeatureWithSalt(worldSeed, rx, rz, SALT);
         int cx = rx * REGION + rnd.nextInt(SPREAD);
         int cz = rz * REGION + rnd.nextInt(SPREAD);
+        // solo 2 de cada 5 regiones tienen coliseo (se sortea después de la posición: los que quedan no se mueven)
+        if (rnd.nextFloat() >= KEEP) return Optional.empty();
         int x = cx * 16 + 8, z = cz * 16 + 8;
         Holder<Biome> biome = gen.getBiomeSource().getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(64), QuartPos.fromBlock(z), rs.sampler());
         if (biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_DEEP_OCEAN) || biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_BEACH)) {
