@@ -102,65 +102,62 @@ public class VoidSkeleton extends AbstractSkeleton {
         this.boundToNight = true;
     }
 
+    /** Al aparecer, un soldado del Vacío es casi un recluta: nivel 0 (0 o 1 pieza, Filo I o Poder I). */
     @Override
     protected void populateDefaultEquipmentSlots(RandomSource random, DifficultyInstance difficulty) {
+        equipForTier(0);
+    }
+
+    /**
+     * Equipo según el nivel de la horda (0-10): la cantidad de piezas, su Protección y el arma crecen con el nivel.
+     * Nivel 0 → 0 o 1 pieza sin encantar y Filo I / Poder I; nivel 10 → Set del Vacío completo con Protección IV y arma al máximo.
+     */
+    public void equipForTier(int level) {
+        level = Math.max(0, Math.min(10, level));
         Registry<Enchantment> ench = registryAccess().registryOrThrow(Registries.ENCHANTMENT);
+        int pieces = level >= 10 ? 4 : Math.min(4, (int) Math.floor(level * 0.35F + random.nextFloat() * 1.6F));
+        int prot = level >= 10 ? 4 : level / 3;
         ItemStack[] armor = {
                 new ItemStack(ModItems.VOID_HELMET.get()), new ItemStack(ModItems.VOID_CHESTPLATE.get()),
                 new ItemStack(ModItems.VOID_LEGGINGS.get()), new ItemStack(ModItems.VOID_BOOTS.get())};
         EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
-        float[] chance = {1F, 0.65F, 0.45F, 0.55F};
-        for (int i = 0; i < 4; i++) {
-            if (random.nextFloat() >= chance[i]) continue;
-            armor[i].enchant(ench.getHolderOrThrow(Enchantments.PROTECTION), 1 + random.nextInt(3));
+        int[] order = {0, 1, 2, 3};
+        for (int i = 3; i > 0; i--) {
+            int j = random.nextInt(i + 1), t = order[i];
+            order[i] = order[j];
+            order[j] = t;
+        }
+        for (int k = 0; k < 4; k++) {
+            int i = order[k];
+            if (!armorSlotFree(slots[i])) continue;
+            if (k >= pieces) {
+                setItemSlot(slots[i], ItemStack.EMPTY);
+                continue;
+            }
+            if (prot > 0) armor[i].enchant(ench.getHolderOrThrow(Enchantments.PROTECTION), prot);
+            if (level >= 6) armor[i].enchant(ench.getHolderOrThrow(Enchantments.UNBREAKING), 3);
+            if (level >= 9 && i == 1) armor[i].enchant(ench.getHolderOrThrow(Enchantments.THORNS), 2);
             setItemSlot(slots[i], armor[i]);
             setDropChance(slots[i], 0F);              // el set completo se gana con los jefes
         }
         ItemStack weapon;
-        if (isArcher()) {
-            weapon = new ItemStack(Items.BOW);
-            weapon.enchant(ench.getHolderOrThrow(Enchantments.POWER), 1 + random.nextInt(3));
-        } else {
-            weapon = new ItemStack(random.nextFloat() < 0.3F ? Items.NETHERITE_SWORD : Items.IRON_SWORD);
-            weapon.enchant(ench.getHolderOrThrow(Enchantments.SHARPNESS), 1 + random.nextInt(3));
-        }
-        setItemSlot(EquipmentSlot.MAINHAND, weapon);
-        setDropChance(EquipmentSlot.MAINHAND, 0.04F);
-    }
-
-    /** Equipo de asalto: nivel 1 = poco; nivel 10 = Set del Vacío completo con Protección IV y arma al máximo. */
-    public void equipForTier(int tier) {
-        Registry<Enchantment> ench = registryAccess().registryOrThrow(Registries.ENCHANTMENT);
-        float chance = tier >= 10 ? 1F : 0.25F + tier * 0.075F;
-        int prot = Math.min(4, 1 + tier / 3);
-        ItemStack[] armor = {
-                new ItemStack(ModItems.VOID_HELMET.get()), new ItemStack(ModItems.VOID_CHESTPLATE.get()),
-                new ItemStack(ModItems.VOID_LEGGINGS.get()), new ItemStack(ModItems.VOID_BOOTS.get())};
-        EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
-        for (int i = 0; i < 4; i++) {
-            if (random.nextFloat() >= chance) {
-                setItemSlot(slots[i], ItemStack.EMPTY);
-                continue;
-            }
-            armor[i].enchant(ench.getHolderOrThrow(Enchantments.PROTECTION), prot);
-            if (tier >= 6) armor[i].enchant(ench.getHolderOrThrow(Enchantments.UNBREAKING), 3);
-            if (tier >= 9 && i == 0) armor[i].enchant(ench.getHolderOrThrow(Enchantments.THORNS), 2);
-            setItemSlot(slots[i], armor[i]);
-            setDropChance(slots[i], 0F);
-        }
-        ItemStack weapon;
-        int lvl = Math.min(5, 1 + tier / 2);
+        int lvl = Math.min(5, 1 + level / 2);
         if (isArcher()) {
             weapon = new ItemStack(Items.BOW);
             weapon.enchant(ench.getHolderOrThrow(Enchantments.POWER), lvl);
-            if (tier >= 8) weapon.enchant(ench.getHolderOrThrow(Enchantments.FLAME), 1);
+            if (level >= 8) weapon.enchant(ench.getHolderOrThrow(Enchantments.FLAME), 1);
         } else {
-            weapon = new ItemStack(tier >= 7 ? Items.NETHERITE_SWORD : tier >= 4 ? Items.DIAMOND_SWORD : Items.IRON_SWORD);
+            weapon = new ItemStack(level >= 7 ? Items.NETHERITE_SWORD : level >= 4 ? Items.DIAMOND_SWORD : Items.IRON_SWORD);
             weapon.enchant(ench.getHolderOrThrow(Enchantments.SHARPNESS), lvl);
-            if (tier >= 8) weapon.enchant(ench.getHolderOrThrow(Enchantments.FIRE_ASPECT), 2);
+            if (level >= 8) weapon.enchant(ench.getHolderOrThrow(Enchantments.FIRE_ASPECT), 2);
         }
         setItemSlot(EquipmentSlot.MAINHAND, weapon);
         setDropChance(EquipmentSlot.MAINHAND, 0.02F);
+    }
+
+    /** Ranuras de armadura que maneja {@link #equipForTier} (el Capitán reserva la cabeza para su estandarte). */
+    protected boolean armorSlotFree(EquipmentSlot slot) {
+        return true;
     }
 
     @Override

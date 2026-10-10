@@ -57,6 +57,11 @@ public final class BloodMoonCommand {
                                 .then(Commands.literal("nest").executes(ctx -> buildHere(ctx, com.agustin.bloodmoon.invasion.DominionStructures.NEST)))
                                 .then(Commands.literal("tower").executes(ctx -> buildHere(ctx, com.agustin.bloodmoon.invasion.DominionStructures.TOWER)))
                                 .then(Commands.literal("fortress").executes(ctx -> buildHere(ctx, com.agustin.bloodmoon.invasion.DominionStructures.FORTRESS))))
+                        .then(Commands.literal("soul")
+                                .then(Commands.literal("site").executes(ctx -> soul(ctx, 1, 0)))
+                                .then(Commands.literal("feed").then(Commands.argument("percent", IntegerArgumentType.integer(0, 99))
+                                        .executes(ctx -> soul(ctx, 2, IntegerArgumentType.getInteger(ctx, "percent")))))
+                                .then(Commands.literal("awaken").executes(ctx -> soul(ctx, 3, 100))))
                         .then(Commands.literal("raid").executes(ctx -> com.agustin.bloodmoon.invasion.InvasionRaids.force(
                                 ctx.getSource().getServer().overworld(), ctx.getSource().getPlayerOrException()) ? 1 : 0)
                                 .then(Commands.literal("stop").executes(ctx -> com.agustin.bloodmoon.invasion.InvasionRaids.stop(
@@ -306,5 +311,13 @@ public final class BloodMoonCommand {
                 ctx.getSource().getPlayerOrException(), type);
         ctx.getSource().sendSuccess(() -> Component.literal(ok ? "Obra iniciada" : "Fuera de un Dominio activo o ya hay una obra aquí"), false);
         return ok ? 1 : 0;
+    }
+
+    /** Para pruebas: la Ofrenda a la Primera Alma (site: santuario aquí; feed N: cristal al N%; awaken: despertar ya). */
+    private static int soul(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> ctx, int stage, int pct)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        String r = com.agustin.bloodmoon.invasion.FirstSoul.force(ctx.getSource().getServer().overworld(), ctx.getSource().getPlayerOrException(), stage, pct);
+        ctx.getSource().sendSuccess(() -> Component.literal(r), false);
+        return 1;
     }
 }

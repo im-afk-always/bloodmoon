@@ -121,6 +121,11 @@ public final class DominionTemplates {
      * y por último coloca la plantilla de abajo hacia arriba. La altura base es la mediana del terreno bajo la huella.
      */
     public static DominionTerraform.Plan plan(ServerLevel level, Template t, int cx, int cz, Rotation rot) {
+        return planAt(level, t, cx, cz, rot, Integer.MIN_VALUE);
+    }
+
+    /** Igual que {@link #plan}, con la altura base fija (MIN_VALUE: la mediana del terreno). */
+    public static DominionTerraform.Plan planAt(ServerLevel level, Template t, int cx, int cz, Rotation rot, int baseY) {
         Map<Long, int[]> columns = new HashMap<>();   // (dx,dz) girado → {minY, maxY}
         Set<Long> occupied = new HashSet<>();
         List<int[]> rotated = new ArrayList<>(t.blocks().size());
@@ -132,7 +137,7 @@ public final class DominionTemplates {
             mm[0] = Math.min(mm[0], e.y());
             mm[1] = Math.max(mm[1], e.y());
         }
-        int y0 = baseHeight(level, cx, cz, columns.keySet());
+        int y0 = baseY != Integer.MIN_VALUE ? baseY : baseHeight(level, cx, cz, columns.keySet());
         for (int i = 0; i < rotated.size(); i++) {
             Entry e = t.blocks().get(i);
             occupied.add(BlockPos.asLong(cx + rotated.get(i)[0], y0 + e.y(), cz + rotated.get(i)[1]));

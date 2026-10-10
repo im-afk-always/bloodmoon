@@ -246,15 +246,32 @@ public final class InvasionRaids {
     }
 
     private static void spawnRaider(ServerLevel level, Raid raid, ServerPlayer target, boolean captain) {
+        Faction rf = InvasionData.get(level).faction(raid.faction);
+        int lv = raid.test ? raid.tier : Math.max(raid.tier, InvasionManager.hordeLevel(rf) - 2);
+        BlockPos g = raid.gate;
+        // Hechiceros desde el nivel 3: 8% + 2% por nivel
+        if (!captain && raid.tier >= 3 && level.random.nextFloat() < 0.08F + 0.02F * raid.tier) {
+            com.agustin.bloodmoon.entity.VoidMage m = ModEntities.VOID_MAGE.get().create(level);
+            if (m == null) return;
+            m.moveTo(g.getX() + 0.5 + level.random.nextGaussian() * 0.6, g.getY() + 1, g.getZ() + 0.5 + level.random.nextGaussian() * 0.6,
+                    level.random.nextFloat() * 360F, 0F);
+            m.finalizeSpawn(level, level.getCurrentDifficultyAt(g), MobSpawnType.EVENT, null);
+            m.applyLevel(lv);
+            m.bindToDominion();
+            m.setTarget(target);
+            level.addFreshEntity(m);
+            level.sendParticles(ParticleTypes.REVERSE_PORTAL, m.getX(), m.getY() + 1, m.getZ(), 25, 0.3, 0.8, 0.3, 0.05);
+            raid.troops.add(m.getUUID());
+            return;
+        }
         boolean archer = !captain && level.random.nextFloat() < 0.35F;
         VoidSkeleton s = (captain ? ModEntities.VOID_CAPTAIN.get() : archer ? ModEntities.VOID_ARCHER.get() : ModEntities.VOID_SENTINEL.get()).create(level);
         if (s == null) return;
-        BlockPos g = raid.gate;
         s.moveTo(g.getX() + 0.5 + level.random.nextGaussian() * 0.6, g.getY() + 1, g.getZ() + 0.5 + level.random.nextGaussian() * 0.6,
                 level.random.nextFloat() * 360F, 0F);
         s.finalizeSpawn(level, level.getCurrentDifficultyAt(g), MobSpawnType.EVENT, null);
-        if (!captain) s.equipForTier(raid.tier);
-        else s.setCustomName(Component.translatable("bloodmoon.invasion.named.raid_captain"));
+        s.equipForTier(lv);   // nivel del asalto, nunca muy por debajo de la horda (salvo los de prueba)
+        if (captain) s.setCustomName(Component.translatable("bloodmoon.invasion.named.raid_captain"));
         s.bindToDominion();
         s.setRaider(true);
         s.setTarget(target);

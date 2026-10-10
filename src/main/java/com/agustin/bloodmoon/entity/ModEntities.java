@@ -104,6 +104,14 @@ public final class ModEntities {
                     .clientTrackingRange(16)
                     .build("void_king"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<VoidMage>> VOID_MAGE =
+            ENTITIES.register("void_mage", () -> EntityType.Builder
+                    .<VoidMage>of(VoidMage::new, MobCategory.MONSTER)
+                    .sized(0.7F, 2.2F)
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .build("void_mage"));
+
     public static final DeferredHolder<EntityType<?>, EntityType<VoidSkeleton>> VOID_ARCHER =
             ENTITIES.register("void_archer", () -> EntityType.Builder
                     .<VoidSkeleton>of(VoidSkeleton::new, MobCategory.MONSTER)
@@ -210,6 +218,7 @@ public final class ModEntities {
         event.put(VOID_FORGER.get(), VoidForger.createAttributes().build());
         event.put(VOID_GENERAL.get(), VoidGeneral.createAttributes().build());
         event.put(VOID_KING.get(), VoidKing.createAttributes().build());
+        event.put(VOID_MAGE.get(), VoidMage.createAttributes().build());
         event.put(VOID_EYE.get(), VoidEye.createAttributes().build());
         event.put(EYE_TENTACLE.get(), EyeTentacle.createAttributes().build());
         event.put(UNBOUND_OBSERVER.get(), VoidEye.createAttributes().build());

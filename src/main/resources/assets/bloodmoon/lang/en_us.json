@@ -258,5 +258,22 @@
   "block.bloodmoon.void_glass_pane": "Void Glass Pane",
   "bloodmoon.invasion.throne_sealed": "King %s seals the portal: the throne must fall first.",
   "key.bloodmoon.map": "Dominion map",
-  "key.categories.bloodmoon": "Blood Moon"
+  "key.categories.bloodmoon": "Blood Moon",
+  "entity.bloodmoon.void_mage": "Void Sorcerer",
+  "item.bloodmoon.void_mage_spawn_egg": "Void Sorcerer Spawn Egg",
+  "bloodmoon.invasion.phase.4": "Offering",
+  "bloodmoon.soul.site": "The Dominion of %s has begun raising the Sanctuary of the First Soul near %s, %s.",
+  "bloodmoon.soul.feeding": "The Dominion of %s is feeding the First Soul. Its crystal grows.",
+  "bloodmoon.soul.half": "The First Soul of %s is half awake.",
+  "bloodmoon.soul.near": "The First Soul of %s is about to awaken. Break its Heart or defeat the Dominion.",
+  "bloodmoon.soul.heart_broken": "The Heart of the First Soul of %s has shattered. The offering is lost.",
+  "bloodmoon.soul.awake.title": "THE FIRST SOUL AWAKENS",
+  "bloodmoon.soul.awake.sub": "The Dragon rises over the Dominion of %s",
+  "bloodmoon.soul.awake": "The crystal of %s has burst at %s, %s: the Dragon of the First Soul is loose.",
+  "bloodmoon.soul.slain": "The Dragon of the First Soul has fallen. The Dominion of %s is left empty.",
+  "bloodmoon.map.soul": "First Soul: %s",
+  "bloodmoon.map.soul.site": "sanctuary under construction",
+  "bloodmoon.map.soul.feeding": "crystal at %s%%",
+  "bloodmoon.map.soul.awake": "AWAKE",
+  "bloodmoon.map.soul.slain": "slain"
 }

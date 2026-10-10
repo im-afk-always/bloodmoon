@@ -31,6 +31,10 @@ public final class Faction {
     public long slowedUntil;
     /** Interregno: tras la caída del Rey, el Dominio no gana tierra hasta este tick. */
     public long haltedUntil;
+    /** La Ofrenda (fase 4): etapa (ver {@link FirstSoul}), chunk del santuario, altura del estrado, esencia dada, bloques del cristal puestos. */
+    public int soulStage, soulY, soulPlaced, soulWarned;
+    public long soulSite = RankRecord.NO_SEAT;
+    public double soulProgress;
     public final List<RankRecord> ranks = new ArrayList<>();
     /** Lo que el Dominio se tragó de cofres y barriles: vuelve al vencerlo. */
     public final List<ItemStack> relic = new ArrayList<>();
@@ -87,6 +91,12 @@ public final class Faction {
         t.putInt("nextRankUid", nextRankUid);
         t.putLong("slowedUntil", slowedUntil);
         t.putLong("haltedUntil", haltedUntil);
+        t.putInt("soulStage", soulStage);
+        t.putInt("soulY", soulY);
+        t.putInt("soulPlaced", soulPlaced);
+        t.putInt("soulWarned", soulWarned);
+        t.putLong("soulSite", soulSite);
+        t.putDouble("soulProgress", soulProgress);
         ListTag rl = new ListTag();
         for (RankRecord r : ranks) {
             CompoundTag rt = new CompoundTag();
@@ -122,6 +132,12 @@ public final class Faction {
         f.nextRankUid = Math.max(1, t.getInt("nextRankUid"));
         f.slowedUntil = t.getLong("slowedUntil");
         f.haltedUntil = t.getLong("haltedUntil");
+        f.soulStage = t.getInt("soulStage");
+        f.soulY = t.getInt("soulY");
+        f.soulPlaced = t.getInt("soulPlaced");
+        f.soulWarned = t.getInt("soulWarned");
+        f.soulSite = t.contains("soulSite") ? t.getLong("soulSite") : RankRecord.NO_SEAT;
+        f.soulProgress = t.getDouble("soulProgress");
         ListTag rl = t.getList("ranks", Tag.TAG_COMPOUND);
         for (int i = 0; i < rl.size(); i++) {
             CompoundTag rt = rl.getCompound(i);

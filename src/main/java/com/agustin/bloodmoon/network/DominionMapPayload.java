@@ -22,7 +22,7 @@ public record DominionMapPayload(List<FactionView> factions, long[] gates) imple
 
     public record FactionView(int id, String name, int centerX, int centerZ, int radius, int phase, int essence, boolean active,
                               boolean healing, int forgers, int troops, int deadChunks, int obelisks, List<RankView> ranks,
-                              int half, byte[] grid, byte[] structs, byte[] roads) {
+                              int half, byte[] grid, byte[] structs, byte[] roads, int soulStage, int soulPct) {
         /** Valor de la grilla para un chunk (0 si cae afuera). */
         public int at(int chunkX, int chunkZ) {
             int gx = chunkX - (centerX >> 4) + half, gz = chunkZ - (centerZ >> 4) + half;
@@ -67,6 +67,8 @@ public record DominionMapPayload(List<FactionView> factions, long[] gates) imple
                     ByteBufCodecs.BYTE_ARRAY.encode(buf, f.grid());
                     ByteBufCodecs.BYTE_ARRAY.encode(buf, f.structs());
                     ByteBufCodecs.BYTE_ARRAY.encode(buf, f.roads());
+                    ByteBufCodecs.VAR_INT.encode(buf, f.soulStage());
+                    ByteBufCodecs.VAR_INT.encode(buf, f.soulPct());
                 }
                 ByteBufCodecs.VAR_INT.encode(buf, p.gates().length);
                 for (long g : p.gates()) buf.writeLong(g);
@@ -96,8 +98,9 @@ public record DominionMapPayload(List<FactionView> factions, long[] gates) imple
                     byte[] grid = ByteBufCodecs.BYTE_ARRAY.decode(buf);
                     byte[] structs = ByteBufCodecs.BYTE_ARRAY.decode(buf);
                     byte[] roads = ByteBufCodecs.BYTE_ARRAY.decode(buf);
+                    int soulStage = ByteBufCodecs.VAR_INT.decode(buf), soulPct = ByteBufCodecs.VAR_INT.decode(buf);
                     list.add(new FactionView(id, name, cx, cz, radius, phase, essence, active, healing, forgers, troops, dead, obelisks,
-                            ranks, half, grid, structs, roads));
+                            ranks, half, grid, structs, roads, soulStage, soulPct));
                 }
                 int ng = ByteBufCodecs.VAR_INT.decode(buf);
                 long[] gates = new long[ng];

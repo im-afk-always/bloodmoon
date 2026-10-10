@@ -91,7 +91,8 @@ public final class ConstructionSites {
         ChunkPos cp = new ChunkPos(p.blockPosition());
         long key = cp.toLong();
         if (SITES.containsKey(key)) return false;
-        for (int ox = -1; ox <= 1; ox++) for (int oz = -1; oz <= 1; oz++) {
+        int fr = DominionStructures.footprint(type);
+        for (int ox = -fr; ox <= fr; ox++) for (int oz = -fr; oz <= fr; oz++) {
             InvasionData.Cell n = InvasionManager.claim(data, ChunkPos.asLong(cp.x + ox, cp.z + oz), f);
             if (n == null) return false;
             n.influence = 100;
@@ -172,7 +173,7 @@ public final class ConstructionSites {
                 }
             } else if (step) {
                 List<VoidForger> workers = new ArrayList<>();
-                double reach = s.structure ? 40 : 24;
+                double reach = s.structure ? 56 : 24;
                 for (UUID u : s.forgers) {
                     Entity e = level.getEntity(u);
                     if (e instanceof VoidForger fo && fo.isAlive() && fo.distanceToSqr(s.center.getX(), s.center.getY(), s.center.getZ()) < reach * reach) workers.add(fo);

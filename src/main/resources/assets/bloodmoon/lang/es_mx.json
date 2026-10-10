@@ -258,5 +258,22 @@
   "block.bloodmoon.void_glass_pane": "Panel de vidrio del Vacío",
   "bloodmoon.invasion.throne_sealed": "El Rey %s sella el portal: primero tiene que caer el trono.",
   "key.bloodmoon.map": "Mapa del Dominio",
-  "key.categories.bloodmoon": "Blood Moon"
+  "key.categories.bloodmoon": "Blood Moon",
+  "entity.bloodmoon.void_mage": "Hechicero del Vacío",
+  "item.bloodmoon.void_mage_spawn_egg": "Huevo de Hechicero del Vacío",
+  "bloodmoon.invasion.phase.4": "Ofrenda",
+  "bloodmoon.soul.site": "El Dominio de %s empezó a levantar el Santuario de la Primera Alma cerca de %s, %s.",
+  "bloodmoon.soul.feeding": "El Dominio de %s está alimentando a la Primera Alma. Su cristal crece.",
+  "bloodmoon.soul.half": "La Primera Alma de %s está medio despierta.",
+  "bloodmoon.soul.near": "La Primera Alma de %s está por despertar. Rompe su Corazón o vence al Dominio.",
+  "bloodmoon.soul.heart_broken": "El Corazón de la Primera Alma de %s se partió. La ofrenda se perdió.",
+  "bloodmoon.soul.awake.title": "LA PRIMERA ALMA DESPIERTA",
+  "bloodmoon.soul.awake.sub": "El Dragón se alza sobre el Dominio de %s",
+  "bloodmoon.soul.awake": "El cristal de %s estalló en %s, %s: el Dragón de la Primera Alma anda suelto.",
+  "bloodmoon.soul.slain": "Cayó el Dragón de la Primera Alma. El Dominio de %s quedó vacío.",
+  "bloodmoon.map.soul": "Primera Alma: %s",
+  "bloodmoon.map.soul.site": "santuario en obra",
+  "bloodmoon.map.soul.feeding": "cristal al %s%%",
+  "bloodmoon.map.soul.awake": "DESPIERTA",
+  "bloodmoon.map.soul.slain": "abatida"
 }

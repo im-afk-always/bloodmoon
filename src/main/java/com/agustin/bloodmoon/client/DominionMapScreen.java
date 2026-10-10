@@ -221,6 +221,16 @@ public class DominionMapScreen extends Screen {
                         f.active() ? Component.translatable("bloodmoon.invasion.phase." + f.phase()) : Component.translatable("bloodmoon.map.healing"),
                         f.essence(), f.deadChunks(), f.obelisks());
         g.drawString(font, info, mapL, 17, f == null ? 0xFF8A8090 : 0xFFC9A6F0, false);
+        if (f != null && f.soulStage() > 0) {
+            Component st = switch (f.soulStage()) {
+                case 1 -> Component.translatable("bloodmoon.map.soul.site");
+                case 2 -> Component.translatable("bloodmoon.map.soul.feeding", f.soulPct());
+                case 3 -> Component.translatable("bloodmoon.map.soul.awake");
+                default -> Component.translatable("bloodmoon.map.soul.slain");
+            };
+            Component soul = Component.translatable("bloodmoon.map.soul", st);
+            g.drawString(font, soul, mapL + mapW - font.width(soul) - 30, 17, f.soulStage() == 3 ? 0xFFFF5070 : 0xFFE080FF, false);
+        }
         g.drawString(font, Component.translatable("bloodmoon.map.hint"), mapL, height - 11, 0xFF6A6070, false);
         Component legend = Component.translatable("bloodmoon.map.legend");
         g.drawString(font, legend, mapL + mapW - font.width(legend), height - 11, 0xFF6A6070, false);
@@ -271,6 +281,19 @@ public class DominionMapScreen extends Screen {
                     case com.agustin.bloodmoon.invasion.DominionStructures.TOWER -> {
                         g.fill(x - 2, y - 5, x + 2, y + 3, 0xFF000000);
                         g.fill(x - 1, y - 4, x + 1, y + 2, 0xFFD8D0E0);
+                    }
+                    case com.agustin.bloodmoon.invasion.DominionStructures.SOUL -> {   // santuario: anillo y cristal que late
+                        int rr = Math.max(6, (int) (37.0 / bpp)) ;
+                        int pulse = (int) ((minecraft.level != null ? minecraft.level.getGameTime() : 0) % 40);
+                        for (int k = 0; k < 64; k++) {
+                            double a = k * Math.PI * 2 / 64;
+                            int px = x + (int) Math.round(Math.cos(a) * rr), py = y + (int) Math.round(Math.sin(a) * rr);
+                            g.fill(px - 1, py - 1, px + 1, py + 1, 0xFF000000);
+                            g.fill(px, py, px + 1, py + 1, 0xFFB050FF);
+                        }
+                        diamond(g, x, y, 6, 0xFF000000);
+                        diamond(g, x, y, 5, pulse < 20 ? 0xFFE080FF : 0xFFA040E0);
+                        diamond(g, x, y, 2, 0xFFFFFFFF);
                     }
                     default -> {
                         g.fill(x - 5, y - 5, x + 5, y + 5, 0xFF000000);

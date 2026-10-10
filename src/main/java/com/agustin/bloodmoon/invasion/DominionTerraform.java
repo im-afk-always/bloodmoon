@@ -126,7 +126,7 @@ public final class DominionTerraform {
             }
         }
         if (c.structure != DominionStructures.NONE && target == 3 && !c.structureBuilt && live
-                && DominionStructures.footprintLoaded(level, chunk.getPos())) {   // si no, se reintenta al cargar un vecino
+                && DominionStructures.footprintLoaded(level, chunk.getPos(), DominionStructures.footprint(c.structure))) {   // si no, se reintenta al cargar un vecino
             Plan plan = DominionStructures.plan(level, chunk.getPos(), c.structure, f);
             // a la vista: los Forjadores la levantan; si no, se termina sola con un presupuesto por tick (sin tirones)
             ConstructionSites.start(level, key, f, plan, true, !playerNear(level, chunk.getPos(), ConstructionSites.WATCH));

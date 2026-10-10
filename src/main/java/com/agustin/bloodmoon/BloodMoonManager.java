@@ -353,6 +353,10 @@ public final class BloodMoonManager {
 
     /** El Dragón de la Primera Alma desciende de la grieta, muy por encima del punto dado. */
     public static FirstSoulDragon spawnSoulDragon(ServerLevel level, Vec3 near, boolean boundToNight) {
+        return spawnSoulDragon(level, near, boundToNight, true);
+    }
+
+    public static FirstSoulDragon spawnSoulDragon(ServerLevel level, Vec3 near, boolean boundToNight, boolean announce) {
         FirstSoulDragon dragon = ModEntities.FIRST_SOUL_DRAGON.get().create(level);
         if (dragon == null) return null;
         double u = 0.15 * BloodMoonConfig.DRAGON_SCALE.get();
@@ -363,6 +367,7 @@ public final class BloodMoonManager {
         if (boundToNight) dragon.bindToNight();
         dragon.startDescent(near);
         level.addFreshEntity(dragon);
+        if (!announce) return dragon;
 
         Component msg = Component.translatable("bloodmoon.message.dragon").withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD);
         for (ServerPlayer player : level.players()) {

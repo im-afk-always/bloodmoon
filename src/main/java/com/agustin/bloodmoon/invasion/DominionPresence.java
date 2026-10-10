@@ -127,7 +127,10 @@ public final class DominionPresence {
         int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
         mob.moveTo(x + 0.5, y, z + 0.5, level.random.nextFloat() * 360F, 0F);
         mob.finalizeSpawn(level, level.getCurrentDifficultyAt(new BlockPos(x, y, z)), MobSpawnType.EVENT, null);
-        if (mob instanceof VoidSkeleton s) s.bindToDominion();
+        if (mob instanceof VoidSkeleton s) {
+            s.equipForTier(InvasionManager.hordeLevel(f));
+            s.bindToDominion();
+        }
         if (mob instanceof VoidKnight k) k.bindToDominion();
         if (mob instanceof com.agustin.bloodmoon.entity.VoidGeneral g) g.bindToDominion();
         if (mob instanceof com.agustin.bloodmoon.entity.VoidKing k) k.bindToDominion();
@@ -178,18 +181,35 @@ public final class DominionPresence {
                 case DominionStructures.NEST -> Math.min(7, 4 + f.phase);
                 case DominionStructures.TOWER -> 3;
                 case DominionStructures.FORTRESS -> Math.min(8, 5 + f.phase);
+                case DominionStructures.SOUL -> 14;                               // muy bien defendido
                 default -> Math.min(5, 2 + f.phase);
             };
             if (troops.size() >= target || now < NEXT_TROOP.getOrDefault(key, 0L)) continue;
             NEXT_TROOP.put(key, now + 60);
             int type = struct ? c.structure : 0;
+            int lv = InvasionManager.hordeLevel(f);
+            // Hechiceros: desde el nivel 2 de la horda; más en el santuario y las fortalezas
+            float mageChance = lv < 2 ? 0F : switch (type) {
+                case DominionStructures.SOUL -> 0.3F;
+                case DominionStructures.FORTRESS -> 0.2F;
+                case DominionStructures.NEST -> 0.15F;
+                case DominionStructures.TOWER -> 0F;
+                default -> 0.08F;
+            };
+            boolean mage = level.random.nextFloat() < mageChance;
             boolean archer = type == DominionStructures.TOWER || level.random.nextFloat() < 0.4F;
-            VoidSkeleton s = (archer ? ModEntities.VOID_ARCHER.get() : ModEntities.VOID_SENTINEL.get()).create(level);
+            Mob s = mage ? ModEntities.VOID_MAGE.get().create(level)
+                    : (archer ? ModEntities.VOID_ARCHER.get() : ModEntities.VOID_SENTINEL.get()).create(level);
             if (s == null) continue;
             int sx, sz;
             if (type == DominionStructures.TOWER) {          // en la corona, lejos de la salida de la escalera
                 sx = x + (level.random.nextBoolean() ? 4 : -4);
                 sz = z + (level.random.nextBoolean() ? 4 : -4);
+            } else if (type == DominionStructures.SOUL) {     // en la explanada, entre la fosa y la muralla
+                double a = level.random.nextDouble() * Math.PI * 2;
+                double rr = 27.5 + level.random.nextDouble() * 3.5;
+                sx = x + (int) Math.round(Math.cos(a) * rr);
+                sz = z + (int) Math.round(Math.sin(a) * rr);
             } else if (type == DominionStructures.FORTRESS) { // en las esquinas del patio
                 sx = x + (level.random.nextBoolean() ? 11 : -11);
                 sz = z + (level.random.nextBoolean() ? 11 : -11);
@@ -202,7 +222,13 @@ public final class DominionPresence {
             int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, sx, sz);
             s.moveTo(sx + 0.5, y, sz + 0.5, level.random.nextFloat() * 360F, 0F);
             s.finalizeSpawn(level, level.getCurrentDifficultyAt(new BlockPos(sx, y, sz)), MobSpawnType.EVENT, null);
-            s.bindToDominion();
+            if (s instanceof VoidSkeleton vs) {
+                vs.equipForTier(lv);
+                vs.bindToDominion();
+            } else if (s instanceof com.agustin.bloodmoon.entity.VoidMage vm) {
+                vm.applyLevel(lv);
+                vm.bindToDominion();
+            }
             level.addFreshEntity(s);
             level.sendParticles(net.minecraft.core.particles.ParticleTypes.REVERSE_PORTAL, sx + 0.5, y + 1, sz + 0.5, 30, 0.3, 0.8, 0.3, 0.05);
             troops.add(s.getUUID());

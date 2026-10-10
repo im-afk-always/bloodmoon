@@ -53,8 +53,17 @@ import java.util.Set;
  */
 public final class InvasionManager {
     public static final String LINK_KEY = "bloodmoon_invasion_link";
-    private static final double[] PHASE_AT = {0, 2500, 15000, 60000};
-    private static final int[] MAX_GRANTS = {12, 14, 18, 24};
+    private static final double[] PHASE_AT = {0, 2500, 15000, 60000, 100000};
+    /** Nivel de la horda (0-10) según la esencia ganada: decide el equipo de sus soldados. */
+    private static final double[] LEVEL_AT = {0, 1000, 2500, 6000, 10000, 15000, 25000, 40000, 60000, 90000, 130000};
+
+    public static int hordeLevel(Faction f) {
+        if (f == null) return 0;
+        int lv = 0;
+        for (int i = 0; i < LEVEL_AT.length; i++) if (f.earned >= LEVEL_AT[i]) lv = i;
+        return Math.min(10, lv + (f.soulStage >= 3 ? 1 : 0));
+    }
+    private static final int[] MAX_GRANTS = {12, 14, 18, 24, 24};
     private static final int OBELISK_COST = 25, OBELISK_AURA = 3;
     private static int cycleTimer;
 
@@ -76,6 +85,7 @@ public final class InvasionManager {
         ConstructionSites.tick(level);
         DominionPresence.tick(level);
         InvasionRaids.tick(level);
+        FirstSoul.tick(level);
         if (++cycleTimer < BloodMoonConfig.INVASION_CYCLE_SECONDS.get() * 20) return;
         cycleTimer = 0;
         runCycle(level);
@@ -91,11 +101,13 @@ public final class InvasionManager {
         if (c != null && DominionTerraform.needsWork(data, c)) DominionTerraform.enqueue(key);
         // una estructura mayor espera a que carguen todos sus chunks: avisar a los vecinos
         ChunkPos cp = chunk.getPos();
-        for (int ox = -1; ox <= 1; ox++) for (int oz = -1; oz <= 1; oz++) {
+        for (int ox = -2; ox <= 2; ox++) for (int oz = -2; oz <= 2; oz++) {
             if (ox == 0 && oz == 0) continue;
             long k = ChunkPos.asLong(cp.x + ox, cp.z + oz);
             InvasionData.Cell n = data.cells.get(k);
-            if (n != null && n.structure != DominionStructures.NONE && !n.structureBuilt && DominionTerraform.needsWork(data, n)) DominionTerraform.enqueue(k);
+            if (n == null || n.structure == DominionStructures.NONE || n.structureBuilt) continue;
+            int rr = DominionStructures.footprint(n.structure);
+            if (Math.abs(ox) <= rr && Math.abs(oz) <= rr && DominionTerraform.needsWork(data, n)) DominionTerraform.enqueue(k);
         }
     }
 
@@ -205,12 +217,12 @@ public final class InvasionManager {
         }
     }
 
-    private static long d2(ChunkPos a, ChunkPos b) {
+    static long d2(ChunkPos a, ChunkPos b) {
         long dx = a.x - b.x, dz = a.z - b.z;
         return dx * dx + dz * dz;
     }
 
-    private static double distance(Faction f, long key) {
+    static double distance(Faction f, long key) {
         ChunkPos cp = new ChunkPos(key);
         double dx = cp.getMiddleBlockX() - f.center.getX(), dz = cp.getMiddleBlockZ() - f.center.getZ();
         return Math.sqrt(dx * dx + dz * dz);
@@ -254,8 +266,10 @@ public final class InvasionManager {
         // 1) esencia
         double moon = BloodMoonManager.current() == MoonType.MOONLESS ? 3 : 1;
         double income = (14 + 0.012 * dead.size()) * speed * moon;
-        f.essence = Math.min(2000 + 500 * f.phase, f.essence + income);
         f.earned += income;
+        double feed = FirstSoul.feedShare(f, income);   // la Ofrenda se lleva la mitad del ingreso
+        f.soulProgress += feed;
+        f.essence = Math.min(2000 + 500 * f.phase, f.essence + income - feed);
         int phase = 0;
         for (int i = 0; i < PHASE_AT.length; i++) if (f.earned >= PHASE_AT[i]) phase = i;
         if (phase > f.phase) {
@@ -290,6 +304,7 @@ public final class InvasionManager {
                 boolean near = false;
                 for (long ob : obelisks) if (d2(new ChunkPos(ob), cp) < 49) { near = true; break; }
                 for (long st : anchors(f, List.of(), nests, towers, fortresses)) if (d2(new ChunkPos(st), cp) < 9) { near = true; break; }
+                if (f.soulSite != Faction.RankRecord.NO_SEAT && d2(new ChunkPos(f.soulSite), cp) < 18) near = true;
                 if (near) continue;
                 double d = distance(f, k) + r.nextDouble() * 48;
                 if (d > bestD) { bestD = d; best = k; }
@@ -307,6 +322,8 @@ public final class InvasionManager {
 
         // 3b) estructuras mayores: nidos y atalayas (Arraigo), fortalezas (Conquista); una por ciclo
         placeStructure(level, data, f, r, dead, obelisks, nests, towers, fortresses, changed);
+        // 3c) la Ofrenda a la Primera Alma (fase 4)
+        FirstSoul.cycle(level, data, f, dead, anchors(f, obelisks, nests, towers, fortresses), changed);
 
         // 4) frontera
         Map<Long, Integer> cand = new HashMap<>();
@@ -384,7 +401,8 @@ public final class InvasionManager {
         } else if (dead.size() / 250 > nests.size() && f.essence >= 40) {
             type = DominionStructures.NEST; cost = 40; minD = radius() * 0.15; maxD = radius(); spacing = 8; far = false;
         } else return;
-        List<Long> occupied = anchors(f, obelisks, nests, towers, fortresses);
+        List<Long> occupied = new ArrayList<>(anchors(f, obelisks, nests, towers, fortresses));
+        if (f.soulSite != Faction.RankRecord.NO_SEAT) occupied.add(f.soulSite);
         int col = coliseumChunks() + 3;   // la huella de 3×3 no toca el coliseo
         ChunkPos cc = new ChunkPos(f.center);
         Long best = null;
@@ -418,7 +436,11 @@ public final class InvasionManager {
 
     /** Una estructura mayor ocupa 3×3 chunks: todos de tierra muerta propia, sin obeliscos ni otras estructuras. */
     private static boolean footprintFree(InvasionData data, Faction f, ChunkPos cp) {
-        for (int ox = -1; ox <= 1; ox++) for (int oz = -1; oz <= 1; oz++) {
+        return footprintFree(data, f, cp, 1);
+    }
+
+    static boolean footprintFree(InvasionData data, Faction f, ChunkPos cp, int r) {
+        for (int ox = -r; ox <= r; ox++) for (int oz = -r; oz <= r; oz++) {
             InvasionData.Cell c = data.cells.get(ChunkPos.asLong(cp.x + ox, cp.z + oz));
             if (c == null || c.faction != f.id || c.influence < 100 || c.obelisk || c.structure != DominionStructures.NONE) return false;
         }
@@ -554,6 +576,12 @@ public final class InvasionManager {
         InvasionData data = InvasionData.get(level);
         long key = ChunkPos.asLong(pos);
         InvasionData.Cell c = data.cells.get(key);
+        if (c != null && c.structure == DominionStructures.SOUL) {   // el Corazón del cristal de la Primera Alma
+            Faction sf = data.faction(c.faction);
+            if (sf != null && sf.active) FirstSoul.onHeartBroken(level, sf);
+            data.setDirty();
+            return;
+        }
         if (c == null || !c.hasCore()) return;
         Faction f = data.faction(c.faction);
         if (f == null || !f.active) return;
@@ -704,7 +732,8 @@ public final class InvasionManager {
                         seated ? sp.getMiddleBlockX() : Integer.MIN_VALUE, seated ? sp.getMiddleBlockZ() : Integer.MIN_VALUE));
             }
             views.add(new DominionMapPayload.FactionView(f.id, f.name, f.center.getX(), f.center.getZ(), maxR, f.phase,
-                    (int) f.essence, f.active, f.healing, f.forgers, f.troops, dead, obelisks, ranks, half, grid, structs, roads));
+                    (int) f.essence, f.active, f.healing, f.forgers, f.troops, dead, obelisks, ranks, half, grid, structs, roads,
+                    f.soulStage, (int) Math.min(100, 100 * f.soulProgress / FirstSoul.COST)));
         }
         long[] gates = InvasionRaids.gates().stream().mapToLong(BlockPos::asLong).toArray();
         PacketDistributor.sendToPlayer(player, new DominionMapPayload(views, gates));

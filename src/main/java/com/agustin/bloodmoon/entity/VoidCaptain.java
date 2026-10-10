@@ -48,23 +48,23 @@ public class VoidCaptain extends VoidSkeleton {
                 .add(Attributes.SCALE, 1.35);
     }
 
+    /** El Capitán lleva el estandarte en la cabeza y su equipo va dos niveles por encima del de la horda. */
     @Override
     protected void populateDefaultEquipmentSlots(RandomSource random, DifficultyInstance difficulty) {
-        Registry<Enchantment> ench = registryAccess().registryOrThrow(Registries.ENCHANTMENT);
-        ItemStack[] armor = {new ItemStack(ModItems.VOID_CHESTPLATE.get()), new ItemStack(ModItems.VOID_LEGGINGS.get()),
-                new ItemStack(ModItems.VOID_BOOTS.get())};
-        EquipmentSlot[] slots = {EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
-        for (int i = 0; i < 3; i++) {
-            armor[i].enchant(ench.getHolderOrThrow(Enchantments.PROTECTION), 3);
-            setItemSlot(slots[i], armor[i]);
-            setDropChance(slots[i], 0F);
-        }
+        equipForTier(0);
+    }
+
+    @Override
+    public void equipForTier(int level) {
+        super.equipForTier(Math.min(10, level + 2));
         setItemSlot(EquipmentSlot.HEAD, banner());
         setDropChance(EquipmentSlot.HEAD, 1F);
-        ItemStack sword = new ItemStack(Items.NETHERITE_SWORD);
-        sword.enchant(ench.getHolderOrThrow(Enchantments.SHARPNESS), 4);
-        setItemSlot(EquipmentSlot.MAINHAND, sword);
         setDropChance(EquipmentSlot.MAINHAND, 0.15F);
+    }
+
+    @Override
+    protected boolean armorSlotFree(EquipmentSlot slot) {
+        return slot != EquipmentSlot.HEAD;
     }
 
     /** Estandarte del Dominio: negro con calavera y borde violetas. */
