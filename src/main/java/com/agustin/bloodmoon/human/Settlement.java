@@ -45,6 +45,8 @@ public final class Settlement {
     public int lastColonyDay = -100;
     /** Siguiente edificio del plano original que levanta una colonia (las aldeas del mundo ya lo tienen todo). */
     public int colonyNext;
+    /** Ciclos de espera tras no encontrar lote (no se guarda). */
+    public transient int plotWait;
     public int[] armLen = new int[0];
     public final List<Work> works = new ArrayList<>();
     /** Lotes descartados (el jugador construyó ahí): no se vuelven a intentar. */

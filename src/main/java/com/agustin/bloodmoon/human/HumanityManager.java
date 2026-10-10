@@ -336,6 +336,10 @@ public final class HumanityManager {
             default -> 100;
         };
         if (s.treasury < price) return;
+        if (s.plotWait > 0) {
+            s.plotWait--;
+            return;
+        }
         // lote
         List<VillageLayout.Building> others = new ArrayList<>(lay.buildings());
         for (Settlement.Work w : s.works) others.add(w.b);
@@ -348,8 +352,11 @@ public final class HumanityManager {
         int[] limits = new int[lay.dirs().length];
         java.util.Arrays.fill(limits, VillageLayout.MAX_LEN);
         VillageLayout.Plot pl = VillageLayout.findPlot(level, s.site(), lay.dirs(), limits, 3, template, kind, job, residents, others, roads,
-                b -> !loaded(level, b) || VillageBuilder.artificial(level, b, 3) <= 3);
-        if (pl == null) return;
+                b -> !loaded(level, b) || VillageBuilder.artificial(level, b, 3) <= 3, true);
+        if (pl == null) {
+            s.plotWait = CYCLES_PER_DAY;   // no hay lugar: se vuelve a mirar mañana
+            return;
+        }
         s.treasury -= price;
         Settlement.Work w = new Settlement.Work();
         w.b = pl.building();

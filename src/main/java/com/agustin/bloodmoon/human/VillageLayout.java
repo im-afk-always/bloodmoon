@@ -63,6 +63,8 @@ public final class VillageLayout {
     public static void clear() {
         CACHE.clear();
         TEMPLATES.clear();
+        TERRAIN.clear();
+        COLUMNS.clear();
     }
 
     public static VTemplate template(ServerLevel level, String name) {
@@ -181,6 +183,13 @@ public final class VillageLayout {
     public static Plot findPlot(ServerLevel level, VillageSites.Site site, double[][] dirs, int[] limits, int margin, String template,
                                 Kind kind, HumanJob job, int residents, List<Building> others, List<Road> roads,
                                 java.util.function.Predicate<Building> accept) {
+        return findPlot(level, site, dirs, limits, margin, template, kind, job, residents, others, roads, accept, false);
+    }
+
+    /** {@code coarse}: terreno muestreado en una grilla de 4 bloques y cacheado (búsquedas en partida, mucho más baratas). */
+    public static Plot findPlot(ServerLevel level, VillageSites.Site site, double[][] dirs, int[] limits, int margin, String template,
+                                Kind kind, HumanJob job, int residents, List<Building> others, List<Road> roads,
+                                java.util.function.Predicate<Building> accept, boolean coarse) {
         ChunkGenerator gen = level.getChunkSource().getGenerator();
         RandomState rs = level.getChunkSource().randomState();
         VTemplate vt = template(level, template);
@@ -208,7 +217,7 @@ public final class VillageLayout {
             }
             double off = Math.max(2.5 + vt.t().coreZ(), 2.6 - minProj);
             int bx = (int) Math.round(rx + px * off), bz = (int) Math.round(rz + pz * off);
-            Building b = place(level, gen, rs, template, kind, job, residents, bx, bz, rot, others, roads, false);
+            Building b = place(level, gen, rs, template, kind, job, residents, bx, bz, rot, others, roads, false, coarse);
             if (b == null) continue;
             if (accept != null && !accept.test(b)) continue;
             return new Plot(b, new Road(b.coreX(), b.coreZ(), rx, rz, 0.6), arm, p[0]);
@@ -220,6 +229,12 @@ public final class VillageLayout {
     private static Building place(ServerLevel level, ChunkGenerator gen, RandomState rs, String name, Kind kind, HumanJob job,
                                   int residents, int bx, int bz, Rotation rot, List<Building> others, List<Road> roads,
                                   boolean ignoreRoads) {
+        return place(level, gen, rs, name, kind, job, residents, bx, bz, rot, others, roads, ignoreRoads, false);
+    }
+
+    private static Building place(ServerLevel level, ChunkGenerator gen, RandomState rs, String name, Kind kind, HumanJob job,
+                                  int residents, int bx, int bz, Rotation rot, List<Building> others, List<Road> roads,
+                                  boolean ignoreRoads, boolean coarse) {
         VTemplate vt = template(level, name);
         if (vt.t().blocks().isEmpty()) return null;
         int[] a = DominionTemplates.rotate(vt.minX(), vt.minZ(), rot);
@@ -235,6 +250,9 @@ public final class VillageLayout {
         if (!ignoreRoads) {
             for (Road r : roads) {
                 if (r.half() < 1.0) continue;
+                double pad = r.half() + 1;
+                if (maxX < Math.min(r.x0(), r.x1()) - pad || minX > Math.max(r.x0(), r.x1()) + pad
+                        || maxZ < Math.min(r.z0(), r.z1()) - pad || minZ > Math.max(r.z0(), r.z1()) + pad) continue;
                 for (int x = minX; x <= maxX; x++) {
                     for (int z = minZ; z <= maxZ; z++) {
                         if ((x == minX || x == maxX || z == minZ || z == maxZ || (x + z) % 3 == 0) && r.dist(x, z) < r.half() + 0.4) {
@@ -245,29 +263,76 @@ public final class VillageLayout {
                 }
             }
         }
+        long tkey = ((((((long) bx << 32) ^ (bz & 0xFFFFFFFFL)) * 31 + minX) * 31 + minZ) * 31 + maxX) * 31 + maxZ;
+        tkey = tkey * 4 + (kind == Kind.WELL ? 1 : 0) + (coarse ? 2 : 0);
+        Integer cachedFloor = TERRAIN.get(tkey);
+        int floorY;
+        if (cachedFloor != null) {
+            if (cachedFloor == Integer.MIN_VALUE) return null;
+            floorY = cachedFloor;
+        } else {
+            floorY = terrain(gen, level, rs, kind, minX, minZ, maxX, maxZ, bx, bz, coarse);
+            if (TERRAIN.size() > 200_000) TERRAIN.clear();
+            TERRAIN.put(tkey, floorY);
+            if (floorY == Integer.MIN_VALUE) return null;
+        }
+        int[] core = DominionTemplates.rotate(vt.t().coreX(), vt.t().coreZ(), rot);
+        return new Building(name, kind, job, residents, bx, bz, rot, floorY, minX, minZ, maxX, maxZ, bx + core[0], bz + core[1]);
+    }
+
+    /** Altura del piso según el terreno generado, o MIN_VALUE si es agua o demasiada pendiente. */
+    private static int terrain(ChunkGenerator gen, ServerLevel level, RandomState rs, Kind kind, int minX, int minZ, int maxX, int maxZ,
+                               int bx, int bz, boolean coarse) {
         int[] hs = new int[9];
         int i = 0;
         boolean wet = false;
-        for (int sx : new int[]{minX, bx, maxX}) {
-            for (int sz : new int[]{minZ, bz, maxZ}) {
-                int surf = gen.getBaseHeight(sx, sz, Heightmap.Types.WORLD_SURFACE_WG, level, rs);
-                int floor = gen.getBaseHeight(sx, sz, Heightmap.Types.OCEAN_FLOOR_WG, level, rs);
-                if (floor < surf) wet = true;
-                hs[i++] = surf;
+        // primero el centro: si es agua, no vale la pena muestrear el resto
+        int[] order = {4, 0, 2, 6, 8, 1, 3, 5, 7};
+        int[] xs = {minX, bx, maxX}, zs = {minZ, bz, maxZ};
+        for (int k : order) {
+            int sx = xs[k / 3], sz = zs[k % 3];
+            int surf, floor;
+            if (coarse) {
+                long c = column(gen, level, rs, Math.round(sx / 4f) * 4, Math.round(sz / 4f) * 4);
+                surf = (int) (c >> 32);
+                floor = (int) c;
+            } else {
+                surf = gen.getBaseHeight(sx, sz, Heightmap.Types.WORLD_SURFACE_WG, level, rs);
+                floor = gen.getBaseHeight(sx, sz, Heightmap.Types.OCEAN_FLOOR_WG, level, rs);
             }
+            if (floor < surf) {
+                wet = true;
+                if (kind != Kind.WELL) break;
+            }
+            hs[i++] = surf;
         }
         if (wet && kind != Kind.WELL) {
             REJ[0]++;
-            return null;
+            return Integer.MIN_VALUE;
         }
         int[] sorted = hs.clone();
         Arrays.sort(sorted);
         if (kind != Kind.WELL && sorted[8] - sorted[0] > 8) {
             REJ[1]++;
-            return null;
+            return Integer.MIN_VALUE;
         }
-        int floorY = sorted[4] - 1;
-        int[] core = DominionTemplates.rotate(vt.t().coreX(), vt.t().coreZ(), rot);
-        return new Building(name, kind, job, residents, bx, bz, rot, floorY, minX, minZ, maxX, maxZ, bx + core[0], bz + core[1]);
+        return sorted[4] - 1;
     }
+
+    private static final Map<Long, Long> COLUMNS = new ConcurrentHashMap<>();
+
+    /** Superficie y fondo (bajo el agua) del terreno generado en una columna, cacheados. */
+    private static long column(ChunkGenerator gen, ServerLevel level, RandomState rs, int x, int z) {
+        long k = ((long) x << 32) | (z & 0xFFFFFFFFL);
+        Long v = COLUMNS.get(k);
+        if (v != null) return v;
+        int surf = gen.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, rs);
+        int floor = gen.getBaseHeight(x, z, Heightmap.Types.OCEAN_FLOOR_WG, level, rs);
+        long c = ((long) surf << 32) | (floor & 0xFFFFFFFFL);
+        if (COLUMNS.size() > 400_000) COLUMNS.clear();
+        COLUMNS.put(k, c);
+        return c;
+    }
+
+    private static final Map<Long, Integer> TERRAIN = new ConcurrentHashMap<>();
 }
