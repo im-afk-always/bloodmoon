@@ -38,6 +38,7 @@ public class BloodMoonClient {
 
     public BloodMoonClient(IEventBus modBus) {
         modBus.addListener(BloodMoonClient::onRegisterRenderers);
+        modBus.addListener(MapKey::onRegister);
         modBus.addListener(BloodMoonClient::onRegisterReloadListeners);
         modBus.addListener(BloodMoonClient::onRegisterLayers);
         modBus.addListener(BloodMoonClient::onRegisterGuiLayers);
@@ -59,6 +60,7 @@ public class BloodMoonClient {
         EyeFightFx.init();
 
         NeoForge.EVENT_BUS.addListener(BloodMoonClient::onClientTick);
+        NeoForge.EVENT_BUS.addListener(MapKey::onClientTick);
         NeoForge.EVENT_BUS.addListener(DevotionAura::onClientTick);
         NeoForge.EVENT_BUS.addListener(ExploredMap::onChunkLoad);
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post e) -> ExploredMap.tick());

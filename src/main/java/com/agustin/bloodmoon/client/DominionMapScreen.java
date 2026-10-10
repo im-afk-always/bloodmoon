@@ -319,16 +319,72 @@ public class DominionMapScreen extends Screen {
                 g.fill(x + k, y - k, x + k + 2, y - k + 2, c);
             }
         }
-        // jugador
-        if (minecraft.player != null) {
-            int x = sx(minecraft.player.getX()), y = sz(minecraft.player.getZ());
-            g.fill(x - 3, y - 3, x + 3, y + 3, 0xFF000000);
-            g.fill(x - 2, y - 2, x + 2, y + 2, 0xFFFFFFFF);
-            float yaw = minecraft.player.getYRot() * Mth.DEG_TO_RAD;
-            for (int k = 3; k <= 6; k++) {
-                int px = x + Math.round(-Mth.sin(yaw) * k), py = y + Math.round(Mth.cos(yaw) * k);
-                g.fill(px, py, px + 1, py + 1, 0xFFFFFFFF);
+        // jugador: flecha grande con el rumbo, anillo que late y nombre; si está fuera de la vista, flecha en el borde
+        if (minecraft.player != null) drawPlayer(g);
+    }
+
+    private void drawPlayer(GuiGraphics g) {
+        double px = sx(minecraft.player.getX()), py = sz(minecraft.player.getZ());
+        boolean inside = px >= mapL + 6 && px < mapL + mapW - 6 && py >= mapT + 6 && py < mapT + mapH - 6;
+        float t = (minecraft.level != null ? minecraft.level.getGameTime() : 0) + minecraft.getTimer().getGameTimeDeltaPartialTick(false);
+        if (!inside) {
+            double cx = mapL + mapW / 2.0, cy = mapT + mapH / 2.0, dx = px - cx, dy = py - cy;
+            double k = Math.min((mapW / 2.0 - 10) / Math.max(1e-3, Math.abs(dx)), (mapH / 2.0 - 10) / Math.max(1e-3, Math.abs(dy)));
+            px = cx + dx * k;
+            py = cy + dy * k;
+            arrow(g, px, py, (float) Math.atan2(dx, -dy), 7, 0xFF000000, 0xFFFFD040);
+            return;
+        }
+        int r = 7 + (int) (2 * Mth.sin(t * 0.2F));
+        ring(g, (int) px, (int) py, r + 2, 0x60FFD040);
+        ring(g, (int) px, (int) py, r, 0xC0FFD040);
+        // rumbo: en el mapa, -Z es arriba; el yaw de Minecraft mira a +Z en 0
+        float heading = (minecraft.player.getYRot() + 180F) * Mth.DEG_TO_RAD;
+        arrow(g, px, py, heading, 8, 0xFF000000, 0xFFFFE070);
+        String name = minecraft.player.getGameProfile().getName();
+        g.drawCenteredString(font, name, (int) px, (int) py + 11, 0xFFFFE070);
+    }
+
+    /** Flecha rellena apuntando a {@code ang} (0 = arriba, en sentido horario). */
+    private static void arrow(GuiGraphics g, double cx, double cy, float ang, int size, int outline, int fill) {
+        tri(g, cx, cy, ang, size + 1.6, outline);
+        tri(g, cx, cy, ang, size, fill);
+    }
+
+    private static void tri(GuiGraphics g, double cx, double cy, float ang, double s, int color) {
+        double sn = Math.sin(ang), cs = Math.cos(ang);
+        double[][] p = {{0, -s}, {-s * 0.7, s * 0.75}, {0, s * 0.35}, {s * 0.7, s * 0.75}};
+        double[][] q = new double[4][2];
+        for (int i = 0; i < 4; i++) {
+            q[i][0] = cx + p[i][0] * cs - p[i][1] * sn;
+            q[i][1] = cy + p[i][0] * sn + p[i][1] * cs;
+        }
+        // dos triángulos: punta-izquierda-muesca y punta-muesca-derecha
+        fillTri(g, q[0], q[1], q[2], color);
+        fillTri(g, q[0], q[2], q[3], color);
+    }
+
+    private static void fillTri(GuiGraphics g, double[] a, double[] b, double[] c, int color) {
+        int y0 = (int) Math.floor(Math.min(a[1], Math.min(b[1], c[1]))), y1 = (int) Math.ceil(Math.max(a[1], Math.max(b[1], c[1])));
+        for (int y = y0; y <= y1; y++) {
+            double yy = y + 0.5, lo = Double.MAX_VALUE, hi = -Double.MAX_VALUE;
+            double[][][] edges = {{a, b}, {b, c}, {c, a}};
+            for (double[][] e : edges) {
+                double ya = e[0][1], yb = e[1][1];
+                if ((yy < Math.min(ya, yb)) || (yy > Math.max(ya, yb)) || ya == yb) continue;
+                double x = e[0][0] + (yy - ya) / (yb - ya) * (e[1][0] - e[0][0]);
+                lo = Math.min(lo, x);
+                hi = Math.max(hi, x);
             }
+            if (lo <= hi) g.fill((int) Math.round(lo), y, (int) Math.round(hi) + 1, y + 1, color);
+        }
+    }
+
+    private static void ring(GuiGraphics g, int cx, int cy, int r, int color) {
+        for (int k = 0; k < 48; k++) {
+            double a = k * Math.PI * 2 / 48;
+            int x = cx + (int) Math.round(Math.cos(a) * r), y = cy + (int) Math.round(Math.sin(a) * r);
+            g.fill(x, y, x + 1, y + 1, color);
         }
     }
 
@@ -385,6 +441,20 @@ public class DominionMapScreen extends Screen {
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (MapKey.OPEN_MAP.matches(keyCode, scanCode)) {
+            onClose();
+            return true;
+        }
+        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_C && minecraft.player != null) {   // centrar en el jugador
+            viewX = minecraft.player.getX();
+            viewZ = minecraft.player.getZ();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override

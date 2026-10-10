@@ -60,6 +60,8 @@ public final class InvasionRaids {
         List<BlockPos> gateBlocks = new ArrayList<>();
         final List<UUID> troops = new ArrayList<>();
         int toSpawn, tier, captainsLeft, total;
+        /** Forzado con nivel por comando: no avanza el nivel del jugador ni deja cabeza de playa si se pierde. */
+        boolean test;
         long start, lastSpawn, duration;
     }
 
@@ -107,14 +109,32 @@ public final class InvasionRaids {
 
     /** Para pruebas (OP): asalto ya contra este jugador, del Dominio activo más cercano. */
     public static boolean force(ServerLevel level, ServerPlayer p) {
+        return force(level, p, 0);
+    }
+
+    /** Para pruebas: asalto inmediato del nivel pedido (1-10; 0 = el que le toca al jugador). No cambia su progreso. */
+    public static boolean force(ServerLevel level, ServerPlayer p, int tier) {
         if (RAIDS.containsKey(p.getUUID())) return false;
         Faction f = InvasionManager.nearest(level, p.blockPosition());
         if (f == null || !f.active) return false;
-        start(level, f, p);
+        start(level, f, p, tier);
         return RAIDS.containsKey(p.getUUID());
     }
 
+    /** Para pruebas: termina el asalto en curso del jugador sin consecuencias. */
+    public static boolean stop(ServerLevel level, ServerPlayer p) {
+        Raid raid = RAIDS.remove(p.getUUID());
+        if (raid == null) return false;
+        dismiss(level, raid);
+        crumble(level, raid);
+        return true;
+    }
+
     private static void start(ServerLevel level, Faction f, ServerPlayer p) {
+        start(level, f, p, 0);
+    }
+
+    private static void start(ServerLevel level, Faction f, ServerPlayer p, int tierOverride) {
         double dx = f.center.getX() - p.getX(), dz = f.center.getZ() - p.getZ();
         double len = Math.max(1, Math.sqrt(dx * dx + dz * dz));
         BlockPos gate = null;
@@ -136,7 +156,9 @@ public final class InvasionRaids {
         raid.faction = f.id;
         raid.gate = gate;
         raid.start = level.getGameTime();
-        raid.tier = Math.max(1, Math.min(10, p.getPersistentData().contains(TIER_KEY) ? p.getPersistentData().getInt(TIER_KEY) : 1));
+        raid.tier = tierOverride > 0 ? Math.min(10, tierOverride)
+                : Math.max(1, Math.min(10, p.getPersistentData().contains(TIER_KEY) ? p.getPersistentData().getInt(TIER_KEY) : 1));
+        raid.test = tierOverride > 0;
         raid.toSpawn = raid.total = 10 * raid.tier;
         raid.captainsLeft = raid.tier >= 4 ? raid.tier / 3 : 0;
         raid.duration = 6000L + 1200L * raid.tier;
@@ -178,6 +200,11 @@ public final class InvasionRaids {
             return true;
         }
         if (p.isDeadOrDying() || now - raid.start > raid.duration) {
+            if (raid.test) {
+                dismiss(level, raid);
+                crumble(level, raid);
+                return true;
+            }
             conquer(level, data, f, raid);
             advanceTier(p, raid);
             return true;
@@ -197,7 +224,7 @@ public final class InvasionRaids {
         }
         if (raid.toSpawn == 0 && raid.troops.isEmpty()) {   // rechazado
             advanceTier(p, raid);
-            f.essence = Math.max(0, f.essence - 150 * raid.tier);
+            if (!raid.test) f.essence = Math.max(0, f.essence - 150 * raid.tier);
             data.setDirty();
             crumble(level, raid);
             NEXT.put(raid.player, now + (long) (delay(f, level.random) * 1.3));
@@ -214,6 +241,7 @@ public final class InvasionRaids {
     }
 
     private static void advanceTier(ServerPlayer p, Raid raid) {
+        if (raid.test) return;   // los asaltos de prueba no cuentan
         p.getPersistentData().putInt(TIER_KEY, Math.min(10, raid.tier + 1));
     }
 
@@ -277,7 +305,7 @@ public final class InvasionRaids {
     private static void crumble(ServerLevel level, Raid raid) {
         for (BlockPos q : raid.gateBlocks) {
             var st = level.getBlockState(q);
-            if (st.is(Blocks.PURPLE_STAINED_GLASS) || level.random.nextFloat() < 0.45F) level.setBlock(q, Blocks.AIR.defaultBlockState(), 3);
+            if (st.is(Blocks.PURPLE_STAINED_GLASS) || st.is(com.agustin.bloodmoon.registry.ModBlocks.VOID_GLASS_PANE.get()) || !st.isCollisionShapeFullBlock(level, q) || level.random.nextFloat() < 0.45F) level.setBlock(q, Blocks.AIR.defaultBlockState(), 3);
             else if (!st.isAir()) level.setBlock(q, com.agustin.bloodmoon.registry.ModBlocks.CRACKED_BLACK_ROCK_BRICKS.get().defaultBlockState(), 3);
         }
         level.sendParticles(ParticleTypes.LARGE_SMOKE, raid.gate.getX() + 0.5, raid.gate.getY() + 4, raid.gate.getZ() + 0.5, 60, 2, 3, 2, 0.02);

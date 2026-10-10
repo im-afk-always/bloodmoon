@@ -219,7 +219,7 @@
   "bloodmoon.map.none": "No Void Dominions nearby.",
   "bloodmoon.map.info": "Dominion of %s · %s · Essence %s · %s dead chunks · %s obelisks",
   "bloodmoon.map.healing": "Healing",
-  "bloodmoon.map.hint": "Drag to move · Wheel: zoom · Eye: hierarchy",
+  "bloodmoon.map.hint": "Drag to move · Wheel: zoom · C: center on you · M: close · Eye: hierarchy",
   "bloodmoon.map.hierarchy": "Dominion hierarchy",
   "bloodmoon.map.hierarchy.title": "Hierarchy · %s",
   "bloodmoon.map.hierarchy.count": "%s: %s/%s",
@@ -256,5 +256,7 @@
   "block.bloodmoon.black_rock_brick_wall": "Black Rock Brick Wall",
   "block.bloodmoon.void_chain": "Void Chain",
   "block.bloodmoon.void_glass_pane": "Void Glass Pane",
-  "bloodmoon.invasion.throne_sealed": "King %s seals the portal: the throne must fall first."
+  "bloodmoon.invasion.throne_sealed": "King %s seals the portal: the throne must fall first.",
+  "key.bloodmoon.map": "Dominion map",
+  "key.categories.bloodmoon": "Blood Moon"
 }

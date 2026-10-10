@@ -219,7 +219,7 @@
   "bloodmoon.map.none": "No hay Dominios del Vacío cerca.",
   "bloodmoon.map.info": "Dominio de %s · %s · Esencia %s · %s chunks muertos · %s obeliscos",
   "bloodmoon.map.healing": "Sanando",
-  "bloodmoon.map.hint": "Arrastra para moverte · Rueda: zoom · Ojo: jerarquía",
+  "bloodmoon.map.hint": "Arrastra para moverte · Rueda: zoom · C: centrar en ti · M: cerrar · Ojo: jerarquía",
   "bloodmoon.map.hierarchy": "Jerarquía del Dominio",
   "bloodmoon.map.hierarchy.title": "Jerarquía · %s",
   "bloodmoon.map.hierarchy.count": "%s: %s/%s",
@@ -256,5 +256,7 @@
   "block.bloodmoon.black_rock_brick_wall": "Muro de ladrillos de roca negra",
   "block.bloodmoon.void_chain": "Cadena del Vacío",
   "block.bloodmoon.void_glass_pane": "Panel de vidrio del Vacío",
-  "bloodmoon.invasion.throne_sealed": "El Rey %s sella el portal: primero tiene que caer el trono."
+  "bloodmoon.invasion.throne_sealed": "El Rey %s sella el portal: primero tiene que caer el trono.",
+  "key.bloodmoon.map": "Mapa del Dominio",
+  "key.categories.bloodmoon": "Blood Moon"
 }

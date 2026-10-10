@@ -58,7 +58,16 @@ public final class BloodMoonCommand {
                                 .then(Commands.literal("tower").executes(ctx -> buildHere(ctx, com.agustin.bloodmoon.invasion.DominionStructures.TOWER)))
                                 .then(Commands.literal("fortress").executes(ctx -> buildHere(ctx, com.agustin.bloodmoon.invasion.DominionStructures.FORTRESS))))
                         .then(Commands.literal("raid").executes(ctx -> com.agustin.bloodmoon.invasion.InvasionRaids.force(
-                                ctx.getSource().getServer().overworld(), ctx.getSource().getPlayerOrException()) ? 1 : 0))
+                                ctx.getSource().getServer().overworld(), ctx.getSource().getPlayerOrException()) ? 1 : 0)
+                                .then(Commands.literal("stop").executes(ctx -> com.agustin.bloodmoon.invasion.InvasionRaids.stop(
+                                        ctx.getSource().getServer().overworld(), ctx.getSource().getPlayerOrException()) ? 1 : 0))
+                                .then(Commands.argument("tier", IntegerArgumentType.integer(1, 10)).executes(ctx -> {
+                                    boolean ok = com.agustin.bloodmoon.invasion.InvasionRaids.force(ctx.getSource().getServer().overworld(),
+                                            ctx.getSource().getPlayerOrException(), IntegerArgumentType.getInteger(ctx, "tier"));
+                                    ctx.getSource().sendSuccess(() -> Component.literal(ok ? "Asalto iniciado"
+                                            : "No se pudo: fuera de un Dominio activo, ya hay un asalto o no hay lugar para la puerta"), false);
+                                    return ok ? 1 : 0;
+                                })))
                         .then(Commands.literal("status").executes(ctx -> {
                             String st = com.agustin.bloodmoon.invasion.InvasionManager.status(ctx.getSource().getServer().overworld());
                             ctx.getSource().sendSuccess(() -> Component.literal(st), false);

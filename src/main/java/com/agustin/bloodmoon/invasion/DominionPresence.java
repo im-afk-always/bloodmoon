@@ -96,7 +96,7 @@ public final class DominionPresence {
                 int x = cp.getMinBlockX() + 8, z = cp.getMinBlockZ() + 8;
                 if (r.rank == InvasionRank.KING) { x = f.center.getX(); z = f.center.getZ() + 14; }   // en la arena, frente al portal
                 else if (st == DominionStructures.TOWER) {                       // en la corona de la atalaya
-                    int[] o = DominionStructures.offset(cp, f, 2, 2);
+                    int[] o = DominionStructures.offset(cp, f, 4, 4);
                     x += o[0]; z += o[1];
                 } else if (st == DominionStructures.FORTRESS) {                  // en el patio, entre la puerta y el torreón
                     int[] o = DominionStructures.offset(cp, f, 0, 11);
@@ -187,9 +187,9 @@ public final class DominionPresence {
             VoidSkeleton s = (archer ? ModEntities.VOID_ARCHER.get() : ModEntities.VOID_SENTINEL.get()).create(level);
             if (s == null) continue;
             int sx, sz;
-            if (type == DominionStructures.TOWER) {          // en la corona (diagonales libres de la trampilla)
-                sx = x + (level.random.nextBoolean() ? 2 : -2);
-                sz = z + (level.random.nextBoolean() ? 2 : -2);
+            if (type == DominionStructures.TOWER) {          // en la corona, lejos de la salida de la escalera
+                sx = x + (level.random.nextBoolean() ? 4 : -4);
+                sz = z + (level.random.nextBoolean() ? 4 : -4);
             } else if (type == DominionStructures.FORTRESS) { // en las esquinas del patio
                 sx = x + (level.random.nextBoolean() ? 11 : -11);
                 sz = z + (level.random.nextBoolean() ? 11 : -11);
