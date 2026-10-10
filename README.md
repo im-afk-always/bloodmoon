@@ -236,16 +236,19 @@ crece solo, aunque nadie lo mire (se simula en una grilla de chunks, sin cargarl
   - **Fortaleza:** muralla de 37×37 con camino de ronda y matacanes, cuatro torres cónicas, barbacana con rastrillo
     de cadenas y el ojo del Dominio, patio con braseros y un torreón de 15×15 con salón de columnas y aguja; un General
     en el patio.
-  Nidos y atalayas desde Arraigo; fortalezas desde Conquista. Los **obeliscos** ahora son de 13×13 y ~29 de alto,
+  - **Aguja del Dominio:** torre de ~180 de alto (cuatro veces la Atalaya) sobre 5×5 chunks: contrafuertes colosales,
+    cuatro tramos que se afinan con balcones, pisos interiores, escalera hasta la corona y un pabellón con aguja.
+  Nidos y atalayas desde Arraigo; fortalezas y agujas desde Conquista. Las tropas y los rangos aparecen siempre a ras
+  del suelo, alrededor de cada estructura. Los **obeliscos** ahora son de 13×13 y ~29 de alto,
   con el núcleo enjaulado en vidrio, columnas con faroles y farolas colgantes.
 - **Bloques de arquitectura:** escaleras, losa y muro de ladrillo de roca negra, roca negra pulida, pilar, runa
   cincelada (brilla), cadena y panel de vidrio del Vacío.
 - **Faros:** un faro encendido protege su radio de efecto; el Dominio no reclama esa tierra y la que ya tenía retrocede.
 - **El Trono:** mientras el Rey vive, el portal del coliseo está sellado; primero hay que derribarlo.
-- **La Ofrenda (fase 4):** el Dominio levanta el **Santuario de la Primera Alma** (5×5 chunks: muralla circular con
-  ocho torres, fosa ritual en terrazas y ocho pilones) y le da la mitad de su ingreso a un **cristal gigante** que crece
+- **La Ofrenda (fase 4):** el Dominio levanta el **Santuario de la Primera Alma** (11×11 chunks: muralla circular de
+  137 de diámetro con ocho torres y cuatro puertas, fosa ritual en terrazas con rampas y ocho pilones colosales) y le da la mitad de su ingreso a un **cristal gigante** que crece
   sobre el estrado, alimentado por rayos desde los pilones. Romper su **Corazón** (el núcleo enterrado en el cristal)
-  pierde todo lo acumulado. Lleno, el cristal estalla y **emerge el Dragón de la Primera Alma**, con título y sonido para
+  pierde todo lo acumulado. Lleno, tras diez segundos de latidos, grietas y relámpagos, el cristal estalla y **emerge el Dragón de la Primera Alma**, con título y sonido para
   todos los jugadores. Es opcional: si vencés antes al Dominio no pasa. Aviso al 50% y al 90%.
 - **Nivel de la horda (0-10):** sube con la esencia ganada. Los soldados nacen con 0-1 piezas y Filo I / Poder I; con el
   nivel ganan piezas, Protección, Irrompibilidad y mejores armas (Capitanes, dos niveles más).
