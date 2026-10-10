@@ -26,6 +26,13 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DEAD_GRASS = ITEMS.registerSimpleBlockItem(ModBlocks.DEAD_GRASS);
     public static final DeferredItem<BlockItem> CHARRED_LOG = ITEMS.registerSimpleBlockItem(ModBlocks.CHARRED_LOG);
     public static final DeferredItem<BlockItem> BLACK_ROCK = ITEMS.registerSimpleBlockItem(ModBlocks.BLACK_ROCK);
+    // ---- monedas de la Humanidad
+    public static final DeferredItem<com.agustin.bloodmoon.item.CoinItem> COPPER_COIN = ITEMS.register("copper_coin",
+            () -> new com.agustin.bloodmoon.item.CoinItem(1, new Item.Properties()));
+    public static final DeferredItem<com.agustin.bloodmoon.item.CoinItem> SILVER_COIN = ITEMS.register("silver_coin",
+            () -> new com.agustin.bloodmoon.item.CoinItem(10, new Item.Properties()));
+    public static final DeferredItem<com.agustin.bloodmoon.item.CoinItem> GOLD_COIN = ITEMS.register("gold_coin",
+            () -> new com.agustin.bloodmoon.item.CoinItem(100, new Item.Properties().rarity(Rarity.UNCOMMON)));
     public static final DeferredItem<BlockItem> BLACK_ROCK_BRICKS = ITEMS.registerSimpleBlockItem(ModBlocks.BLACK_ROCK_BRICKS);
     public static final DeferredItem<BlockItem> CRACKED_BLACK_ROCK_BRICKS = ITEMS.registerSimpleBlockItem(ModBlocks.CRACKED_BLACK_ROCK_BRICKS);
     public static final DeferredItem<BlockItem> POLISHED_BLACK_ROCK = ITEMS.registerSimpleBlockItem(ModBlocks.POLISHED_BLACK_ROCK);
@@ -105,6 +112,9 @@ public final class ModItems {
             event.accept(END_COMPASS);
         } else if (event.getTabKey() == CreativeModeTabs.INGREDIENTS) {
             event.accept(OBSERVER_IRIS);
+            event.accept(COPPER_COIN);
+            event.accept(SILVER_COIN);
+            event.accept(GOLD_COIN);
         } else if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
             event.accept(VOID_BLOCK);
             event.accept(VOID_STONE);

@@ -278,5 +278,9 @@
   "bloodmoon.map.soul.slain": "slain",
   "bloodmoon.soul.cracking": "The crystal of the First Soul of %s is cracking at %s, %s... something is waking up.",
   "bloodmoon.void_king.call": "%s calls to arms: the whole horde rushes to defend him!",
-  "bloodmoon.void_king.call_empty": "%s calls to arms... but the horde has no troops left to send."
+  "bloodmoon.void_king.call_empty": "%s calls to arms... but the horde has no troops left to send.",
+  "item.bloodmoon.copper_coin": "Copper Coin",
+  "item.bloodmoon.silver_coin": "Silver Coin",
+  "item.bloodmoon.gold_coin": "Gold Coin",
+  "item.bloodmoon.coin.value": "Worth %s copper"
 }

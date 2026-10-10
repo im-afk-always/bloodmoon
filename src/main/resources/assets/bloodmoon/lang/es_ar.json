@@ -278,5 +278,9 @@
   "bloodmoon.map.soul.slain": "abatida",
   "bloodmoon.soul.cracking": "El cristal de la Primera Alma de %s se está quebrando en %s, %s... algo despierta.",
   "bloodmoon.void_king.call": "%s llama a las armas: ¡toda la horda acude a defenderlo!",
-  "bloodmoon.void_king.call_empty": "%s llama a las armas... pero a la horda ya no le quedan tropas para mandar."
+  "bloodmoon.void_king.call_empty": "%s llama a las armas... pero a la horda ya no le quedan tropas para mandar.",
+  "item.bloodmoon.copper_coin": "Moneda de cobre",
+  "item.bloodmoon.silver_coin": "Moneda de plata",
+  "item.bloodmoon.gold_coin": "Moneda de oro",
+  "item.bloodmoon.coin.value": "Vale %s de cobre"
 }
