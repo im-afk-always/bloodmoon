@@ -508,7 +508,13 @@ public final class VillageBuilder {
             int top = full + WALL_H;
             int x0 = (int) Math.round(seg.x0() + dx * t), z0 = (int) Math.round(seg.z0() + dz * t);
             VillageLayout.Road street = null;
-            for (VillageLayout.Road r : streets) if (r.dist(x0, z0) <= r.half() + 0.6) street = r;
+            for (VillageLayout.Road r : streets) {
+                if (r.dist(x0, z0) > r.half() + 0.6) continue;
+                double rl = r.length();
+                // una calle que corre a lo largo de la muralla no la abre: solo las que la cruzan
+                if (rl > 0.5 && Math.abs(((r.x1() - r.x0()) * dx + (r.z1() - r.z0()) * dz) / rl) > 0.87) continue;
+                street = r;
+            }
             boolean gateHere = street != null;
             // torres a los dos lados de cada puerta
             if (gateHere != wasGate && t > 0) {
@@ -590,6 +596,9 @@ public final class VillageBuilder {
         double len = seg.length();
         if (len < 0.5) return;
         double dx = (seg.x1() - seg.x0()) / len, dz = (seg.z1() - seg.z0()) / len;
+        // solo si la calle cruza la muralla: una calle que corre pegada a lo largo no la abre
+        double rl = road.length();
+        if (rl > 0.5 && Math.abs(((road.x1() - road.x0()) * dx + (road.z1() - road.z0()) * dz) / rl) > 0.87) return;
         java.util.Set<Long> done = new java.util.HashSet<>();
         for (double t = 0; t <= len; t += 0.25) {
             for (double off = -1; off <= 1.01; off += 0.5) {
@@ -597,13 +606,18 @@ public final class VillageBuilder {
                 if (!done.add(key(x, z)) || road.dist(x, z) > road.half() + 0.6) continue;
                 if (!level.hasChunk(x >> 4, z >> 4)) continue;
                 int g = ground(level, x, z, false);
+                BlockState topState = level.getBlockState(p.set(x, g, z));
                 int base = g;
                 while (base > g - 12 && isWall(level.getBlockState(p.set(x, base, z)))) base--;
                 if (base == g) continue;   // acá no había muralla
                 int want = road.y(x, z);
                 int floor = want == Integer.MIN_VALUE ? base : Math.max(base, want - 1);
-                for (int y = floor + 1; y <= floor + 5; y++) {
+                // paso de 4 de alto; el arco queda siempre (si la calle va alta, se levanta encima del paso)
+                for (int y = floor + 1; y <= floor + 4; y++) {
                     if (isWall(level.getBlockState(p.set(x, y, z)))) level.setBlock(p, air, FLAGS);
+                }
+                for (int y = floor + 5; y <= Math.max(g, floor + 5); y++) {
+                    if (level.getBlockState(p.set(x, y, z)).isAir()) level.setBlock(p, isWall(topState) ? topState : rock(desert), FLAGS);
                 }
             }
         }

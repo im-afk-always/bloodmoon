@@ -161,7 +161,11 @@ public final class SmokeTest {
                 for (double t = 0; t < len; t += 1) {
                     int x = (int) Math.round(w.x0() + (w.x1() - w.x0()) * t / len), z = (int) Math.round(w.z0() + (w.z1() - w.z0()) * t / len);
                     int expected = (int) Math.floor((w.y0() + (w.y1() - w.y0()) * t / len) / 2.0 + 0.25) + com.agustin.bloodmoon.human.VillageBuilder.WALL_H;
-                    if (!level.getBlockState(new BlockPos(x, expected + 4, z)).isAir()) { prevTop = null; continue; }   // torre
+                    int roofY = expected + com.agustin.bloodmoon.human.VillageBuilder.TOWER_H - com.agustin.bloodmoon.human.VillageBuilder.WALL_H;
+                    if (!level.getBlockState(new BlockPos(x, roofY, z)).isAir() || !level.getBlockState(new BlockPos(x, roofY + 1, z)).isAir()) {
+                        prevTop = null;   // torre
+                        continue;
+                    }
                     int top = Integer.MIN_VALUE;
                     for (int y = expected + 3; y > expected - 12; y--) {
                         var st = level.getBlockState(new BlockPos(x, y, z));

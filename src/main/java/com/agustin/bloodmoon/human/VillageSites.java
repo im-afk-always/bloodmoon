@@ -22,12 +22,12 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Dónde nace una aldea humana. Como los coliseos: una por región (40×40 chunks) en un lugar determinista, solo en
+ * Dónde nace una aldea humana. Como los coliseos: una por región (32×32 chunks) en un lugar determinista, solo en
  * biomas habitables (llanura, pradera, sabana, taiga, nevado → cultura de llanura; desierto → cultura del desierto)
  * y sobre terreno seco y razonablemente parejo. Reemplaza a las aldeas vanilla.
  */
 public final class VillageSites {
-    public static final int REGION = 40, SPREAD = 28;
+    public static final int REGION = 32, SPREAD = 22;
     private static final int SALT = 470183921;
     private static final int TRIES = 8;
     public static final TagKey<Biome> PLAINS_BIOMES = TagKey.create(Registries.BIOME,
