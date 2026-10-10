@@ -1,6 +1,9 @@
 name: Smoke test (servidor real)
 on: [push, workflow_dispatch]
 
+permissions:
+  contents: write
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -28,10 +31,13 @@ jobs:
           grep -E "SMOKETEST" server.log | grep -vE "SMOKETEST (village|human)" | tail -8 | sed 's/^/::notice::/' || true
           grep -E "Exception|ERROR\]|Error loading|Failed to" server.log | grep -v "SMOKETEST" | head -40 | sed 's/^/::warning::/' || true
           grep -q "SMOKETEST PASS" server.log || { tail -60 server.log | sed 's/^/::error::/'; exit 1; }
-      - name: Subir capturas de la prueba
+      - name: Publicar capturas en la rama smoke-maps
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: smoke-maps
-          path: run/smoke/*.png
-          if-no-files-found: ignore
+        shell: bash
+        run: |
+          ls run/smoke/*.png >/dev/null 2>&1 || exit 0
+          mkdir /tmp/maps && cp run/smoke/*.png /tmp/maps/ && cd /tmp/maps
+          git init -q && git checkout -q -b smoke-maps
+          git config user.name "smoke-bot" && git config user.email "smoke-bot@users.noreply.github.com"
+          git add . && git commit -q -m "maps ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" smoke-maps
