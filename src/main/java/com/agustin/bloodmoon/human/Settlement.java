@@ -58,6 +58,11 @@ public final class Settlement {
     public int[] extraParent = new int[0];
     public double[] extraDist = new double[0];
     public boolean plazaStone;
+    /** Economía: stock y precio (cobre por unidad) de cada bien; movimiento de caravanas y tratos con jugadores. */
+    public double[] stock = new double[0];
+    public double[] price = new double[0];
+    public transient double exported, imported;
+    public int playerTrades;
     public final List<Work> works = new ArrayList<>();
     /** Lotes descartados (el jugador construyó ahí): no se vuelven a intentar. */
     public final List<VillageLayout.Building> blocked = new ArrayList<>();
@@ -136,6 +141,9 @@ public final class Settlement {
         for (int i = 0; i < xd.length; i++) xd[i] = Double.doubleToLongBits(extraDist[i]);
         t.putLongArray("extraDist", xd);
         t.putBoolean("plazaStone", plazaStone);
+        t.putLongArray("stock", java.util.Arrays.stream(stock).mapToLong(Double::doubleToLongBits).toArray());
+        t.putLongArray("price", java.util.Arrays.stream(price).mapToLong(Double::doubleToLongBits).toArray());
+        t.putInt("playerTrades", playerTrades);
         t.putLongArray("skipRenew", skipRenew.stream().mapToLong(Long::longValue).toArray());
         ListTag wl = new ListTag();
         for (VillageLayout.Road r : wall) wl.add(road(r));
@@ -193,6 +201,9 @@ public final class Settlement {
         s.extraDist = new double[xd.length];
         for (int i = 0; i < xd.length; i++) s.extraDist[i] = Double.longBitsToDouble(xd[i]);
         s.plazaStone = t.getBoolean("plazaStone");
+        s.stock = java.util.Arrays.stream(t.getLongArray("stock")).mapToDouble(Double::longBitsToDouble).toArray();
+        s.price = java.util.Arrays.stream(t.getLongArray("price")).mapToDouble(Double::longBitsToDouble).toArray();
+        s.playerTrades = t.getInt("playerTrades");
         for (long k : t.getLongArray("skipRenew")) s.skipRenew.add(k);
         for (Tag e : t.getList("wall", Tag.TAG_COMPOUND)) s.wall.add(road((CompoundTag) e));
         s.wallProgress = t.getDouble("wallProgress");

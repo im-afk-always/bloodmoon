@@ -57,6 +57,7 @@ public final class HumanityManager {
 
     private static final ConcurrentLinkedQueue<Long> REGISTER = new ConcurrentLinkedQueue<>();
     private static int timer;
+    private static long lastCaravanDay = -1;
 
     private HumanityManager() {}
 
@@ -131,6 +132,11 @@ public final class HumanityManager {
         if (++timer >= CYCLE) {
             timer = 0;
             for (Settlement s : new ArrayList<>(data.settlements.values())) cycle(level, data, s);
+            long day = level.getDayTime() / 24000L;
+            if (day != lastCaravanDay) {
+                lastCaravanDay = day;
+                Market.caravans(level, data);
+            }
             data.setDirty();
         }
         int budget = 400;
@@ -254,7 +260,8 @@ public final class HumanityManager {
         List<VillageLayout.Building> bs = built(level, s);
         int housing = 0;
         for (VillageLayout.Building b : bs) housing += capacity(b);
-        double prod = production(bs, s.pop), cons = s.pop;
+        Market.cycle(s, bs);
+        double prod = production(bs, s.pop) * Market.toolFactor(s, bs), cons = s.pop;
         s.food += (prod - cons) / CYCLES_PER_DAY;
         if (s.food < 0) {
             // hambre: algunos se van
@@ -264,7 +271,7 @@ public final class HumanityManager {
         s.food = Math.min(s.food, Math.max(20, s.pop * 20.0));
         // nacimientos
         if (s.food > s.pop * 2.0 && s.pop < housing) {
-            s.growth += s.pop * 0.03 / CYCLES_PER_DAY;
+            s.growth += s.pop * 0.03 * Market.comfortFactor(s, bs) / CYCLES_PER_DAY;
             while (s.growth >= 1 && s.pop < housing) {
                 s.growth -= 1;
                 s.pop++;
@@ -384,7 +391,9 @@ public final class HumanityManager {
         // presupuesto
         int price = cost(new VillageLayout.Building(template, kind, job, residents, 0, 0, net.minecraft.world.level.block.Rotation.NONE,
                 0, 0, 0, 0, 0, 0, 0));
-        if (s.treasury < price) return;
+        double imports = Market.importCost(s, new VillageLayout.Building(template, kind, job, residents, 0, 0,
+                net.minecraft.world.level.block.Rotation.NONE, 0, 0, 0, 0, 0, 0, 0));
+        if (s.treasury < price + imports) return;
         if (s.plotWait > 0) {
             s.plotWait--;
             return;
@@ -400,7 +409,8 @@ public final class HumanityManager {
             s.plotWait = extendNetwork(level, s, lay) > 0 ? 2 : CYCLES_PER_DAY;
             return;
         }
-        s.treasury -= price;
+        s.treasury -= price + imports;
+        Market.consumeMaterials(s, pl.building());
         Settlement.Work w = new Settlement.Work();
         w.b = pl.building();
         w.spur = pl.spur();
@@ -548,8 +558,10 @@ public final class HumanityManager {
                     occupied(level, s, lay, null), roads, b -> !loaded(level, b) || VillageBuilder.artificial(level, b, 3) <= 3, true);
             if (pl != null) {
                 VillageLayout.Building nb = pl.building();
-                if (s.treasury < cost(nb)) return true;
-                s.treasury -= cost(nb);
+                double price = cost(nb) + Market.importCost(s, nb);
+                if (s.treasury < price) return true;
+                s.treasury -= price;
+                Market.consumeMaterials(s, nb);
                 Settlement.Work w = new Settlement.Work();
                 w.b = nb;
                 w.spur = pl.spur();
@@ -588,9 +600,10 @@ public final class HumanityManager {
 
     /** Crea la obra que reemplaza (o solo demuele) {@code o}; el viejo deja de contar ya. */
     private static boolean replace(Settlement s, VillageLayout.Layout lay, Old o, VillageLayout.Building nb, boolean demolishOnly) {
-        int price = demolishOnly ? 30 : cost(nb);
+        double price = demolishOnly ? 30 : cost(nb) + Market.importCost(s, nb);
         if (s.treasury < price) return true;
         s.treasury -= price;
+        if (!demolishOnly) Market.consumeMaterials(s, nb);
         Settlement.Work w = new Settlement.Work();
         w.b = nb;
         w.demolishOnly = demolishOnly;
@@ -1047,6 +1060,7 @@ public final class HumanityManager {
                 + " · tesoro " + coins(s.treasury)
                 + "\n edificios " + bs.size() + " · obra: " + (cur == null ? "ninguna" : cur.b.template() + " " + (int) (s.progress * 100) + "%")
                 + " · pendientes de colocar " + s.works.stream().filter(w -> w.state == 1).count()
+                + "\n mercado:" + Market.report(s) + "\n tratos con jugadores " + s.playerTrades
                 + (s.level >= Settlement.CITY ? "\n piedra: " + renewed + " edificios · muralla " + (s.wall.isEmpty() ? "sin empezar" : (int) (s.wallProgress * 100) + "%") : "");
     }
 }

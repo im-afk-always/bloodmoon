@@ -79,6 +79,8 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
     private long settlement;
     /** Obrero temporal de una obra del asentamiento: se va cuando termina. */
     private boolean builder;
+    /** Valor en cobre de cada oferta a precio de referencia (para reajustarla al precio del pueblo). */
+    private int[] baseValues = new int[0];
 
     /** Rasgos calculados del lado del cliente (sexo, brazos finos); se recalculan si cambia la semilla. */
     private HumanSkin.Traits traits;
@@ -143,6 +145,7 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
     public void setJob(HumanJob job) {
         entityData.set(DATA_JOB, job.ordinal());
         this.offers = null;
+        this.baseValues = new int[0];
         tradeLevel = 1;
         tradeXp = 0;
         double hp = switch (job) {
@@ -311,6 +314,18 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         }
         if (hand == InteractionHand.MAIN_HAND) player.awardStat(net.minecraft.stats.Stats.TALKED_TO_VILLAGER);
         if (!level().isClientSide) {
+            Settlement st = settlementData();
+            if (job() == HumanJob.MERCHANT) {
+                // el mercader arma sus ofertas al precio del día
+                MerchantOffers fresh = new MerchantOffers();
+                fresh.addAll(HumanTrades.forLevel(this, HumanJob.MERCHANT, 1, random));
+                if (st != null) Market.merchantOffers(st, fresh);
+                this.offers = fresh;
+                baseValues = new int[0];
+            } else if (st != null) {
+                syncBaseValues();
+                Market.reprice(this, st, baseValues);
+            }
             if (getOffers().isEmpty()) return InteractionResult.CONSUME;
             setTradingPlayer(player);
             openTradingScreen(player, getDisplayName().copy().append(" · ").append(getTypeName()), tradeLevel);
@@ -364,10 +379,32 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         for (int l = lvl == tradeLevel && offers.isEmpty() ? 1 : lvl; l <= lvl; l++) {
             offers.addAll(HumanTrades.forLevel(this, job(), l, random));
         }
+        syncBaseValues();
+    }
+
+    /** Anota el valor de referencia de las ofertas nuevas (las viejas conservan el suyo). */
+    private void syncBaseValues() {
+        if (offers == null) return;
+        int n = offers.size();
+        if (baseValues.length >= n) return;
+        int[] b = java.util.Arrays.copyOf(baseValues, n);
+        for (int i = baseValues.length; i < n; i++) b[i] = Market.coinSide(offers.get(i));
+        baseValues = b;
+    }
+
+    @Nullable
+    private Settlement settlementData() {
+        if (settlement == 0 || !(level() instanceof ServerLevel sl)) return null;
+        return HumanityManager.Data.get(sl).settlements.get(settlement);
     }
 
     @Override
     protected void rewardTradeXp(MerchantOffer offer) {
+        Settlement st = settlementData();
+        if (st != null && level() instanceof ServerLevel sl) {
+            Market.onTrade(st, offer);
+            HumanityManager.Data.get(sl).setDirty();
+        }
         tradeXp += offer.getXp();
         if (job() != HumanJob.MERCHANT && tradeLevel < 5 && tradeXp >= VillagerData.getMaxXpPerLevel(tradeLevel)) {
             levelUpPending = true;
@@ -497,6 +534,7 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         if (home != null) tag.putLong("HumanHome", home.asLong());
         if (settlement != 0) tag.putLong("Settlement", settlement);
         if (builder) tag.putBoolean("Builder", true);
+        tag.putIntArray("BaseValues", baseValues);
     }
 
     @Override
@@ -510,6 +548,7 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         if (tag.contains("HumanHome")) home = net.minecraft.core.BlockPos.of(tag.getLong("HumanHome"));
         settlement = tag.getLong("Settlement");
         builder = tag.getBoolean("Builder");
+        baseValues = tag.getIntArray("BaseValues");
     }
 
     /** Copia el progreso de comercio de un aldeano convertido (nivel y experiencia). */
@@ -517,6 +556,7 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         this.tradeLevel = Math.max(1, Math.min(5, level));
         this.tradeXp = xp;
         this.offers = null;
+        this.baseValues = new int[0];
     }
 
     /** Para la depuración: describe al humano. */

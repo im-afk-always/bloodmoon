@@ -93,6 +93,26 @@ public final class SmokeTest {
         } catch (Exception e) {
             BloodMoonMod.LOGGER.warn("SMOKETEST grown map failed", e);
         }
+        // economía: precios del pueblo, un trato con un humano de ahí y el efecto en stock y tesoro
+        {
+            var h = com.agustin.bloodmoon.entity.ModEntities.HUMAN.get().create(level);
+            if (h != null) {
+                h.moveTo(s.x + 0.5, s.y + 1, s.z + 0.5, 0, 0);
+                h.setup(4242, com.agustin.bloodmoon.human.HumanJob.FARMER, s.culture);
+                h.setSettlement(s.key);
+                var offers = h.getOffers();
+                int[] base = new int[offers.size()];
+                for (int i = 0; i < base.length; i++) base[i] = com.agustin.bloodmoon.human.Market.coinSide(offers.get(i));
+                com.agustin.bloodmoon.human.Market.reprice(h, s, base);
+                double t0r = s.treasury;
+                var o = offers.get(0);
+                com.agustin.bloodmoon.human.Market.onTrade(s, o);
+                BloodMoonMod.LOGGER.info("SMOKETEST humanity market {} | trade {} -> {} (coins {}) treasury {} -> {}",
+                        com.agustin.bloodmoon.human.Market.report(s), o.getItemCostA().itemStack(), o.getResult(),
+                        com.agustin.bloodmoon.human.Market.coinSide(o), (int) t0r, (int) s.treasury);
+                h.discard();
+            }
+        }
         // hasta ciudad: renovación del centro, empedrado y muralla
         int day = 30;
         long tc = System.nanoTime();
