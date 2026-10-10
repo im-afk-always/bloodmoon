@@ -391,10 +391,6 @@ public final class VillageBuilder {
         level.setBlock(p.set(tx, g + 11, tz), Blocks.LANTERN.defaultBlockState(), FLAGS);
     }
 
-    private static long key(int x, int z) {
-        return (long) x << 32 | (z & 0xFFFFFFFFL);
-    }
-
     public static int size(ServerLevel server, VillageLayout.Building b) {
         return VillageLayout.template(server, b.template()).t().blocks().size();
     }
