@@ -108,6 +108,8 @@ public final class StreetPlanner {
                 if (t.wet(ix, iz)) cost += 40;
                 if (Math.hypot(nx - cx, nz - cz) < Math.hypot(px - cx, pz - cz)) cost += 6;   // no volver a la plaza
                 if (Math.abs(ny - py) > 4) cost += 10;                                          // barranco: se evita si se puede
+                // no encimarse con otras calles (dejaría todo el lugar sin lotes): cerca de otra, la calle termina
+                if (crowded(out, last, nx, nz, s == 0 ? 4.5 : 9)) cost += 45;
                 if (cost < best) {
                     best = cost;
                     bx = nx;
@@ -126,6 +128,21 @@ public final class StreetPlanner {
             a = ba;
         }
         return new int[]{first, last};
+    }
+
+    /** ¿Hay otra calle a menos de {@code min} del punto? (sin contar el tramo del que se viene ni sus vecinos inmediatos) */
+    private static boolean crowded(List<Seg> out, int from, double x, double z, double min) {
+        for (int i = 0; i < out.size(); i++) {
+            if (i == from) continue;
+            Seg g = out.get(i);
+            if (from >= 0 && (g.parent() == from || out.get(from).parent() == i)) continue;
+            double dx = g.x1() - g.x0(), dz = g.z1() - g.z0();
+            double l2 = dx * dx + dz * dz;
+            double t = l2 == 0 ? 0 : Math.max(0, Math.min(1, ((x - g.x0()) * dx + (z - g.z0()) * dz) / l2));
+            double qx = g.x0() + t * dx - x, qz = g.z0() + t * dz - z;
+            if (qx * qx + qz * qz < min * min) return true;
+        }
+        return false;
     }
 
     /**
