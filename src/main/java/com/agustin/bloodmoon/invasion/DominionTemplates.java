@@ -171,10 +171,10 @@ public final class DominionTemplates {
             int x = cx + (int) (c.getKey() >> 32), z = cz + (int) (long) c.getKey();
             int low = Math.min(0, c.getValue()[0]);
             List<DominionTerraform.Placement> fill = new ArrayList<>();
-            for (int d = 1; d <= 18; d++) {
+            for (int d = 1; d <= 64; d++) {   // hasta tocar suelo firme: troncos (también calcinados), hojas, plantas y agua se rellenan
                 BlockPos q = new BlockPos(x, y0 + low - d, z);
                 BlockState st = level.getBlockState(q);
-                if (!st.isAir() && st.getFluidState().isEmpty() && !st.canBeReplaced() && !st.is(BlockTags.LEAVES) && !st.is(BlockTags.LOGS)) break;
+                if (!passable(st)) break;
                 fill.add(0, new DominionTerraform.Placement(q, rock));
             }
             out.addAll(fill);
@@ -194,15 +194,34 @@ public final class DominionTemplates {
     }
 
     /** Mediana de la altura del terreno bajo la huella (muestreada): ni enterrada ni colgando de un barranco. */
+    /** Lo que no sostiene una estructura: aire, agua, plantas, hojas y troncos (también los calcinados de un bosque muerto). */
+    private static boolean passable(BlockState st) {
+        return st.isAir() || !st.getFluidState().isEmpty() || st.canBeReplaced() || st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS)
+                || st.is(ModBlocks.CHARRED_LOG.get()) || st.is(ModBlocks.DEAD_GRASS.get());
+    }
+
+    /** Primera capa libre sobre el suelo real de la columna (sin troncos ni hojas); el agua cuenta como superficie. */
+    private static int groundY(ServerLevel level, int x, int z) {
+        int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
+        int min = level.getMinBuildHeight();
+        for (int k = 0; k < 48 && y > min; k++) {
+            BlockState st = level.getBlockState(new BlockPos(x, y, z));
+            if (!st.getFluidState().isEmpty()) break;   // superficie del agua
+            if (passable(st)) y--;
+            else break;
+        }
+        return y + 1;
+    }
+
     private static int baseHeight(ServerLevel level, int cx, int cz, Set<Long> cols) {
         List<Integer> hs = new ArrayList<>();
         int i = 0;
         for (long k : cols) {
             if (i++ % 7 != 0) continue;
             int x = cx + (int) (k >> 32), z = cz + (int) k;
-            hs.add(level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z));   // con el agua: nunca bajo la superficie
+            hs.add(groundY(level, x, z));   // el suelo de verdad: un bosque calcinado no levanta la estructura
         }
-        if (hs.isEmpty()) return level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cx, cz);
+        if (hs.isEmpty()) return groundY(level, cx, cz);
         Integer[] a = hs.toArray(new Integer[0]);
         Arrays.sort(a);
         return a[a.length / 2];
