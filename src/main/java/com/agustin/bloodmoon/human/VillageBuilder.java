@@ -3,6 +3,7 @@ package com.agustin.bloodmoon.human;
 import com.agustin.bloodmoon.entity.ModEntities;
 import com.agustin.bloodmoon.invasion.DominionTemplates;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.WorldGenLevel;
@@ -459,75 +460,130 @@ public final class VillageBuilder {
         }
     }
 
+    /** Altura del muro sobre su base y alto de las torres. */
+    public static final int WALL_H = 6, TOWER_H = 12;
+
     /**
-     * Un tramo de muralla de 3 de ancho y 6 de alto que sigue el suelo, con almenas del lado de afuera y, si
-     * {@code tower}, una torre de 5×5 en su arranque. Deja un portón donde cruza una calle y no pisa edificios, agua ni
-     * construcciones del jugador.
+     * Un tramo de muralla: 3 de ancho y {@link #WALL_H} de alto sobre un perfil suave (la base viene planificada en
+     * {@code seg.y0/y1} en medios bloques, sacada del terreno natural y suavizada, así el borde de arriba no copia cada
+     * loma), adarve parejo con medias losas donde sube, almenas del lado de afuera, faroles sobre las almenas y antorchas
+     * en la cara de adentro. Si {@code tower}, una torre transitable en su arranque. Donde cruza una calle deja un portón
+     * de 5 de alto con torres a los lados; sobre el agua queda un arco. No pisa edificios ni construcciones del jugador.
      */
     public static void wall(ServerLevel level, VillageLayout.Road seg, int cx, int cz, boolean tower, List<VillageLayout.Road> streets,
                             List<VillageLayout.Building> buildings, boolean desert) {
         BlockState body = (desert ? Blocks.CUT_SANDSTONE : Blocks.STONE_BRICKS).defaultBlockState();
         BlockState body2 = (desert ? Blocks.SANDSTONE : Blocks.CRACKED_STONE_BRICKS).defaultBlockState();
         BlockState cap = (desert ? Blocks.SMOOTH_SANDSTONE : Blocks.POLISHED_ANDESITE).defaultBlockState();
+        BlockState slab = (desert ? Blocks.SMOOTH_SANDSTONE_SLAB : Blocks.STONE_BRICK_SLAB).defaultBlockState();
         BlockState air = Blocks.AIR.defaultBlockState();
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         double len = seg.length();
         if (len < 0.5) return;
         double dx = (seg.x1() - seg.x0()) / len, dz = (seg.z1() - seg.z0()) / len;
         double mx = (seg.x0() + seg.x1()) / 2 - cx, mz = (seg.z0() + seg.z1()) / 2 - cz;
-        double ox = -dz, oz = dx;
+        double ox = -dz, oz = dx;   // hacia afuera de la ciudad
         if (ox * mx + oz * mz < 0) {
             ox = -ox;
             oz = -oz;
         }
-        if (tower) tower(level, seg.x0(), seg.z0(), streets, buildings, body, cap, air, 5, 11);
+        double b0, b1;
+        if (seg.y0() == Integer.MIN_VALUE) {
+            // muralla planificada antes del perfil: base plana a la altura del suelo en el medio del tramo
+            b0 = b1 = ground(level, (int) Math.round((seg.x0() + seg.x1()) / 2), (int) Math.round((seg.z0() + seg.z1()) / 2), false);
+        } else {
+            b0 = seg.y0() / 2.0;
+            b1 = seg.y1() / 2.0;
+        }
+        if (tower) tower(level, seg.x0(), seg.z0(), (int) Math.round(b0), dx, dz, ox, oz, streets, buildings, desert);
+        Direction inward = Direction.getNearest(-ox, 0, -oz);
+        BlockState torch = Blocks.WALL_TORCH.defaultBlockState().setValue(net.minecraft.world.level.block.WallTorchBlock.FACING, inward);
         java.util.Set<Long> done = new java.util.HashSet<>();
         boolean wasGate = false;
-        for (double t = 0; t <= len; t += 0.5) {
+        for (double t = 0; t <= len; t += 0.25) {
+            double base = b0 + (b1 - b0) * t / len;
+            int h2 = (int) Math.round(base * 2);
+            int full = Math.floorDiv(h2, 2);
+            boolean half = (h2 & 1) == 1;
+            int top = full + WALL_H;
             int x0 = (int) Math.round(seg.x0() + dx * t), z0 = (int) Math.round(seg.z0() + dz * t);
-            boolean gateHere = false;
-            for (VillageLayout.Road r : streets) if (r.dist(x0, z0) <= r.half() + 0.6) gateHere = true;
+            VillageLayout.Road street = null;
+            for (VillageLayout.Road r : streets) if (r.dist(x0, z0) <= r.half() + 0.6) street = r;
+            boolean gateHere = street != null;
             // torres a los dos lados de cada puerta
             if (gateHere != wasGate && t > 0) {
-                double tt = gateHere ? t - 2.5 : t + 2;
-                tower(level, seg.x0() + dx * tt, seg.z0() + dz * tt, List.of(), buildings, body, cap, air, 3, 9);
+                double tt = gateHere ? t - 4.5 : t + 4;
+                tower(level, seg.x0() + dx * tt, seg.z0() + dz * tt, full, dx, dz, ox, oz, streets, buildings, desert);
             }
             wasGate = gateHere;
-            for (int off = -1; off <= 1; off++) {
+            boolean light = Math.abs(t - Math.round(t / 6.0) * 6.0) < 0.13;
+            boolean torchHere = Math.abs(t - 3 - Math.round((t - 3) / 8.0) * 8.0) < 0.13;
+            for (double off = -1; off <= 1.01; off += 0.5) {
+                int row = off <= -0.75 ? -1 : off >= 0.75 ? 1 : 0;   // -1 adentro, 1 afuera
                 int x = (int) Math.round(seg.x0() + dx * t + ox * off), z = (int) Math.round(seg.z0() + dz * t + oz * off);
                 if (!done.add(key(x, z))) continue;
                 if (!level.hasChunk(x >> 4, z >> 4)) continue;
                 boolean inside = false;
-                for (VillageLayout.Building b : buildings) if (b.contains(x, z, 2)) inside = true;
+                for (VillageLayout.Building b : buildings) if (b.contains(x, z, 1)) inside = true;
                 if (inside) continue;
                 int g = ground(level, x, z, false);
-                BlockState top = level.getBlockState(p.set(x, g, z));
-                if (!top.getFluidState().isEmpty()) continue;
+                BlockState gs = level.getBlockState(p.set(x, g, z));
+                if (lava(gs)) {
+                    douse(level, p, x, z, g - 6, g + 1, desert);
+                    gs = level.getBlockState(p.set(x, g, z));
+                }
+                boolean water = !gs.getFluidState().isEmpty();
+                if (!water && !natural(gs) && !isPath(gs) && !isStone(gs) && !isWall(gs)) continue;   // obra del jugador
+                if (isWall(gs) && g > full) g = full;   // muro ya levantado (unión de tramos): no es suelo
                 if (gateHere) {
-                    // arco sobre la calle: 4 bloques libres de paso
-                    if (!natural(top) && !isPath(top) && !isStone(top)) continue;
-                    for (int y = g + 1; y <= g + 4; y++) {
+                    // portón: paso libre de 5 de alto al nivel de la calle, arco y adarve encima
+                    int want = street.y(x, z);
+                    int floor = want == Integer.MIN_VALUE ? g : want - 1;
+                    int arch = Math.max(top, floor + 6);
+                    for (int y = floor + 1; y <= floor + 5; y++) {
                         BlockState st = level.getBlockState(p.set(x, y, z));
-                        if (!st.isAir() && (natural(st) || st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS))) level.setBlock(p, air, FLAGS);
+                        if (!st.isAir() && (natural(st) || isWall(st) || st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS))) level.setBlock(p, air, FLAGS);
                     }
-                    level.setBlock(p.set(x, g + 5, z), body, FLAGS);
-                    level.setBlock(p.set(x, g + 6, z), off == 0 ? cap : body, FLAGS);
-                    if (off == 1 && (x + z) % 2 == 0) level.setBlock(p.set(x, g + 7, z), body, FLAGS);
+                    for (int y = floor + 6; y <= arch; y++) level.setBlock(p.set(x, y, z), row == 0 && y == arch ? cap : body, FLAGS);
+                    if (row == 1 && (x + z) % 2 == 0) level.setBlock(p.set(x, arch + 1, z), body, FLAGS);
                     continue;
                 }
-                if (!natural(top)) continue;
-                for (int y = g + 1; y <= g + 6; y++) level.setBlock(p.set(x, y, z), hash(x, z + y) % 6 == 0 ? body2 : body, FLAGS);
-                if (off == 0) level.setBlock(p.set(x, g + 6, z), cap, FLAGS);
-                if (off == 1 && (x + z) % 2 == 0) level.setBlock(p.set(x, g + 7, z), body, FLAGS);
-                for (int y = g + 7 + (off == 1 ? 1 : 0); y <= g + 12; y++) {
+                // sobre el agua, un arco: el muro arranca 3 por encima del agua y el río sigue pasando
+                int from = water ? Math.max(g + 3, full + 1) : Math.min(g, full) + 1;
+                for (int y = from; y <= top; y++) {
+                    level.setBlock(p.set(x, y, z), y == top && row == 0 ? cap : hash(x, z + y) % 6 == 0 ? body2 : body, FLAGS);
+                }
+                int walk = top + 1;
+                if (half && row <= 0) {
+                    level.setBlock(p.set(x, top + 1, z), slab, FLAGS);   // media losa: el adarve sube de a medio bloque
+                }
+                if (row == 1) {
+                    // parapeto con almenas del lado de afuera
+                    int py = half ? top + 1 : top;
+                    if (half) level.setBlock(p.set(x, py, z), body, FLAGS);
+                    boolean merlon = (x + z) % 2 == 0;
+                    if (merlon) level.setBlock(p.set(x, py + 1, z), body, FLAGS);
+                    if (light) level.setBlock(p.set(x, py + (merlon ? 2 : 1), z), Blocks.LANTERN.defaultBlockState(), FLAGS);
+                    walk = py + 2;
+                } else if (half) {
+                    walk = top + 2;
+                }
+                // despejar encima del adarve (lomas, árboles)
+                for (int y = walk; y <= walk + 3; y++) {
                     BlockState st = level.getBlockState(p.set(x, y, z));
-                    if (st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS)) level.setBlock(p, air, FLAGS);
+                    if (st.isAir() || st.is(Blocks.LANTERN)) continue;
+                    if (natural(st) || st.is(BlockTags.LEAVES) || st.is(BlockTags.LOGS)) level.setBlock(p, air, FLAGS);
+                }
+                // antorchas en la cara de adentro
+                if (row == -1 && torchHere && !water) {
+                    int ix = x + (int) Math.round(-ox), iz = z + (int) Math.round(-oz);
+                    if (level.getBlockState(p.set(ix, full + 3, iz)).isAir()) level.setBlock(p, torch, FLAGS);
                 }
             }
         }
     }
 
-    /** Puerta abierta después en un tramo ya levantado: se vacía el paso (4 de alto) y queda el arco encima. */
+    /** Puerta abierta después en un tramo ya levantado: se vacía el paso (5 de alto) y queda el arco encima. */
     public static void gate(ServerLevel level, VillageLayout.Road seg, VillageLayout.Road road, boolean desert) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         BlockState air = Blocks.AIR.defaultBlockState();
@@ -535,55 +591,112 @@ public final class VillageBuilder {
         if (len < 0.5) return;
         double dx = (seg.x1() - seg.x0()) / len, dz = (seg.z1() - seg.z0()) / len;
         java.util.Set<Long> done = new java.util.HashSet<>();
-        for (double t = 0; t <= len; t += 0.5) {
-            for (int off = -1; off <= 1; off++) {
+        for (double t = 0; t <= len; t += 0.25) {
+            for (double off = -1; off <= 1.01; off += 0.5) {
                 int x = (int) Math.round(seg.x0() + dx * t - dz * off), z = (int) Math.round(seg.z0() + dz * t + dx * off);
                 if (!done.add(key(x, z)) || road.dist(x, z) > road.half() + 0.6) continue;
                 if (!level.hasChunk(x >> 4, z >> 4)) continue;
                 int g = ground(level, x, z, false);
                 int base = g;
-                while (base > g - 9 && isWall(level.getBlockState(p.set(x, base, z)))) base--;
+                while (base > g - 12 && isWall(level.getBlockState(p.set(x, base, z)))) base--;
                 if (base == g) continue;   // acá no había muralla
                 int want = road.y(x, z);
                 int floor = want == Integer.MIN_VALUE ? base : Math.max(base, want - 1);
-                for (int y = floor + 1; y <= floor + 4; y++) {
+                for (int y = floor + 1; y <= floor + 5; y++) {
                     if (isWall(level.getBlockState(p.set(x, y, z)))) level.setBlock(p, air, FLAGS);
                 }
             }
         }
     }
 
-    private static boolean isWall(BlockState st) {
+    static boolean isWall(BlockState st) {
         return st.is(Blocks.STONE_BRICKS) || st.is(Blocks.CRACKED_STONE_BRICKS) || st.is(Blocks.POLISHED_ANDESITE)
-                || st.is(Blocks.CUT_SANDSTONE) || st.is(Blocks.SANDSTONE) || st.is(Blocks.SMOOTH_SANDSTONE);
+                || st.is(Blocks.CUT_SANDSTONE) || st.is(Blocks.SANDSTONE) || st.is(Blocks.SMOOTH_SANDSTONE)
+                || st.is(Blocks.STONE_BRICK_SLAB) || st.is(Blocks.SMOOTH_SANDSTONE_SLAB) || st.is(Blocks.STONE_BRICK_STAIRS)
+                || st.is(Blocks.SANDSTONE_STAIRS);
     }
 
-    /** Torre cuadrada ({@code size} de lado, hueca) con almenas y farol; no sobre calles ni edificios. */
-    private static void tower(ServerLevel level, double cxd, double czd, List<VillageLayout.Road> streets, List<VillageLayout.Building> buildings,
-                              BlockState body, BlockState cap, BlockState air, int size, int height) {
+    /**
+     * Torre de muralla de 7×7, hueca y transitable: puerta del lado de la ciudad, escalera de piedra en caracol hasta el
+     * piso del adarve (con salidas al adarve a los dos lados), escalera de mano hasta la terraza almenada y faroles
+     * adentro y arriba. {@code base}: altura del suelo (la del muro). No se levanta sobre calles ni edificios.
+     */
+    private static void tower(ServerLevel level, double cxd, double czd, int base, double dx, double dz, double ox, double oz,
+                              List<VillageLayout.Road> streets, List<VillageLayout.Building> buildings, boolean desert) {
+        BlockState body = (desert ? Blocks.CUT_SANDSTONE : Blocks.STONE_BRICKS).defaultBlockState();
+        BlockState cap = (desert ? Blocks.SMOOTH_SANDSTONE : Blocks.POLISHED_ANDESITE).defaultBlockState();
+        BlockState deckBlock = (desert ? Blocks.SMOOTH_SANDSTONE : Blocks.SPRUCE_PLANKS).defaultBlockState();
+        net.minecraft.world.level.block.Block stairBlock = desert ? Blocks.SANDSTONE_STAIRS : Blocks.STONE_BRICK_STAIRS;
+        BlockState air = Blocks.AIR.defaultBlockState();
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         int tx = (int) Math.round(cxd), tz = (int) Math.round(czd);
-        if (!level.hasChunk(tx >> 4, tz >> 4)) return;
-        int h = size / 2;
+        if (!level.hasChunk((tx - 4) >> 4, (tz - 4) >> 4) || !level.hasChunk((tx + 4) >> 4, (tz + 4) >> 4)) return;
+        int h = 3;
         for (VillageLayout.Road r : streets) if (r.dist(tx, tz) <= r.half() + h + 1) return;
         for (VillageLayout.Building b : buildings) if (b.contains(tx, tz, h + 2)) return;
-        int g = ground(level, tx, tz, false);
+        int B = base, deck = B + WALL_H, roof = B + TOWER_H;
+        // casco: cimiento, muros, piso del adarve, techo y almenas
         for (int x = tx - h; x <= tx + h; x++) {
             for (int z = tz - h; z <= tz + h; z++) {
                 boolean ring = Math.abs(x - tx) == h || Math.abs(z - tz) == h;
-                int gg = ground(level, x, z, false);
-                BlockState top = level.getBlockState(p.set(x, gg, z));
-                if (!top.getFluidState().isEmpty()) continue;
-                if (!natural(top) && !isWall(top)) continue;
-                if (gg > g + 6) continue;
-                for (int y = Math.min(gg + 1, g + 1); y <= g + height; y++) {
-                    level.setBlock(p.set(x, y, z), ring || y == g + height || y <= g ? body : air, FLAGS);
+                int g = ground(level, x, z, false);
+                BlockState gs = level.getBlockState(p.set(x, g, z));
+                if (!gs.getFluidState().isEmpty() && !lava(gs)) g = Math.min(g, B);
+                if (!natural(gs) && !isWall(gs) && !isPath(gs) && !isStone(gs) && gs.getFluidState().isEmpty()) continue;
+                if (isWall(gs) && g > B) g = B;
+                for (int y = Math.min(g, B) + 1; y <= roof; y++) {
+                    BlockState st;
+                    if (y <= B || ring || y == roof) st = body;
+                    else if (y == deck) st = deckBlock;
+                    else st = air;
+                    level.setBlock(p.set(x, y, z), st, FLAGS);
                 }
-                if (ring && (x + z) % 2 == 0) level.setBlock(p.set(x, g + height + 1, z), body, FLAGS);
-                else if (ring) level.setBlock(p.set(x, g + height + 1, z), cap, FLAGS);
+                for (int y = roof + 1; y <= roof + 3; y++) level.setBlock(p.set(x, y, z), air, FLAGS);
+                if (ring) level.setBlock(p.set(x, roof + 1, z), (x + z) % 2 == 0 ? body : cap, FLAGS);
             }
         }
-        level.setBlock(p.set(tx, g + height + 1, tz), Blocks.LANTERN.defaultBlockState(), FLAGS);
+        // ejes: hacia afuera (o) y a lo largo del muro (d), en la dirección dominante
+        int sx = Math.abs(ox) >= Math.abs(oz) ? (int) Math.signum(ox) : 0, sz = sx == 0 ? (int) Math.signum(oz) : 0;
+        int ax = Math.abs(dx) >= Math.abs(dz) ? (int) Math.signum(dx) : 0, az = ax == 0 ? (int) Math.signum(dz) : 0;
+        if (ax == sx && az == sz) { ax = -sz; az = sx; }
+        // puerta del lado de la ciudad (2 de alto) y salidas al adarve a los dos lados
+        for (int y = B + 1; y <= B + 2; y++) level.setBlock(p.set(tx - sx * h, y, tz - sz * h), air, FLAGS);
+        for (int k = -1; k <= 1; k += 2) {
+            for (int y = deck + 1; y <= deck + 2; y++) level.setBlock(p.set(tx + ax * h * k, y, tz + az * h * k), air, FLAGS);
+        }
+        // anillo interior (5×5) empezando por la celda de la entrada
+        List<int[]> ringCells = new java.util.ArrayList<>();
+        int r = h - 1;
+        for (int i = -r; i < r; i++) ringCells.add(new int[]{tx + i, tz - r});
+        for (int i = -r; i < r; i++) ringCells.add(new int[]{tx + r, tz + i});
+        for (int i = r; i > -r; i--) ringCells.add(new int[]{tx + i, tz + r});
+        for (int i = r; i > -r; i--) ringCells.add(new int[]{tx - r, tz + i});
+        int ex = tx - sx * r, ez = tz - sz * r, start = 0;
+        for (int i = 0; i < ringCells.size(); i++) if (ringCells.get(i)[0] == ex && ringCells.get(i)[1] == ez) start = i;
+        int n = ringCells.size();
+        int steps = WALL_H;   // de B+1 a B+6 (el último, al nivel del piso del adarve)
+        for (int k = 1; k <= steps; k++) {
+            int[] c = ringCells.get((start + k) % n), nx = ringCells.get((start + k + 1) % n);
+            int y = B + k;
+            Direction face = Direction.getNearest(nx[0] - c[0], 0, nx[1] - c[1]);
+            level.setBlock(p.set(c[0], y, c[1]), stairBlock.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.StairBlock.FACING, face), FLAGS);
+            for (int yy = y + 1; yy <= y + 3 && yy < roof; yy++) level.setBlock(p.set(c[0], yy, c[1]), air, FLAGS);
+        }
+        // llegada al piso del adarve, libre
+        int[] arrive = ringCells.get((start + steps + 1) % n);
+        for (int yy = deck + 1; yy <= deck + 3; yy++) level.setBlock(p.set(arrive[0], yy, arrive[1]), air, FLAGS);
+        // escalera de mano a la terraza, en la esquina opuesta a la llegada, contra el muro
+        int[] lc = ringCells.get((start + n / 2 + steps / 2 + 2) % n);
+        int wx = lc[0] - tx, wz = lc[1] - tz;
+        Direction away = Math.abs(wx) >= Math.abs(wz) ? Direction.getNearest(-Math.signum(wx), 0, 0) : Direction.getNearest(0, 0, -Math.signum(wz));
+        BlockState ladder = Blocks.LADDER.defaultBlockState().setValue(net.minecraft.world.level.block.LadderBlock.FACING, away);
+        for (int y = deck + 1; y <= roof; y++) level.setBlock(p.set(lc[0], y, lc[1]), ladder, FLAGS);
+        // luces: bajo el piso del adarve, bajo el techo y arriba
+        BlockState hang = Blocks.LANTERN.defaultBlockState().setValue(net.minecraft.world.level.block.LanternBlock.HANGING, true);
+        level.setBlock(p.set(tx, deck - 1, tz), hang, FLAGS);
+        level.setBlock(p.set(tx, roof - 1, tz), hang, FLAGS);
+        level.setBlock(p.set(tx, roof + 1, tz), Blocks.LANTERN.defaultBlockState(), FLAGS);
     }
 
     public static int size(ServerLevel server, VillageLayout.Building b) {

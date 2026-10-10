@@ -91,13 +91,17 @@ public final class VillageSites {
             int[] sorted = hs.clone();
             Arrays.sort(sorted);
             if (sorted[8] - sorted[0] > 10) continue;
-            int bad = 0;
+            int bad = 0, farWet = 0;
             for (int i = 0; i < 8; i++) {
                 double a = (i + 0.5) * Math.PI * 2 / 8;
-                far[i] = gen.getBaseHeight(x + (int) (Math.cos(a) * 64), z + (int) (Math.sin(a) * 64), Heightmap.Types.WORLD_SURFACE_WG, level, rs);
+                int fx = x + (int) (Math.cos(a) * 64), fz = z + (int) (Math.sin(a) * 64);
+                far[i] = gen.getBaseHeight(fx, fz, Heightmap.Types.WORLD_SURFACE_WG, level, rs);
+                int ff = gen.getBaseHeight(fx, fz, Heightmap.Types.OCEAN_FLOOR_WG, level, rs);
                 if (Math.abs(far[i] - hs[8]) > 14) bad++;
+                if (ff < far[i] || far[i] <= sea) farWet++;
             }
-            if (bad > 2) continue;
+            // lugar para crecer: parejo y mayormente seco hasta ~64 bloques (un puerto con un poco de agua sí)
+            if (bad > 2 || farWet > 3) continue;
             if (nearColiseum(level, x, z)) continue;
             long seed = level.getSeed() ^ ((long) rx * 0x5DEECE66DL) ^ ((long) rz << 24) ^ 0xA11CE;
             return Optional.of(new Site(x, hs[8], z, seed, culture));

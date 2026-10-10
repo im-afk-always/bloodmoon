@@ -946,11 +946,42 @@ public final class HumanityManager {
         double max = 0;
         for (double v : sm) max = Math.max(max, v);
         if (max > 340) return;
+        // perfil de la base: el terreno natural (o el núcleo aplanado), suavizado y con pendiente de a lo sumo 1 cada 2
+        // bloques de recorrido, así el adarve es caminable y el borde de arriba no copia cada loma
+        StreetPlanner.Terrain terr = VillageLayout.terrain(level);
+        VillageLayout.Layout lay = VillageLayout.get(level, s.site());
+        int cy = lay.plaza().y0();
+        double[] px = new double[n], pz = new double[n], hb = new double[n];
+        for (int i = 0; i < n; i++) {
+            double a = i * Math.PI * 2 / n;
+            px[i] = s.x + Math.cos(a) * sm[i];
+            pz[i] = s.z + Math.sin(a) * sm[i];
+            int nat = terr.height((int) Math.round(px[i]), (int) Math.round(pz[i]));
+            hb[i] = VillageLayout.flat(px[i], pz[i], s.site(), cy, nat) - 1;
+        }
+        double[] avg = new double[n];
+        for (int i = 0; i < n; i++) {
+            double sum = 0;
+            for (int j = -2; j <= 2; j++) sum += hb[Math.floorMod(i + j, n)];
+            avg[i] = sum / 5;
+        }
+        for (int pass = 0; pass < 12; pass++) {
+            for (int i = 0; i < n; i++) {
+                int j = (i + 1) % n;
+                double maxd = Math.hypot(px[j] - px[i], pz[j] - pz[i]) * 0.5;
+                double diff = avg[j] - avg[i];
+                if (Math.abs(diff) > maxd) {
+                    double fix = (Math.abs(diff) - maxd) / 2 * Math.signum(diff);
+                    avg[i] += fix;
+                    avg[j] -= fix;
+                }
+            }
+        }
         int base = s.wall.size();
         for (int i = 0; i < n; i++) {
-            double a0 = i * Math.PI * 2 / n, a1 = (i + 1) * Math.PI * 2 / n;
-            s.wall.add(new VillageLayout.Road(s.x + Math.cos(a0) * sm[i], s.z + Math.sin(a0) * sm[i],
-                    s.x + Math.cos(a1) * sm[(i + 1) % n], s.z + Math.sin(a1) * sm[(i + 1) % n], 1.5));
+            int j = (i + 1) % n;
+            // y0/y1 de un tramo de muralla: altura de la base en medios bloques
+            s.wall.add(new VillageLayout.Road(px[i], pz[i], px[j], pz[j], 1.5, (int) Math.round(avg[i] * 2), (int) Math.round(avg[j] * 2)));
         }
         s.wallDone = java.util.Arrays.copyOf(s.wallDone, s.wall.size());
         s.wallProgress = (double) base / s.wall.size();
@@ -968,6 +999,76 @@ public final class HumanityManager {
         }
     }
 
+    /**
+     * Si ninguna calle pavimentada cruza el anillo cerca del tramo {@code i}, abre una: desde el medio del tramo hasta la
+     * calle más cercana de adentro, más un trecho hacia afuera. Así toda muralla tiene puertas para entrar a la ciudad.
+     */
+    static void ensureGate(ServerLevel level, Settlement s, VillageLayout.Layout lay, int i) {
+        Net nn = net(s, lay);
+        int ring = i / WALL_RAYS;
+        for (int j = -3; j <= 3; j++) {
+            int k = ring * WALL_RAYS + Math.floorMod(i % WALL_RAYS + j, WALL_RAYS);
+            if (k >= s.wall.size()) continue;
+            VillageLayout.Road w = s.wall.get(k);
+            for (int q = 0; q < nn.size(); q++) {
+                if (!s.paved[q]) continue;
+                VillageLayout.Road r = nn.roads().get(q);
+                // ¿la calle cruza este tramo? (algún punto del tramo cae sobre la calle)
+                for (double t = 0; t <= 1; t += 0.1) {
+                    if (r.dist(w.x0() + (w.x1() - w.x0()) * t, w.z0() + (w.z1() - w.z0()) * t) <= r.half() + 0.5) return;
+                }
+            }
+        }
+        VillageLayout.Road w = s.wall.get(i);
+        double gx = (w.x0() + w.x1()) / 2, gz = (w.z0() + w.z1()) / 2;
+        double best = Double.MAX_VALUE, tx = 0, tz = 0;
+        int bi = -1;
+        for (int k = 0; k < nn.size(); k++) {
+            if (!s.paved[k]) continue;
+            VillageLayout.Road r = nn.roads().get(k);
+            double t = r.t(gx, gz);
+            double qx = r.x0() + (r.x1() - r.x0()) * t, qz = r.z0() + (r.z1() - r.z0()) * t;
+            // solo calles de adentro
+            if (Math.hypot(qx - s.x, qz - s.z) > Math.hypot(gx - s.x, gz - s.z) - 6) continue;
+            double d = Math.hypot(qx - gx, qz - gz);
+            if (d < best) { best = d; bi = k; tx = qx; tz = qz; }
+        }
+        if (bi < 0 || best > 200) return;
+        double ux = (gx - tx) / Math.max(1, best), uz = (gz - tz) / Math.max(1, best);
+        double ox = gx + ux * 14, oz = gz + uz * 14;   // trecho hacia afuera
+        StreetPlanner.Terrain terr = VillageLayout.terrain(level);
+        int cy = lay.plaza().y0();
+        int ya = nn.roads().get(bi).y(tx, tz);
+        if (ya == Integer.MIN_VALUE) ya = VillageLayout.flat(tx, tz, s.site(), cy, terr.height((int) Math.round(tx), (int) Math.round(tz)));
+        int yg = (int) Math.round(Math.floorDiv(w.y0() + w.y1(), 2) / 2.0) + 1;
+        if (w.y0() == Integer.MIN_VALUE) yg = VillageLayout.flat(gx, gz, s.site(), cy, terr.height((int) Math.round(gx), (int) Math.round(gz)));
+        int yo = terr.height((int) Math.round(ox), (int) Math.round(oz));
+        VillageLayout.Road in = new VillageLayout.Road(tx, tz, gx, gz, StreetPlanner.BRANCH, ya, yg);
+        VillageLayout.Road out = new VillageLayout.Road(gx, gz, ox, oz, StreetPlanner.BRANCH, yg, yo);
+        int base = s.extraNet.size();
+        s.extraNet.add(in);
+        s.extraNet.add(out);
+        s.extraParent = java.util.Arrays.copyOf(s.extraParent, s.extraNet.size());
+        s.extraDist = java.util.Arrays.copyOf(s.extraDist, s.extraNet.size());
+        s.extraParent[base] = bi;
+        s.extraParent[base + 1] = lay.net().size() + base;
+        s.extraDist[base] = nn.dist()[bi] + best;
+        s.extraDist[base + 1] = nn.dist()[bi] + best + 14;
+        Net after = net(s, lay);
+        s.paved[after.size() - 2] = true;
+        s.paved[after.size() - 1] = true;
+        boolean desert = s.culture == Culture.DESERT;
+        List<VillageLayout.Building> all = built(level, s);
+        for (VillageLayout.Road r : List.of(in, out)) {
+            int[] box = {(int) Math.floor(Math.min(r.x0(), r.x1()) - r.half() - 3), (int) Math.floor(Math.min(r.z0(), r.z1()) - r.half() - 3),
+                    (int) Math.ceil(Math.max(r.x0(), r.x1()) + r.half() + 3), (int) Math.ceil(Math.max(r.z0(), r.z1()) + r.half() + 3)};
+            if (!loadedBox(level, box)) continue;
+            VillageBuilder.clearTrees(level, box, List.of(), List.of(r), all, false);
+            gates(level, s, r);
+            VillageBuilder.pave(level, box, List.of(r), all, desert, false, s.streetTier >= 1);
+        }
+    }
+
     private static void buildWall(ServerLevel level, Data data, Settlement s) {
         int n = s.wall.size();
         if (s.wallDone.length != n) s.wallDone = java.util.Arrays.copyOf(s.wallDone, n);
@@ -979,6 +1080,8 @@ public final class HumanityManager {
                     (int) Math.ceil(Math.max(r.x0(), r.x1())) + 4, (int) Math.ceil(Math.max(r.z0(), r.z1())) + 4};
             if (!loadedBox(level, box)) continue;
             VillageLayout.Layout lay = VillageLayout.get(level, s.site());
+            // portones garantizados: en los cuatro puntos cardinales del anillo, si no cruza ninguna calle cerca
+            if ((i % WALL_RAYS) % (WALL_RAYS / 4) == 0) ensureGate(level, s, lay, i);
             List<VillageLayout.Road> streets = new ArrayList<>();
             Net nn = net(s, lay);
             for (int k = 0; k < nn.size(); k++) if (s.paved[k]) streets.add(nn.roads().get(k));
