@@ -95,13 +95,16 @@ public final class DominionPresence {
                 int st = seatCell == null ? DominionStructures.NONE : seatCell.structure;
                 int x = cp.getMinBlockX() + 8, z = cp.getMinBlockZ() + 8;
                 if (r.rank == InvasionRank.KING) { x = f.center.getX(); z = f.center.getZ() + 14; }   // en la arena, frente al portal
-                else if (st == DominionStructures.TOWER) {                       // en la corona de la atalaya
-                    int[] o = DominionStructures.offset(cp, f, 4, 4);
+                else if (st == DominionStructures.TOWER) {                       // al pie de la atalaya, frente a la puerta
+                    int[] o = DominionStructures.offset(cp, f, 0, 12);
+                    x += o[0]; z += o[1];
+                } else if (st == DominionStructures.SPIRE) {                       // al pie de la Aguja, frente a la puerta
+                    int[] o = DominionStructures.offset(cp, f, 0, 27);
                     x += o[0]; z += o[1];
                 } else if (st == DominionStructures.FORTRESS) {                  // en el patio, entre la puerta y el torreón
                     int[] o = DominionStructures.offset(cp, f, 0, 11);
                     x += o[0]; z += o[1];
-                } else if (r.rank == InvasionRank.CAPTAIN) x += 4;               // en el basamento del obelisco
+                } else if (r.rank == InvasionRank.CAPTAIN) x += 9;               // al pie del obelisco, fuera del basamento
                 if (!loaded(level, x, z) || nearestPlayer(level, x, z) > RANK_SPAWN) continue;
                 Entity e = spawnRank(level, f, r, x, z);
                 if (e != null) BODIES.put(key, e);
@@ -124,7 +127,7 @@ public final class DominionPresence {
         if (type == null) return null;
         Mob mob = type.create(level);
         if (mob == null) return null;
-        int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        int y = groundY(level, x, z);
         mob.moveTo(x + 0.5, y, z + 0.5, level.random.nextFloat() * 360F, 0F);
         mob.finalizeSpawn(level, level.getCurrentDifficultyAt(new BlockPos(x, y, z)), MobSpawnType.EVENT, null);
         if (mob instanceof VoidSkeleton s) {
@@ -181,7 +184,8 @@ public final class DominionPresence {
                 case DominionStructures.NEST -> Math.min(7, 4 + f.phase);
                 case DominionStructures.TOWER -> 3;
                 case DominionStructures.FORTRESS -> Math.min(8, 5 + f.phase);
-                case DominionStructures.SOUL -> 14;                               // muy bien defendido
+                case DominionStructures.SOUL -> 22;                               // muy bien defendido
+                case DominionStructures.SPIRE -> Math.min(8, 4 + f.phase);
                 default -> Math.min(5, 2 + f.phase);
             };
             if (troops.size() >= target || now < NEXT_TROOP.getOrDefault(key, 0L)) continue;
@@ -191,6 +195,7 @@ public final class DominionPresence {
             // Hechiceros: desde el nivel 2 de la horda; más en el santuario y las fortalezas
             float mageChance = lv < 2 ? 0F : switch (type) {
                 case DominionStructures.SOUL -> 0.3F;
+                case DominionStructures.SPIRE -> 0.25F;
                 case DominionStructures.FORTRESS -> 0.2F;
                 case DominionStructures.NEST -> 0.15F;
                 case DominionStructures.TOWER -> 0F;
@@ -202,24 +207,23 @@ public final class DominionPresence {
                     : (archer ? ModEntities.VOID_ARCHER.get() : ModEntities.VOID_SENTINEL.get()).create(level);
             if (s == null) continue;
             int sx, sz;
-            if (type == DominionStructures.TOWER) {          // en la corona, lejos de la salida de la escalera
-                sx = x + (level.random.nextBoolean() ? 4 : -4);
-                sz = z + (level.random.nextBoolean() ? 4 : -4);
-            } else if (type == DominionStructures.SOUL) {     // en la explanada, entre la fosa y la muralla
-                double a = level.random.nextDouble() * Math.PI * 2;
-                double rr = 27.5 + level.random.nextDouble() * 3.5;
-                sx = x + (int) Math.round(Math.cos(a) * rr);
-                sz = z + (int) Math.round(Math.sin(a) * rr);
-            } else if (type == DominionStructures.FORTRESS) { // en las esquinas del patio
+            // siempre al pie o en los alrededores de la estructura, nunca en techos ni almenas
+            if (type == DominionStructures.FORTRESS) {        // en las esquinas del patio
                 sx = x + (level.random.nextBoolean() ? 11 : -11);
                 sz = z + (level.random.nextBoolean() ? 11 : -11);
             } else {
                 double a = level.random.nextDouble() * Math.PI * 2;
-                double rr = type == DominionStructures.NEST ? 16 : 4;   // nido: afuera del borde de la fosa
+                double rr = switch (type) {
+                    case DominionStructures.NEST -> 16;                                   // afuera del borde de la fosa
+                    case DominionStructures.TOWER -> 11 + level.random.nextDouble() * 2;    // alrededor del basamento
+                    case DominionStructures.SPIRE -> 26 + level.random.nextDouble() * 3;
+                    case DominionStructures.SOUL -> 56 + level.random.nextDouble() * 6;     // explanada, entre la fosa y la muralla
+                    default -> 8 + level.random.nextDouble() * 2;                          // obelisco: fuera del basamento
+                };
                 sx = x + (int) Math.round(Math.cos(a) * rr);
                 sz = z + (int) Math.round(Math.sin(a) * rr);
             }
-            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, sx, sz);
+            int y = groundY(level, sx, sz);
             s.moveTo(sx + 0.5, y, sz + 0.5, level.random.nextFloat() * 360F, 0F);
             s.finalizeSpawn(level, level.getCurrentDifficultyAt(new BlockPos(sx, y, sz)), MobSpawnType.EVENT, null);
             if (s instanceof VoidSkeleton vs) {
@@ -233,6 +237,31 @@ public final class DominionPresence {
             level.sendParticles(net.minecraft.core.particles.ParticleTypes.REVERSE_PORTAL, sx + 0.5, y + 1, sz + 0.5, 30, 0.3, 0.8, 0.3, 0.05);
             troops.add(s.getUUID());
         }
+    }
+
+    /**
+     * Altura para aparecer a ras del suelo: baja desde la cima de la columna y se queda con el lugar transitable más bajo
+     * (dos de aire sobre algo sólido) antes de tocar terreno natural. Así nadie aparece en techos, almenas ni torres.
+     */
+    static int groundY(ServerLevel level, int x, int z) {
+        int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        int best = top;
+        BlockPos.MutableBlockPos feet = new BlockPos.MutableBlockPos(), head = new BlockPos.MutableBlockPos(), below = new BlockPos.MutableBlockPos();
+        for (int y = top; y > top - 80 && y > level.getMinBuildHeight() + 1; y--) {
+            below.set(x, y - 1, z);
+            feet.set(x, y, z);
+            head.set(x, y + 1, z);
+            net.minecraft.world.level.block.state.BlockState b = level.getBlockState(below), fs = level.getBlockState(feet), hs = level.getBlockState(head);
+            if (b.isFaceSturdy(level, below, net.minecraft.core.Direction.UP) && fs.getCollisionShape(level, feet).isEmpty()
+                    && hs.getCollisionShape(level, head).isEmpty() && fs.getFluidState().isEmpty()) best = y;
+            if (!b.isAir() && !isModBuilt(b)) break;   // llegamos al terreno natural
+        }
+        return best;
+    }
+
+    private static boolean isModBuilt(net.minecraft.world.level.block.state.BlockState s) {
+        return com.agustin.bloodmoon.BloodMoonMod.MODID.equals(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(s.getBlock()).getNamespace())
+                && !s.is(com.agustin.bloodmoon.registry.ModBlocks.DEAD_GRASS_BLOCK.get()) && !s.is(com.agustin.bloodmoon.registry.ModBlocks.BARREN_DIRT.get());
     }
 
     /** Un Dominio vencido pierde a sus guardias y rangos con cuerpo. */

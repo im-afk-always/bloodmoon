@@ -96,7 +96,7 @@ public final class FirstSoul {
 
     private static void chooseSite(ServerLevel level, InvasionData data, Faction f, List<Long> dead, List<Long> anchors, Set<Long> changed) {
         if (f.essence < SITE_COST || dead.isEmpty()) return;
-        int col = InvasionManager.coliseumChunks() + 4;
+        int col = InvasionManager.coliseumChunks() + 7;
         ChunkPos cc = new ChunkPos(f.center);
         int r = InvasionManager.radius();
         Long best = null;
@@ -107,9 +107,9 @@ public final class FirstSoul {
             if (InvasionManager.d2(cp, cc) <= (long) col * col) continue;
             double d = InvasionManager.distance(f, k);
             if (d < r * 0.2 || d > r * 0.6) continue;
-            if (!InvasionManager.footprintFree(data, f, cp, 2)) continue;
+            if (!InvasionManager.footprintFree(data, f, cp, 5)) continue;
             boolean crowded = false;
-            for (long a : anchors) if (InvasionManager.d2(new ChunkPos(a), cp) < 36) { crowded = true; break; }
+            for (long a : anchors) if (InvasionManager.d2(new ChunkPos(a), cp) < 64) { crowded = true; break; }
             if (crowded) continue;
             double score = level.random.nextDouble();
             if (score > bestScore) { bestScore = score; best = k; }

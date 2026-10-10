@@ -31,7 +31,7 @@ import java.util.Map;
  * Cada estructura (salvo la puerta) tiene un Núcleo de Obelisco: romperlo la deja en ruinas.
  */
 public final class DominionStructures {
-    public static final int NONE = 0, NEST = 1, TOWER = 2, FORTRESS = 3, SOUL = 4;
+    public static final int NONE = 0, NEST = 1, TOWER = 2, FORTRESS = 3, SOUL = 4, SPIRE = 5;
     /** Direcciones de los 8 vecinos, en el orden de los bits del camino. */
     public static final int[][] DIRS = {{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}};
     private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS;
@@ -58,6 +58,7 @@ public final class DominionStructures {
             case NEST -> "nest";
             case TOWER -> "tower";
             case SOUL -> "soul_site";
+            case SPIRE -> "spire";
             default -> "fortress";
         };
     }
@@ -80,7 +81,7 @@ public final class DominionStructures {
 
     /** Radio en chunks de la huella: 1 (3×3) para las estructuras mayores, 2 (5×5) para el Santuario de la Primera Alma. */
     public static int footprint(int type) {
-        return type == SOUL ? 2 : 1;
+        return type == SOUL ? 5 : type == SPIRE ? 2 : 1;
     }
 
     /** ¿Están cargados todos los chunks que pisa una estructura mayor? */
@@ -97,7 +98,7 @@ public final class DominionStructures {
 
     /** ¿Este chunk es parte de la huella (3×3) de alguna estructura mayor? */
     public static boolean inFootprint(InvasionData data, ChunkPos cp) {
-        for (int ox = -2; ox <= 2; ox++) for (int oz = -2; oz <= 2; oz++) {
+        for (int ox = -5; ox <= 5; ox++) for (int oz = -5; oz <= 5; oz++) {
             InvasionData.Cell c = data.cells.get(ChunkPos.asLong(cp.x + ox, cp.z + oz));
             if (c != null && c.structure != NONE && Math.abs(ox) <= footprint(c.structure) && Math.abs(oz) <= footprint(c.structure)) return true;
         }

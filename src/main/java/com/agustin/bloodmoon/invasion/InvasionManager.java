@@ -101,7 +101,7 @@ public final class InvasionManager {
         if (c != null && DominionTerraform.needsWork(data, c)) DominionTerraform.enqueue(key);
         // una estructura mayor espera a que carguen todos sus chunks: avisar a los vecinos
         ChunkPos cp = chunk.getPos();
-        for (int ox = -2; ox <= 2; ox++) for (int oz = -2; oz <= 2; oz++) {
+        for (int ox = -5; ox <= 5; ox++) for (int oz = -5; oz <= 5; oz++) {
             if (ox == 0 && oz == 0) continue;
             long k = ChunkPos.asLong(cp.x + ox, cp.z + oz);
             InvasionData.Cell n = data.cells.get(k);
@@ -304,7 +304,7 @@ public final class InvasionManager {
                 boolean near = false;
                 for (long ob : obelisks) if (d2(new ChunkPos(ob), cp) < 49) { near = true; break; }
                 for (long st : anchors(f, List.of(), nests, towers, fortresses)) if (d2(new ChunkPos(st), cp) < 9) { near = true; break; }
-                if (f.soulSite != Faction.RankRecord.NO_SEAT && d2(new ChunkPos(f.soulSite), cp) < 18) near = true;
+                if (f.soulSite != Faction.RankRecord.NO_SEAT && d2(new ChunkPos(f.soulSite), cp) < 50) near = true;
                 if (near) continue;
                 double d = distance(f, k) + r.nextDouble() * 48;
                 if (d > bestD) { bestD = d; best = k; }
@@ -386,52 +386,78 @@ public final class InvasionManager {
         return a;
     }
 
+    /**
+     * Una estructura mayor por ciclo, en orden de prioridad (Fortaleza, Aguja, Atalaya, Nido); si la primera no encuentra
+     * lugar se prueba la siguiente (antes, una Fortaleza sin lugar trababa a todas las demás).
+     * La separación se mide solo contra otras estructuras mayores; de los obeliscos basta con que no caigan en la huella.
+     */
     private static void placeStructure(ServerLevel level, InvasionData data, Faction f, RandomSource r, List<Long> dead, List<Long> obelisks,
                                        List<Long> nests, List<Long> towers, List<Long> fortresses, Set<Long> changed) {
         if (f.phase < 1 || dead.isEmpty()) return;
-        int type;
-        double cost, minD, maxD;
-        int spacing;
-        boolean far;
+        List<Long> spires = new ArrayList<>();
+        for (Map.Entry<Long, InvasionData.Cell> e : data.cells.entrySet()) {
+            if (e.getValue().faction == f.id && e.getValue().structure == DominionStructures.SPIRE) spires.add(e.getKey());
+        }
         int fortTarget = f.phase >= 2 ? Math.min(InvasionRank.GENERAL.max, 1 + dead.size() / 1500) : 0;
-        if (fortresses.size() < fortTarget && f.essence >= 150) {
-            type = DominionStructures.FORTRESS; cost = 150; minD = radius() * 0.35; maxD = radius() * 0.8; spacing = 20; far = false;
-        } else if (dead.size() / 300 > towers.size() && f.essence >= 50) {
-            type = DominionStructures.TOWER; cost = 50; minD = 0; maxD = radius(); spacing = 8; far = true;
-        } else if (dead.size() / 250 > nests.size() && f.essence >= 40) {
-            type = DominionStructures.NEST; cost = 40; minD = radius() * 0.15; maxD = radius(); spacing = 8; far = false;
-        } else return;
-        List<Long> occupied = new ArrayList<>(anchors(f, obelisks, nests, towers, fortresses));
-        if (f.soulSite != Faction.RankRecord.NO_SEAT) occupied.add(f.soulSite);
-        int col = coliseumChunks() + 3;   // la huella de 3×3 no toca el coliseo
+        int spireTarget = f.phase >= 2 ? Math.min(3, dead.size() / 1200) : 0;
+        List<int[]> wanted = new ArrayList<>();   // {tipo, costo}
+        if (fortresses.size() < fortTarget && f.essence >= 150) wanted.add(new int[]{DominionStructures.FORTRESS, 150});
+        if (spires.size() < spireTarget && f.essence >= 200) wanted.add(new int[]{DominionStructures.SPIRE, 200});
+        if (dead.size() / 300 > towers.size() && f.essence >= 50) wanted.add(new int[]{DominionStructures.TOWER, 50});
+        if (dead.size() / 250 > nests.size() && f.essence >= 40) wanted.add(new int[]{DominionStructures.NEST, 40});
+        List<Long> structures = new ArrayList<>(nests);
+        structures.addAll(towers);
+        structures.addAll(fortresses);
+        structures.addAll(spires);
+        if (f.soulSite != Faction.RankRecord.NO_SEAT) structures.add(f.soulSite);
         ChunkPos cc = new ChunkPos(f.center);
-        Long best = null;
-        double bestScore = -1;
-        for (int i = 0; i < 300; i++) {
-            long k = dead.get(r.nextInt(dead.size()));
-            ChunkPos cp = new ChunkPos(k);
-            if (d2(cp, cc) <= (long) col * col) continue;
-            double d = distance(f, k);
-            if (d < minD || d > maxD || water(level, f, k)) continue;
-            if (!footprintFree(data, f, cp)) continue;
-            boolean crowded = false;
-            for (long o : occupied) if (d2(new ChunkPos(o), cp) < (long) spacing * spacing) { crowded = true; break; }
-            if (crowded) continue;
-            double score = far ? d + r.nextDouble() * 64 : r.nextDouble();
-            if (score > bestScore) { bestScore = score; best = k; }
+        for (int[] w : wanted) {
+            int type = w[0];
+            int fr = DominionStructures.footprint(type);
+            double minD = switch (type) {
+                case DominionStructures.FORTRESS -> radius() * 0.25;
+                case DominionStructures.SPIRE -> radius() * 0.3;
+                case DominionStructures.NEST -> radius() * 0.12;
+                default -> 0;
+            };
+            double maxD = type == DominionStructures.FORTRESS ? radius() * 0.85 : radius();
+            int spacing = switch (type) {
+                case DominionStructures.FORTRESS -> 14;
+                case DominionStructures.SPIRE -> 16;
+                default -> 7;
+            };
+            boolean far = type == DominionStructures.TOWER;
+            int col = coliseumChunks() + 2 + fr;   // la huella no toca el coliseo
+            Long best = null;
+            double bestScore = -1;
+            for (int i = 0; i < 400; i++) {
+                long k = dead.get(r.nextInt(dead.size()));
+                ChunkPos cp = new ChunkPos(k);
+                if (d2(cp, cc) <= (long) col * col) continue;
+                double d = distance(f, k);
+                if (d < minD || d > maxD || water(level, f, k)) continue;
+                if (!footprintFree(data, f, cp, fr)) continue;
+                boolean crowded = false;
+                for (long o : structures) if (d2(new ChunkPos(o), cp) < (long) spacing * spacing) { crowded = true; break; }
+                if (crowded) continue;
+                double score = far ? d + r.nextDouble() * 64 : r.nextDouble();
+                if (score > bestScore) { bestScore = score; best = k; }
+            }
+            if (best == null) continue;   // no hay lugar para esta: probar la siguiente
+            InvasionData.Cell c = data.cells.get(best);
+            c.structure = type;
+            c.structureBuilt = false;
+            f.essence -= w[1];
+            switch (type) {
+                case DominionStructures.NEST -> nests.add(best);
+                case DominionStructures.TOWER -> towers.add(best);
+                case DominionStructures.FORTRESS -> fortresses.add(best);
+                default -> { }
+            }
+            changed.add(best);
+            buildRoad(data, f, best, anchors(f, obelisks, nests, towers, fortresses), changed);
+            return;
         }
-        if (best == null) return;
-        InvasionData.Cell c = data.cells.get(best);
-        c.structure = type;
-        c.structureBuilt = false;
-        f.essence -= cost;
-        switch (type) {
-            case DominionStructures.NEST -> nests.add(best);
-            case DominionStructures.TOWER -> towers.add(best);
-            default -> fortresses.add(best);
-        }
-        changed.add(best);
-        buildRoad(data, f, best, anchors(f, obelisks, nests, towers, fortresses), changed);
     }
 
     /** Una estructura mayor ocupa 3×3 chunks: todos de tierra muerta propia, sin obeliscos ni otras estructuras. */
