@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Alturas en "bloque de superficie" (el bloque sólido de arriba; se camina en y+1).
  */
 public final class TerraceField {
-    public static final int CELL = 12, STEP = 4, MAX_CUT = 12, CENTER = 24;
+    public static final int CELL = 16, STEP = 4, MAX_CUT = 12, CENTER = 24;
     /** Sin terraza: la columna queda como está. */
     public static final int NONE = Integer.MIN_VALUE;
 
@@ -159,7 +159,8 @@ public final class TerraceField {
             lo = Math.min(lo, l);
             hi = Math.max(hi, l);
         }
-        return hi - lo <= 1 ? hi : NONE;
+        // hasta un escalón de diferencia: el patio del edificio empareja el borde (corta o rellena el talud)
+        return hi - lo <= STEP ? hi : NONE;
     }
 
     /** Terreno "como lo dejan los constructores", para trazar calles: evita taludes y lo que no es territorio. */
