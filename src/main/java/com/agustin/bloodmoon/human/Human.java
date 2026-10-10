@@ -89,6 +89,10 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
     private net.minecraft.core.BlockPos fishingSpot;
     /** Valor en cobre de cada oferta a precio de referencia (para reajustarla al precio del pueblo). */
     private int[] baseValues = new int[0];
+    /** Guardia: ronda ({@link Army#POST}, {@link Army#STREETS}, {@link Army#WALL}), etapa de equipo y sentido de la ronda. */
+    private int guardRole;
+    private int guardTier = -1;
+    private int patrolDir = 1;
 
     /** Rasgos calculados del lado del cliente (sexo, brazos finos); se recalculan si cambia la semilla. */
     private HumanSkin.Traits traits;
@@ -212,6 +216,64 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         }
     }
 
+    public int guardRole() {
+        return Math.max(0, Math.min(2, guardRole));
+    }
+
+    public int guardTier() {
+        return guardTier;
+    }
+
+    public int patrolDir() {
+        return patrolDir;
+    }
+
+    /** Ronda del guardia: los que patrullan no quedan atados a su puerta. */
+    public void setGuardRole(int role) {
+        this.guardRole = role;
+        if (role != Army.POST) {
+            clearRestriction();
+            patrolDir = random.nextBoolean() ? 1 : -1;
+        }
+    }
+
+    /**
+     * Equipo de soldado según la etapa del ejército: 0 cuero y espada de piedra; 1 cuero completo, espada de hierro y
+     * escudo; 2 cota de malla; 3 hierro completo con espada afilada. Más vida en cada etapa.
+     */
+    public void equipGuard(int tier) {
+        guardTier = tier;
+        int tint = culture() == Culture.DESERT ? 0xB8863B : 0x3A5A8C;
+        net.minecraft.world.item.Item[] set = switch (tier) {
+            case 0, 1 -> null;
+            case 2 -> new net.minecraft.world.item.Item[]{Items.CHAINMAIL_HELMET, Items.CHAINMAIL_CHESTPLATE, Items.CHAINMAIL_LEGGINGS, Items.CHAINMAIL_BOOTS};
+            default -> new net.minecraft.world.item.Item[]{Items.IRON_HELMET, Items.IRON_CHESTPLATE, Items.IRON_LEGGINGS, Items.IRON_BOOTS};
+        };
+        EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
+        net.minecraft.world.item.Item[] leather = {Items.LEATHER_HELMET, Items.LEATHER_CHESTPLATE, Items.LEATHER_LEGGINGS, Items.LEATHER_BOOTS};
+        for (int i = 0; i < 4; i++) {
+            if (set != null) setItemSlot(slots[i], new ItemStack(set[i]));
+            else if (tier >= 1 || i < 2) setItemSlot(slots[i], dyed(leather[i], tint));
+            else setItemSlot(slots[i], ItemStack.EMPTY);
+        }
+        ItemStack sword = new ItemStack(tier == 0 ? Items.STONE_SWORD : Items.IRON_SWORD);
+        if (tier >= 3 && level() instanceof ServerLevel sl) {
+            sl.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT)
+                    .getHolder(net.minecraft.world.item.enchantment.Enchantments.SHARPNESS)
+                    .ifPresent(e -> sword.enchant(e, 1));
+        }
+        setItemSlot(EquipmentSlot.MAINHAND, sword);
+        setItemSlot(EquipmentSlot.OFFHAND, tier >= 1 || random.nextBoolean() ? new ItemStack(Items.SHIELD) : ItemStack.EMPTY);
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            if (slot.getType() == EquipmentSlot.Type.ANIMAL_ARMOR) continue;
+            setDropChance(slot, 0.06F);
+        }
+        double hp = 30.0 + tier * 5.0;
+        var attr = getAttribute(Attributes.MAX_HEALTH);
+        if (attr != null) attr.setBaseValue(hp);
+        setHealth((float) hp);
+    }
+
     private static ItemStack dyed(net.minecraft.world.item.Item item, int rgb) {
         ItemStack s = new ItemStack(item);
         s.set(DataComponents.DYED_COLOR, new DyedItemColor(rgb, false));
@@ -254,6 +316,7 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         goalSelector.addGoal(3, new LookAtTradingPlayerGoal(this));
         goalSelector.addGoal(4, new OpenDoorGoal(this, true));
         goalSelector.addGoal(5, new MoveTowardsRestrictionGoal(this, 0.5));
+        goalSelector.addGoal(6, new PatrolGoal());
         goalSelector.addGoal(8, new WaterAvoidingRandomStrollGoal(this, 0.45));
         goalSelector.addGoal(9, new InteractGoal(this, Player.class, 3.0F, 1.0F));
         goalSelector.addGoal(10, new LookAtPlayerGoal(this, LivingEntity.class, 8.0F));
@@ -271,6 +334,40 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
                 e -> isBandit()));
         targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, AbstractVillager.class, 10, true, false,
                 e -> isBandit() && !(e instanceof Human h && h.isBandit())));
+    }
+
+    /** Ronda de un guardia: camina de un punto a otro de las calles o del adarve, con pausas cortas. */
+    private final class PatrolGoal extends net.minecraft.world.entity.ai.goal.Goal {
+        private int cooldown;
+        private int stuck;
+
+        PatrolGoal() {
+            setFlags(java.util.EnumSet.of(Flag.MOVE));
+        }
+
+        @Override
+        public boolean canUse() {
+            if (!isGuard() || guardRole() == Army.POST || getTarget() != null || isTrading()) return false;
+            if (--cooldown > 0) return false;
+            cooldown = 40 + random.nextInt(80);
+            Settlement st = settlementData();
+            if (st == null || !(level() instanceof ServerLevel sl)) return false;
+            net.minecraft.core.BlockPos to = Army.patrolPoint(sl, st, guardRole(), blockPosition(), patrolDir, random);
+            if (to == null) return false;
+            stuck = 0;
+            return getNavigation().moveTo(to.getX() + 0.5, to.getY(), to.getZ() + 0.5, 0.5);
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return !getNavigation().isDone() && getTarget() == null && ++stuck < 600;
+        }
+
+        @Override
+        public void stop() {
+            // al final del adarve o si no hay camino, la ronda da la vuelta
+            if (stuck >= 600 || getNavigation().isDone() && random.nextInt(6) == 0) patrolDir = -patrolDir;
+        }
     }
 
     private boolean isThreat(LivingEntity e) {
@@ -450,7 +547,9 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
     protected void customServerAiStep() {
         super.customServerAiStep();
         worldgen = false;
-        if (home != null && !hasRestriction()) restrictTo(home, builder ? 10 : fishingSpot != null ? 3 : 24);
+        if (home != null && !hasRestriction() && !(isGuard() && guardRole() != Army.POST)) {
+            restrictTo(home, builder ? 10 : fishingSpot != null ? 3 : isGuard() ? 32 : 24);
+        }
         if (fishingSpot != null && home != null && distanceToSqr(home.getX() + 0.5, home.getY(), home.getZ() + 0.5) < 9) {
             getLookControl().setLookAt(fishingSpot.getX() + 0.5, fishingSpot.getY() + 0.5, fishingSpot.getZ() + 0.5);
             if (tickCount % 200 == (getId() % 200)) {
@@ -568,6 +667,11 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         if (builder) tag.putBoolean("Builder", true);
         tag.putIntArray("BaseValues", baseValues);
         if (fishingSpot != null) tag.putLong("FishingSpot", fishingSpot.asLong());
+        if (isGuard()) {
+            tag.putInt("GuardRole", guardRole);
+            tag.putInt("GuardTier", guardTier);
+            tag.putInt("PatrolDir", patrolDir);
+        }
     }
 
     @Override
@@ -583,6 +687,9 @@ public class Human extends AbstractVillager implements VillagerDataHolder {
         builder = tag.getBoolean("Builder");
         baseValues = tag.getIntArray("BaseValues");
         if (tag.contains("FishingSpot")) fishingSpot = net.minecraft.core.BlockPos.of(tag.getLong("FishingSpot"));
+        guardRole = tag.getInt("GuardRole");
+        guardTier = tag.contains("GuardTier") ? tag.getInt("GuardTier") : -1;
+        patrolDir = tag.contains("PatrolDir") ? tag.getInt("PatrolDir") : 1;
     }
 
     /** Copia el progreso de comercio de un aldeano convertido (nivel y experiencia). */

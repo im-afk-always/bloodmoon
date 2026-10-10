@@ -33,11 +33,14 @@ public final class Port {
      * Busca agua en segundo plano (muestrear el terreno cuesta): se lanza una vez y el resultado se aplica en un ciclo
      * siguiente. Así el servidor no se traba.
      */
-    static void plan(ServerLevel level, Settlement s) {
+    static void plan(ServerLevel level, Settlement s, int radius) {
         var f = PENDING.get(s.key);
         if (f == null) {
             int x = s.x, z = s.z;
-            PENDING.put(s.key, java.util.concurrent.CompletableFuture.supplyAsync(() -> compute(level, x, z), net.minecraft.Util.backgroundExecutor()));
+            // se busca agua hasta el borde del área de influencia (y un poco más): si la ciudad crece hasta un lago, puerto
+            int cells = Math.max(8, Math.min(60, (radius + 16) / CELL));
+            s.portSearched = radius;
+            PENDING.put(s.key, java.util.concurrent.CompletableFuture.supplyAsync(() -> compute(level, x, z, cells), net.minecraft.Util.backgroundExecutor()));
             return;
         }
         if (!f.isDone()) return;
@@ -56,7 +59,7 @@ public final class Port {
     /** Igual que {@link #plan} pero ya (para pruebas). */
     public static void planNow(ServerLevel level, Settlement s) {
         s.portChecked = true;
-        int[] r = compute(level, s.x, s.z);
+        int[] r = compute(level, s.x, s.z, 23);
         if (r == null) return;
         s.portX = r[0];
         s.portZ = r[1];
@@ -71,7 +74,7 @@ public final class Port {
     }
 
     /** {orillaX, orillaZ, dirX, dirZ, alturaAgua, tamaño} o null si no hay agua que valga la pena. */
-    private static int[] compute(ServerLevel level, int sxc, int szc) {
+    private static int[] compute(ServerLevel level, int sxc, int szc, int maxCells) {
         StreetPlanner.Terrain t = VillageLayout.terrain(level);
         Settlement s = new Settlement();
         s.x = sxc;
@@ -80,7 +83,7 @@ public final class Port {
         Set<Long> visited = new HashSet<>();
         int bx = 0, bz = 0, size = 0;
         boolean found = false;
-        for (int r = 3; r <= 23 && !found; r++) {
+        for (int r = 3; r <= maxCells && !found; r++) {
             for (int i = -r; i <= r && !found; i++) {
                 for (int k = 0; k < 4 && !found; k++) {
                     int cx = k == 0 ? i : k == 1 ? i : k == 2 ? -r : r;

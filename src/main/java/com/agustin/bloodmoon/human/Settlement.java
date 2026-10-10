@@ -68,6 +68,8 @@ public final class Settlement {
     public boolean portChecked, portLighthouse;
     public int portX, portZ, portDX, portDZ, portY, portSize, portPiers;
     public boolean[] pierDone = new boolean[0];
+    /** Radio (de influencia) hasta el que ya se buscó agua para el puerto; si la ciudad crece, se vuelve a buscar. */
+    public int portSearched;
     public final List<Work> works = new ArrayList<>();
     /** Lotes descartados (el jugador construyó ahí): no se vuelven a intentar. */
     public final List<VillageLayout.Building> blocked = new ArrayList<>();
@@ -82,6 +84,11 @@ public final class Settlement {
     public final List<VillageLayout.Road> wall = new ArrayList<>();
     public double wallProgress;
     public boolean[] wallDone = new boolean[0];
+    /** Ejército: soldados alistados (parte de la población), nivel de equipo (0 cuero y piedra … 3 hierro y encantado). */
+    public int soldiers;
+    public int armyTier;
+    /** Gasto militar del último día (sueldos y reclutas), para mostrarlo. */
+    public double militarySpend;
 
     public VillageSites.Site site() {
         return new VillageSites.Site(x, y, z, seed, culture);
@@ -160,6 +167,10 @@ public final class Settlement {
         t.put("wall", wl);
         t.putDouble("wallProgress", wallProgress);
         t.putByteArray("wallDone", bytes(wallDone));
+        t.putInt("portSearched", portSearched);
+        t.putInt("soldiers", soldiers);
+        t.putInt("armyTier", armyTier);
+        t.putDouble("military", militarySpend);
         return t;
     }
 
@@ -226,6 +237,10 @@ public final class Settlement {
         for (Tag e : t.getList("wall", Tag.TAG_COMPOUND)) s.wall.add(road((CompoundTag) e));
         s.wallProgress = t.getDouble("wallProgress");
         s.wallDone = bools(t.getByteArray("wallDone"));
+        s.portSearched = t.getInt("portSearched");
+        s.soldiers = t.getInt("soldiers");
+        s.armyTier = t.getInt("armyTier");
+        s.militarySpend = t.getDouble("military");
         return s;
     }
 

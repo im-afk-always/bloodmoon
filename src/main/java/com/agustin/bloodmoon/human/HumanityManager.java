@@ -117,7 +117,8 @@ public final class HumanityManager {
         Settlement s = d.settlements.get(h.settlement());
         if (s == null) return;
         s.pop = Math.max(0, s.pop - 1);
-        s.materialized = Math.max(0, s.materialized - 1);
+        if (h.isGuard()) s.soldiers = Math.max(0, s.soldiers - 1);   // un soldado caído: el asentamiento recluta otro
+        else s.materialized = Math.max(0, s.materialized - 1);
         d.setDirty();
     }
 
@@ -266,8 +267,13 @@ public final class HumanityManager {
         int housing = 0;
         for (VillageLayout.Building b : bs) housing += capacity(b);
         Market.cycle(s, bs);
-        // puerto: se busca agua una vez; los muelles crecen con el nivel mientras el agua lo permita
-        if (!s.portChecked) Port.plan(level, s);
+        // puerto: se busca agua hasta el borde del área de influencia; si no hubo y la ciudad creció, se vuelve a buscar.
+        // Los muelles crecen con el nivel mientras el agua lo permita
+        if (!Port.has(s)) {
+            int infl = influence(level, s);
+            if (s.portChecked && infl > s.portSearched + 24) s.portChecked = false;
+            if (!s.portChecked) Port.plan(level, s, infl);
+        }
         if (Port.has(s) && s.portPiers < Port.wantPiers(s) && s.treasury >= 250) {
             s.treasury -= 250;
             s.portPiers++;
@@ -293,6 +299,9 @@ public final class HumanityManager {
         s.treasury += (s.pop * 2.5 + count(bs, VillageLayout.Kind.STALL) * 8 + count(bs, VillageLayout.Kind.MARKET) * 40
                 - count(bs, VillageLayout.Kind.TOWER) * 6 - count(bs, VillageLayout.Kind.CASTLE) * 20 - (s.wall.isEmpty() ? 0 : 10)) / CYCLES_PER_DAY;
         if (s.treasury < 0) s.treasury = 0;
+        // ejército: reclutas, sueldos y equipo (se paga del tesoro); con un jugador cerca, soldados en pie y de ronda
+        Army.cycle(s);
+        Army.maintain(level, s, bs);
         // nivel
         int oldLevel = s.level;
         int target = s.pop >= CAPITAL_POP ? Settlement.CAPITAL : s.pop >= CITY_POP ? Settlement.CITY : s.pop >= TOWN_POP ? Settlement.TOWN : Settlement.VILLAGE;
@@ -387,7 +396,8 @@ public final class HumanityManager {
                 template = c + (large ? "house_large_" : "house_small_") + rng.nextInt(pals);
             }
             kind = VillageLayout.Kind.HOUSE;
-        } else if (s.level >= Settlement.TOWN && count(bs, VillageLayout.Kind.TOWER) < 2) {
+        } else if (s.level >= Settlement.TOWN && count(bs, VillageLayout.Kind.TOWER) < 2 * s.level) {
+            // torres de guardia: 2 en un pueblo, 4 en una ciudad, 6 en una capital
             template = c + "tower";
             kind = VillageLayout.Kind.TOWER;
             job = HumanJob.GUARD;
@@ -476,14 +486,15 @@ public final class HumanityManager {
 
     /** Sin lotes libres: el asentamiento abre dos calles nuevas desde las más alejadas. */
     static int extendNetwork(ServerLevel level, Settlement s, VillageLayout.Layout lay) {
-        if (s.extraNet.size() > 260) return 0;
+        // una ciudad o una capital siguen creciendo: más calles y más lejos según el nivel
+        if (s.extraNet.size() > 260 + 140 * s.level) return 0;
         Net n = net(s, lay);
         List<StreetPlanner.Seg> all = new ArrayList<>();
         for (int i = 0; i < n.size(); i++) {
             VillageLayout.Road r = n.roads().get(i);
             all.add(new StreetPlanner.Seg(r.x0(), r.z0(), r.x1(), r.z1(), r.half(), n.parent()[i], n.dist()[i], r.y0(), r.y1()));
         }
-        int maxR = Math.min(260, 130 + s.extraNet.size() / 2);
+        int maxR = Math.min(220 + 60 * s.level, 130 + s.extraNet.size() / 2);
         int added = StreetPlanner.extend(all, s.seed, s.x, s.z, VillageLayout.terrain(level), maxR, 2);
         if (added == 0) return 0;
         int[] par = java.util.Arrays.copyOf(s.extraParent, s.extraParent.length + added);
@@ -1137,11 +1148,11 @@ public final class HumanityManager {
         return java.awt.Color.HSBtoRGB(hue, 0.65F, 0.9F) & 0xFFFFFF;
     }
 
-    /** Soldados del asentamiento: los guardias que viven en sus torres, ayuntamiento y castillo. */
+    /** Soldados del asentamiento: su ejército (o, si todavía no reclutó, los guardias de sus torres y su ayuntamiento). */
     public static int soldiers(ServerLevel level, Settlement s) {
         int n = 0;
         for (VillageLayout.Building b : built(level, s)) if (b.job() == HumanJob.GUARD) n += b.residents();
-        return Math.min(n, s.pop);
+        return Math.min(Math.max(n, s.soldiers), s.pop);
     }
 
     public static void sendMap(ServerPlayer player) {
@@ -1295,6 +1306,9 @@ public final class HumanityManager {
                 + " · pendientes de colocar " + s.works.stream().filter(w -> w.state == 1).count()
                 + (Port.has(s) ? "\n puerto: " + s.portPiers + "/" + Port.maxPiers(s) + " muelles (agua " + s.portSize + " celdas)"
                         + (s.portLighthouse ? " · faro" : "") : "")
+                + "\n ejército: " + s.soldiers + "/" + Army.target(s) + " soldados · equipo "
+                + new String[]{"cuero y piedra", "cuero y hierro", "cota de malla", "hierro y encantado"}[Math.max(0, Math.min(3, s.armyTier))]
+                + " · gasto militar " + coins(s.militarySpend) + "/día"
                 + "\n mercado:" + Market.report(s) + "\n tratos con jugadores " + s.playerTrades
                 + (s.level >= Settlement.CITY ? "\n piedra: " + renewed + " edificios · muralla " + (s.wall.isEmpty() ? "sin empezar" : (int) (s.wallProgress * 100) + "%") : "");
     }

@@ -84,7 +84,8 @@ public final class Market {
     static double[] consumption(Settlement s, List<VillageLayout.Building> bs) {
         double[] c = new double[N];
         int pop = s.pop;
-        int g = guards(bs);
+        // soldados: gastan más armas y armaduras cuanto mejor equipados están
+        double g = Math.max(guards(bs), s.soldiers) * (1 + 0.5 * s.armyTier);
         c[Good.WOOD.ordinal()] = pop * 0.08;
         c[Good.STONE.ordinal()] = pop * 0.05;
         c[Good.IRON.ordinal()] = jobs(bs, HumanJob.TOOLSMITH) + jobs(bs, HumanJob.WEAPONSMITH) * 0.6 + jobs(bs, HumanJob.ARMORER) + pop * 0.01;
