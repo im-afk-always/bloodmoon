@@ -371,11 +371,11 @@ public final class HumanityManager {
         }
         int pals = s.culture == Culture.DESERT ? 3 : 4;
         // granjas si falta comida (con el granero lleno no se frena todo lo demás por una granja que no encuentra lote)
+        // la ciudad se renueva antes que nada mientras no haya hambre
+        if (s.level >= Settlement.CITY && s.food > s.pop * 3.0 && renewal(level, s, lay, bs, c, rng)) return;
         if (prod < cons * 1.15 && s.food < s.pop * 10.0) {
             template = c + "farm_" + rng.nextInt(2);
             kind = VillageLayout.Kind.FARM;
-        } else if (s.level >= Settlement.CITY && renewal(level, s, lay, bs, c, rng)) {
-            return;
         } else if (s.pop >= housing - 1) {
             if (s.level >= Settlement.CITY) {
                 template = c + "city_house_" + rng.nextInt(s.culture == Culture.DESERT ? 4 : 5);
@@ -618,6 +618,12 @@ public final class HumanityManager {
             int res = b.kind() == VillageLayout.Kind.TOWER ? 3 : b.kind() == VillageLayout.Kind.WORK ? 1 : 0;
             VillageLayout.Building nb = VillageLayout.placeAt(level, nt, b.kind(), b.job(), res, b.coreX(), b.coreZ(), b.rot(), b.floorY(),
                     occupied(level, s, lay, b), roads, 1);
+            // una casa prueba las otras fachadas (cada una con su planta) antes de rendirse
+            for (int k = 1; nb == null && b.kind() == VillageLayout.Kind.HOUSE && k < pals; k++) {
+                nt = c + "city_house_" + Math.floorMod(nt.charAt(nt.length() - 1) - '0' + 1, pals);
+                nb = VillageLayout.placeAt(level, nt, b.kind(), b.job(), res, b.coreX(), b.coreZ(), b.rot(), b.floorY(),
+                        occupied(level, s, lay, b), roads, 1);
+            }
             if (nb == null) {
                 s.skipRenew.add(VillageBuilder.key(b.coreX(), b.coreZ()));   // no entra: queda como está
                 RENEW[6]++;
