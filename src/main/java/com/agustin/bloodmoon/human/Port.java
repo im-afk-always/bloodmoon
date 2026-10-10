@@ -31,42 +31,28 @@ public final class Port {
     static void plan(ServerLevel level, Settlement s) {
         s.portChecked = true;
         StreetPlanner.Terrain t = VillageLayout.terrain(level);
-        int best = -1, bx = 0, bz = 0;
-        for (int r = 4; r <= 35 && best < 0; r++) {          // anillos de celdas: 16 a 140 bloques
-            for (int i = -r; i <= r; i++) {
-                for (int k = 0; k < 4; k++) {
+        // de la plaza hacia afuera: el primer cuerpo de agua que valga la pena (los charcos se saltan)
+        Set<Long> visited = new HashSet<>();
+        int bx = 0, bz = 0, size = 0;
+        boolean found = false;
+        for (int r = 4; r <= 35 && !found; r++) {
+            for (int i = -r; i <= r && !found; i++) {
+                for (int k = 0; k < 4 && !found; k++) {
                     int cx = k == 0 ? i : k == 1 ? i : k == 2 ? -r : r;
                     int cz = k == 0 ? -r : k == 1 ? r : i;
                     int x = s.x + cx * CELL, z = s.z + cz * CELL;
-                    if (t.wet(x, z)) {
-                        int d = cx * cx + cz * cz;
-                        if (best < 0 || d < best) {
-                            best = d;
-                            bx = x;
-                            bz = z;
-                        }
+                    if (visited.contains(key(x, z)) || !t.wet(x, z)) continue;
+                    int n = flood(t, x, z, visited);
+                    if (n >= 10) {
+                        found = true;
+                        bx = x;
+                        bz = z;
+                        size = n;
                     }
                 }
             }
         }
-        if (best < 0) return;
-        // tamaño del cuerpo de agua (relleno por celdas, con tope)
-        ArrayDeque<long[]> q = new ArrayDeque<>();
-        Set<Long> seen = new HashSet<>();
-        q.add(new long[]{bx, bz});
-        seen.add(key(bx, bz));
-        int size = 0;
-        while (!q.isEmpty() && size < 1500) {
-            long[] c = q.poll();
-            size++;
-            for (int[] d : new int[][]{{CELL, 0}, {-CELL, 0}, {0, CELL}, {0, -CELL}}) {
-                int x = (int) c[0] + d[0], z = (int) c[1] + d[1];
-                if (Math.abs(x - bx) > 320 || Math.abs(z - bz) > 320) continue;
-                if (!seen.add(key(x, z)) || !t.wet(x, z)) continue;
-                q.add(new long[]{x, z});
-            }
-        }
-        if (size < 10) return;   // un charco no da para puerto
+        if (!found) return;
         // orilla: caminando desde la plaza hacia el agua, el último punto seco
         double dx = bx - s.x, dz = bz - s.z, len = Math.hypot(dx, dz);
         int sx = s.x, sz = s.z, wx = bx, wz = bz;
@@ -362,6 +348,29 @@ public final class Port {
         int n = 0;
         for (int i = 0; i < s.portPiers && i < s.pierDone.length; i++) if (s.pierDone[i] && pier(level, s, i) != null) n++;
         return n;
+    }
+
+    /** Tamaño (en celdas, con tope) del cuerpo de agua que contiene (x, z); marca sus celdas como visitadas. */
+    private static int flood(StreetPlanner.Terrain t, int x0, int z0, Set<Long> visited) {
+        ArrayDeque<long[]> q = new ArrayDeque<>();
+        q.add(new long[]{x0, z0});
+        visited.add(key(x0, z0));
+        int size = 0;
+        while (!q.isEmpty() && size < 1500) {
+            long[] c = q.poll();
+            size++;
+            for (int[] d : new int[][]{{CELL, 0}, {-CELL, 0}, {0, CELL}, {0, -CELL}}) {
+                int x = (int) c[0] + d[0], z = (int) c[1] + d[1];
+                if (Math.abs(x - x0) > 320 || Math.abs(z - z0) > 320) continue;
+                if (!visited.add(key(x, z))) continue;
+                if (!t.wet(x, z)) {
+                    visited.remove(key(x, z));   // lo seco puede ser orilla de otro cuerpo de agua
+                    continue;
+                }
+                q.add(new long[]{x, z});
+            }
+        }
+        return size;
     }
 
     private static long key(int x, int z) {
