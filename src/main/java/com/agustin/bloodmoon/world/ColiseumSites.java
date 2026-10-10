@@ -27,10 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * su parte (ColiseumFeature) y el Compás busca con la misma función.
  */
 public final class ColiseumSites {
-    public static final int REGION = 96, SPREAD = 56;   // en chunks: separación mínima de 40 chunks
+    /** Un coliseo por región de 625×625 chunks (10 000 × 10 000 bloques); entre vecinos quedan al menos 200 chunks (3200 bloques). */
+    public static final int REGION = 625, SPREAD = 425;
     private static final int SALT = 918273645;
-    /** Fracción de regiones con coliseo. */
-    private static final float KEEP = 0.4F;
+    /** Intentos por región para encontrar tierra firme (así casi toda región tiene el suyo). */
+    private static final int TRIES = 6;
     private static final Map<Long, Optional<Site>> CACHE = new ConcurrentHashMap<>();
 
     private ColiseumSites() {}
@@ -60,29 +61,32 @@ public final class ColiseumSites {
                                           int rx, int rz) {
         WorldgenRandom rnd = new WorldgenRandom(new LegacyRandomSource(0L));
         rnd.setLargeFeatureWithSalt(worldSeed, rx, rz, SALT);
-        int cx = rx * REGION + rnd.nextInt(SPREAD);
-        int cz = rz * REGION + rnd.nextInt(SPREAD);
-        // solo 2 de cada 5 regiones tienen coliseo (se sortea después de la posición: los que quedan no se mueven)
-        if (rnd.nextFloat() >= KEEP) return Optional.empty();
-        int x = cx * 16 + 8, z = cz * 16 + 8;
-        Holder<Biome> biome = gen.getBiomeSource().getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(64), QuartPos.fromBlock(z), rs.sampler());
-        if (biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_DEEP_OCEAN) || biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_BEACH)) {
-            return Optional.empty();
+        for (int attempt = 0; attempt < TRIES; attempt++) {
+            int cx = rx * REGION + rnd.nextInt(SPREAD);
+            int cz = rz * REGION + rnd.nextInt(SPREAD);
+            int x = cx * 16 + 8, z = cz * 16 + 8;
+            Holder<Biome> biome = gen.getBiomeSource().getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(64), QuartPos.fromBlock(z), rs.sampler());
+            if (biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_DEEP_OCEAN) || biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_BEACH)) {
+                continue;
+            }
+            int[] hs = new int[9];
+            int wet = 0;
+            for (int i = 0; i < 9; i++) {
+                double a = i * Math.PI * 2 / 8;
+                int r = i == 8 ? 0 : 130;
+                int sx = x + (int) (Math.cos(a) * r), sz = z + (int) (Math.sin(a) * r);
+                hs[i] = gen.getBaseHeight(sx, sz, Heightmap.Types.OCEAN_FLOOR_WG, height, rs);
+                if (hs[i] < seaLevel) wet++;
+            }
+            if (wet > 3) continue;
+            Arrays.sort(hs);
+            int y = Mth.clamp(hs[4], seaLevel + 2, 150);
+            return Optional.of(new Site(x, y, z, worldSeed ^ ((long) rx << 20) ^ rz));
         }
-        int[] hs = new int[9];
-        int wet = 0;
-        for (int i = 0; i < 9; i++) {
-            double a = i * Math.PI * 2 / 8;
-            int r = i == 8 ? 0 : 130;
-            int sx = x + (int) (Math.cos(a) * r), sz = z + (int) (Math.sin(a) * r);
-            hs[i] = gen.getBaseHeight(sx, sz, Heightmap.Types.OCEAN_FLOOR_WG, height, rs);
-            if (hs[i] < seaLevel) wet++;
-        }
-        if (wet > 3) return Optional.empty();
-        Arrays.sort(hs);
-        int y = Mth.clamp(hs[4], seaLevel + 2, 150);
-        return Optional.of(new Site(x, y, z, worldSeed ^ ((long) rx << 20) ^ rz));
+        return Optional.empty();
     }
+
+
 
     public static Optional<Site> site(ServerLevel level, int rx, int rz) {
         return site(level.getSeed(), level.getChunkSource().getGenerator(), level.getChunkSource().randomState(), level,
