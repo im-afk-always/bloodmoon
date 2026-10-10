@@ -29,7 +29,7 @@ public final class Army {
 
     private Army() {}
 
-    static int target(Settlement s) {
+    public static int target(Settlement s) {
         int t = TARGET[Math.max(0, Math.min(3, s.level))] + (s.wall.isEmpty() ? 0 : 4);
         return Math.min(t, Math.max(2, s.pop / 6));
     }

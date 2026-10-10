@@ -148,6 +148,39 @@ public final class SmokeTest {
         BloodMoonMod.LOGGER.info("SMOKETEST humanity port {} water={} piers={}/{} built={} deck={}/6 lighthouse={} at {} {} dir {} {}",
                 s.name, s.portSize, s.portPiers, com.agustin.bloodmoon.human.Port.maxPiers(s), piers, deck, s.portLighthouse,
                 s.portX, s.portZ, s.portDX, s.portDZ);
+        // muralla: el borde de arriba no salta más de un bloque entre columnas vecinas y hay portones
+        int maxStep = 0, gates = 0, cols = 0;
+        {
+            Integer prevTop = null;
+            boolean prevGate = false;
+            for (int i = 0; i < s.wall.size() && i < s.wallDone.length; i++) {
+                if (!s.wallDone[i]) { prevTop = null; continue; }
+                var w = s.wall.get(i);
+                double len = w.length();
+                for (double t = 0; t < len; t += 1) {
+                    int x = (int) Math.round(w.x0() + (w.x1() - w.x0()) * t / len), z = (int) Math.round(w.z0() + (w.z1() - w.z0()) * t / len);
+                    int top = Integer.MIN_VALUE;
+                    for (int y = s.y + 40; y > s.y - 40; y--) {
+                        var st = level.getBlockState(new BlockPos(x, y, z));
+                        if (st.is(net.minecraft.world.level.block.Blocks.STONE_BRICKS) || st.is(net.minecraft.world.level.block.Blocks.POLISHED_ANDESITE)
+                                || st.is(net.minecraft.world.level.block.Blocks.CUT_SANDSTONE) || st.is(net.minecraft.world.level.block.Blocks.SMOOTH_SANDSTONE)
+                                || st.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS) || st.is(net.minecraft.world.level.block.Blocks.SANDSTONE)) {
+                            top = y;
+                            break;
+                        }
+                    }
+                    if (top == Integer.MIN_VALUE) { prevTop = null; continue; }
+                    cols++;
+                    boolean gate = level.getBlockState(new BlockPos(x, top - 4, z)).isAir() && level.getBlockState(new BlockPos(x, top - 5, z)).isAir();
+                    if (gate && !prevGate) gates++;
+                    prevGate = gate;
+                    if (prevTop != null && !gate) maxStep = Math.max(maxStep, Math.abs(top - prevTop));
+                    prevTop = gate ? null : top;
+                }
+            }
+        }
+        BloodMoonMod.LOGGER.info("SMOKETEST humanity wall cols={} maxStep={} gates={} army soldiers={}/{} tier={} military/day={}",
+                cols, maxStep, gates, s.soldiers, com.agustin.bloodmoon.human.Army.target(s), s.armyTier, (int) s.militarySpend);
         int stoneBuildings = 0;
         for (var b : com.agustin.bloodmoon.human.HumanityManager.built(level, s)) if (b.template().contains("/city_") || b.template().endsWith("/hall") || b.template().endsWith("/market")) stoneBuildings++;
         BloodMoonMod.LOGGER.info("SMOKETEST humanity city {} level={} day={} pop={} stone={} streets={} wall={}/{} works={} placed={} in {} ms",
@@ -166,7 +199,9 @@ public final class SmokeTest {
                 s.name, pop0, s.pop, h0, com.agustin.bloodmoon.human.HumanityManager.housing(level, s), s.level, (int) minFood,
                 (int) s.treasury, works, placed, match, total, String.format(java.util.Locale.ROOT, "%.2f", msPerCycle), placeMs,
                 colony == null ? "none" : colony.name + "@" + colony.x + "," + colony.z);
-        return s.pop > pop0 && s.pop < 400 && works > 3 && placed > 0 && total > 0 && match >= total * 9 / 10 && msPerCycle < 5;
+        boolean wallOk = s.wall.isEmpty() || cols == 0 || maxStep <= 2;
+        if (!wallOk) BloodMoonMod.LOGGER.error("SMOKETEST FAIL wall top jumps {} blocks", maxStep);
+        return wallOk && s.pop > pop0 && s.pop < 400 && works > 3 && placed > 0 && total > 0 && match >= total * 9 / 10 && msPerCycle < 5;
     }
 
     /** Aldea humana: se ubica, se generan sus chunks y los edificios quedan en pie (bloques de la plantilla en su lugar). */

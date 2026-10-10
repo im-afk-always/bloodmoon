@@ -494,7 +494,7 @@ public final class HumanityManager {
             VillageLayout.Road r = n.roads().get(i);
             all.add(new StreetPlanner.Seg(r.x0(), r.z0(), r.x1(), r.z1(), r.half(), n.parent()[i], n.dist()[i], r.y0(), r.y1()));
         }
-        int maxR = Math.min(220 + 60 * s.level, 130 + s.extraNet.size() / 2);
+        int maxR = Math.min(220 + 60 * s.level, 170 + s.extraNet.size() / 2);
         int added = StreetPlanner.extend(all, s.seed, s.x, s.z, VillageLayout.terrain(level), maxR, 2);
         if (added == 0) return 0;
         int[] par = java.util.Arrays.copyOf(s.extraParent, s.extraParent.length + added);

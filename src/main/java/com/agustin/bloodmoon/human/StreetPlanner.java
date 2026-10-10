@@ -136,23 +136,29 @@ public final class StreetPlanner {
         if (all.isEmpty()) return 0;
         Random rng = new Random(seed ^ (all.size() * 0x9E3779B97F4A7C15L));
         int before = all.size();
-        for (int c = 0; c < count; c++) {
-            // muestra al azar con sesgo hacia lo lejano
+        int opened = 0;
+        // varios intentos: una calle que arranca en el borde (o contra el agua) no avanza; se prueba desde otro tramo
+        for (int attempt = 0; attempt < count * 8 && opened < count; attempt++) {
+            // muestra al azar con sesgo hacia lo lejano, sin pasarse del radio permitido
             int best = -1;
             double bestScore = -1;
             for (int k = 0; k < 12; k++) {
                 int i = rng.nextInt(all.size());
                 Seg s = all.get(i);
+                if (Math.hypot(s.x1() - cx, s.z1() - cz) > maxR - STEP * 2) continue;
                 double score = s.dist() + s.length() + rng.nextDouble() * 30;
                 if (score > bestScore) {
                     bestScore = score;
                     best = i;
                 }
             }
+            if (best < 0) continue;
             Seg s = all.get(best);
             double a = Math.atan2(s.z1() - s.z0(), s.x1() - s.x0());
             double ba = rng.nextDouble() < 0.4 ? a : a + (rng.nextBoolean() ? 1 : -1) * (Math.PI / 2 + (rng.nextDouble() - 0.5) * 0.6);
+            int n0 = all.size();
             walk(all, rng, t, cx, cz, s.x1(), s.z1(), ba, 28 + rng.nextInt(28), BRANCH, best, s.dist() + s.length(), 0.4, maxR);
+            if (all.size() > n0) opened++;
         }
         return all.size() - before;
     }
