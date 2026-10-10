@@ -857,6 +857,7 @@ public final class HumanityManager {
         double[] r = new double[n];
         java.util.Arrays.fill(r, 36);
         for (VillageLayout.Building b : bs) {
+            if (Math.hypot(b.x() - s.x, b.z() - s.z) > 110) continue;   // los arrabales quedan afuera, como en toda ciudad
             for (int k = 0; k < 4; k++) {
                 int x = (k & 1) == 0 ? b.minX() : b.maxX(), z = (k & 2) == 0 ? b.minZ() : b.maxZ();
                 double a = Math.atan2(z - s.z, x - s.x);
@@ -869,7 +870,8 @@ public final class HumanityManager {
         for (int i = 0; i < n; i++) sm[i] = Math.max(r[i], (r[Math.floorMod(i - 1, n)] + r[i] * 2 + r[(i + 1) % n]) / 4);
         double max = 0;
         for (double v : sm) max = Math.max(max, v);
-        if (max > 160) return;   // demasiado desparramada para amurallar
+        for (int i = 0; i < n; i++) sm[i] = Math.min(sm[i], 135);
+        if (max > 200) return;
         s.wall.clear();
         for (int i = 0; i < n; i++) {
             double a0 = i * Math.PI * 2 / n, a1 = (i + 1) * Math.PI * 2 / n;

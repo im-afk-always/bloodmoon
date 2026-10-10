@@ -60,13 +60,13 @@ public final class Market {
         int pop = s.pop;
         boolean desert = s.culture == Culture.DESERT;
         int smiths = jobs(bs, HumanJob.TOOLSMITH) + jobs(bs, HumanJob.ARMORER) + jobs(bs, HumanJob.WEAPONSMITH);
-        p[Good.WOOD.ordinal()] = 1 + pop * (desert ? 0.07 : 0.15);
-        p[Good.STONE.ordinal()] = 1 + pop * 0.05 + jobs(bs, HumanJob.MASON) * 4;
+        p[Good.WOOD.ordinal()] = 2 + pop * (desert ? 0.15 : 0.3);
+        p[Good.STONE.ordinal()] = 2 + pop * 0.15 + jobs(bs, HumanJob.MASON) * 5;
         p[Good.IRON.ordinal()] = 0.5 + pop * 0.03 + smiths * 0.5;
         p[Good.TOOLS.ordinal()] = jobs(bs, HumanJob.TOOLSMITH) * 1.5;
         p[Good.WEAPONS.ordinal()] = jobs(bs, HumanJob.WEAPONSMITH) * 1.2 + jobs(bs, HumanJob.FLETCHER) * 0.8;
         p[Good.ARMOR.ordinal()] = jobs(bs, HumanJob.ARMORER) * 0.8;
-        p[Good.CLOTH.ordinal()] = 0.5 + jobs(bs, HumanJob.SHEPHERD) * 4;
+        p[Good.CLOTH.ordinal()] = 0.5 + pop * 0.04 + jobs(bs, HumanJob.SHEPHERD) * 4;
         p[Good.LEATHER.ordinal()] = jobs(bs, HumanJob.BUTCHER) * 1.5 + jobs(bs, HumanJob.LEATHERWORKER) * 2.5;
         p[Good.BOOKS.ordinal()] = jobs(bs, HumanJob.LIBRARIAN) + jobs(bs, HumanJob.CARTOGRAPHER) * 0.5;
         int markets = 0, stalls = 0, castles = 0;
@@ -85,7 +85,7 @@ public final class Market {
         double[] c = new double[N];
         int pop = s.pop;
         int g = guards(bs);
-        c[Good.WOOD.ordinal()] = pop * 0.12;
+        c[Good.WOOD.ordinal()] = pop * 0.08;
         c[Good.STONE.ordinal()] = pop * 0.05;
         c[Good.IRON.ordinal()] = jobs(bs, HumanJob.TOOLSMITH) + jobs(bs, HumanJob.WEAPONSMITH) * 0.6 + jobs(bs, HumanJob.ARMORER) + pop * 0.01;
         c[Good.TOOLS.ordinal()] = pop * 0.04;
